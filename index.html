@@ -14,8 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -348,7 +347,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
       <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-primary" onclick="saveBill()">💾 <span class="L" data-k="Save & PDF">Save &amp; PDF</span></button>
+      <button class="btn btn-primary" onclick="saveBill()" id="pdf-btn-text">💾 <span class="L" data-k="Save & PDF">Save &amp; Image</span></button>
     </div>
   </div>
 </div>
@@ -404,7 +403,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 // ============================================================
 let lang = 'en';
 const STR = {
-  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & PDF':'Save & PDF','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
+  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & PDF':'Save & Image','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
   np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Save & PDF':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
 };
 function applyLang() {
@@ -635,7 +634,7 @@ async function pickPhoneContact(){
 }
 
 // ============================================================
-// SAVE BILL & GENERATE PDF (NEW: jsPDF + AutoTable)
+// SAVE BILL & GENERATE IMAGE (NEW: JPEG Export)
 // ============================================================
 function shareWA(){
   const phone=document.getElementById('customer-phone').value||'';
@@ -685,143 +684,119 @@ function saveBill(){
     db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
   }
 
-  generateTruePDF(bill);
+  generateImageBill(bill);
 }
 
-function generateTruePDF(bill) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+function generateImageBill(bill) {
+    let rowsHtml = "";
+    bill.items.forEach(it => {
+        rowsHtml += `<tr>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">${it.desc}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:center;">${it.code || '—'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.qty}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.rate}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right; font-weight:bold;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+        </tr>`;
+    });
 
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
-    const primaryColor = [79, 70, 229];
 
-    // --- 1. HEADER ---
-    doc.setFontSize(24);
-    doc.setTextColor(26, 31, 54);
-    doc.text(bizName, 14, 22);
+    const htmlString = `
+    <div id="temp-invoice-wrap" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: Arial, sans-serif; box-sizing: border-box; position: absolute; top: -9999px; left: -9999px; z-index: -1;">
+        <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
+            <tr>
+                <td style="vertical-align: top; padding-bottom: 20px;">
+                    <h1 style="font-size: 28px; color: #1a1f36; margin: 0;">${bizName}</h1>
+                    <p style="font-size: 14px; color: #4a5280; margin-top: 5px;">${bizSub}</p>
+                </td>
+                <td style="vertical-align: top; text-align: right; padding-bottom: 20px;">
+                    <h2 style="font-size: 24px; color: #a0aec0; margin: 0; letter-spacing: 2px;">INVOICE</h2>
+                    <p style="font-size: 16px; font-weight: bold; margin-top: 5px;">#${bill.invoiceNum}</p>
+                    <p style="font-size: 14px; margin-top: 2px;">${bill.date}</p>
+                    <p style="font-size: 12px; margin-top: 2px;">${bill.dateBS || ""}</p>
+                </td>
+            </tr>
+        </table>
 
-    doc.setFontSize(10);
-    doc.setTextColor(74, 82, 128);
-    doc.text(bizSub, 14, 28);
+        <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #4f46e5; margin-bottom: 25px;">
+            <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0 0 5px 0;">BILL TO:</p>
+            <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
+            <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
+        </div>
 
-    doc.setFontSize(20);
-    doc.setTextColor(160, 174, 192);
-    doc.text("INVOICE", 196, 22, { align: 'right' });
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr>
+                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
+                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
+                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
+                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
+                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
 
-    doc.setFontSize(12);
-    doc.setTextColor(26, 31, 54);
-    doc.text(`#${bill.invoiceNum}`, 196, 28, { align: 'right' });
+        <table style="width: 100%; margin-top: 30px; border-collapse: collapse;">
+            <tr>
+                <td style="width: 45%;"></td>
+                <td style="width: 55%; padding: 0;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Items Subtotal:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background: #e0e7ff; color: #4f46e5; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr style="color: #059669;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Nagad Paid (-):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <div style="margin-top:70px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0;">
+            <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
+            <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Authorized Signature & Stamp</div>
+        </div>
+    </div>
+    `;
 
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(bill.date, 196, 34, { align: 'right' });
-    if (bill.dateBS) {
-        doc.text(bill.dateBS, 196, 39, { align: 'right' });
+    const container = document.createElement('div');
+    container.innerHTML = htmlString;
+    document.body.appendChild(container);
+
+    const targetElement = document.getElementById('temp-invoice-wrap');
+    const btn = document.getElementById('pdf-btn-text');
+    
+    let oldText = "";
+    if(btn) {
+        oldText = btn.innerHTML;
+        btn.innerHTML = '⏳ Generating Image...';
     }
 
-    // --- 2. BILL TO BOX ---
-    doc.setFillColor(247, 249, 255);
-    doc.rect(14, 45, 182, 25, 'F');
-    doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(1);
-    doc.line(14, 45, 14, 70);
+    html2canvas(targetElement, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff'
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        const link = document.createElement('a');
+        link.download = `Invoice-${bill.invoiceNum}.jpg`;
+        link.href = imgData;
+        link.click();
 
-    doc.setFontSize(9);
-    doc.setTextColor(136, 146, 176);
-    doc.text("BILL TO:", 20, 52);
-
-    doc.setFontSize(12);
-    doc.setTextColor(26, 31, 54);
-    doc.setFont(undefined, 'bold');
-    doc.text(bill.customer, 20, 58);
-
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(74, 82, 128);
-    let cusInfo = bill.phone || "";
-    if(bill.address) cusInfo += (cusInfo ? " | " : "") + bill.address;
-    doc.text(cusInfo, 20, 64);
-
-    // --- 3. ITEMS TABLE ---
-    const tableBody = bill.items.map(it => [
-        it.desc,
-        it.code || '-',
-        it.qty,
-        it.rate,
-        parseInt(it.amount).toLocaleString('en-IN')
-    ]);
-
-    doc.autoTable({
-        startY: 75,
-        head: [['Description', 'Code', 'Qty', 'Rate', 'Total (NRS)']],
-        body: tableBody,
-        theme: 'grid',
-        headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-        columnStyles: {
-            0: { halign: 'left' },
-            1: { halign: 'center' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
-            4: { halign: 'right', fontStyle: 'bold' }
-        },
-        styles: { fontSize: 10, cellPadding: 5 }
+        if(btn) btn.innerHTML = oldText;
+        document.body.removeChild(container);
+        clearForm();
+    }).catch(err => {
+        console.error("Image Error:", err);
+        if(btn) btn.innerHTML = oldText;
+        document.body.removeChild(container);
+        alert("Error generating image. Please try again.");
     });
-
-    const finalY = doc.lastAutoTable.finalY + 10;
-
-    // --- 4. TOTALS BOX ---
-    const totals = [
-        ["Items Subtotal:", `NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}`],
-        ["Transport (+):", `NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}`],
-        ["Today's Bill:", `NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}`],
-        ["Purano Baki (+):", `NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}`],
-        ["Jamma Total:", `NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}`],
-        ["Nagad Paid (-):", `NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}`],
-        ["Remaining Baki:", `NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}`]
-    ];
-
-    doc.autoTable({
-        startY: finalY,
-        body: totals,
-        theme: 'plain',
-        margin: { left: 100 },
-        columnStyles: {
-            0: { halign: 'left', fontStyle: 'bold', textColor: [74, 82, 128] },
-            1: { halign: 'right', fontStyle: 'bold', textColor: [26, 31, 54] }
-        },
-        willDrawCell: function(data) {
-            if(data.row.index === 2) { 
-                doc.setFillColor(248, 250, 252);
-                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-            }
-            if(data.row.index === 4) { 
-                doc.setFillColor(224, 231, 255);
-                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                doc.setTextColor(...primaryColor);
-            }
-            if(data.row.index === 6) { 
-                doc.setFillColor(254, 226, 226);
-                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                doc.setTextColor(220, 38, 38);
-            }
-        }
-    });
-
-    // --- 5. SIGNATURES ---
-    const sigY = doc.lastAutoTable.finalY + 30;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(20, sigY, 70, sigY);
-    doc.line(140, sigY, 190, sigY);
-    
-    doc.setFontSize(9);
-    doc.setTextColor(136, 146, 176);
-    doc.setFont(undefined, 'normal');
-    doc.text("Customer Signature", 45, sigY + 5, { align: 'center' });
-    doc.text("Authorized Signature & Stamp", 165, sigY + 5, { align: 'center' });
-
-    doc.save(`Invoice-${bill.invoiceNum}.pdf`);
-    clearForm();
 }
 
 // ============================================================
