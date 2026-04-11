@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#4f46e5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rabi Kapada Pasal - Cloud Billing</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0f4ff;--surface:#fff;--surface2:#f7f9ff;--border:#e2e8f8;
+  --text:#1a1f36;--text2:#4a5280;--text3:#8892b0;
+  --accent:#4f46e5;--green:#059669;--red:#dc2626;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#c026d3 100%);
+  --shadow:0 4px 24px rgba(79,70,229,.10);--hover:#f0f0ff;
+}
+[data-theme="dark"] {
+  --bg:#0f0f1a;--surface:#1a1a2e;--surface2:#16213e;--border:#2a2a4a;
+  --text:#e2e8f0;--text2:#a0aec0;--text3:#718096;
+  --accent:#818cf8;--green:#34d399;--red:#f87171;
+  --grad:linear-gradient(135deg,#1e1b4b 0%,#2d1b69 50%,#4a044e 100%);
+  --shadow:0 4px 24px rgba(0,0,0,.4);--hover:#1e2040;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;}
+
+.top-nav{background:var(--grad);padding:0 1.2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(79,70,229,.3);}
+.nav-brand{display:flex;align-items:center;gap:10px;color:#fff;}
+.nav-logo{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(255,255,255,.3);}
+.nav-title{font-size:1rem;font-weight:800;}
+.nav-sub{font-size:.68rem;opacity:.8;}
+.nav-actions{display:flex;align-items:center;gap:7px;}
+.sync-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
+.sync-badge.synced{background:rgba(52,211,153,.25);border-color:rgba(52,211,153,.5);}
+.btn-icon{width:33px;height:33px;border-radius:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .2s;}
+.btn-icon:hover{background:rgba(255,255,255,.28);}
+.lang-btn{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;font-family:inherit;}
+.lang-btn:hover{background:rgba(255,255,255,.3);}
+
+.tab-bar{background:var(--surface);border-bottom:2px solid var(--border);display:flex;padding:0 1rem;overflow-x:auto;scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{padding:12px 16px;font-size:.82rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;}
+.tab:hover{color:var(--accent);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.main{padding:1.2rem;max-width:960px;margin:0 auto;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadeIn .22s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+.card-header{padding:13px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:6px;}
+.card-body{padding:16px 18px;}
+
+.inv-head{background:var(--grad);border-radius:14px;padding:20px;color:#fff;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;position:relative;overflow:hidden;}
+.inv-head::before{content:'';position:absolute;top:-40px;right:-40px;width:170px;height:170px;background:rgba(255,255,255,.07);border-radius:50%;}
+.inv-head::after{content:'';position:absolute;bottom:-50px;left:40%;width:200px;height:200px;background:rgba(255,255,255,.05);border-radius:50%;}
+.biz-name{font-size:1.5rem;font-weight:800;outline:none;color:#fff;background:transparent;border-bottom:2px dashed rgba(255,255,255,.3);min-width:160px;position:relative;z-index:1;}
+.biz-name:empty:before{content:attr(placeholder);opacity:.5;}
+.biz-name:focus{border-bottom-color:#fff;}
+.biz-sub{font-size:.82rem;opacity:.8;outline:none;background:transparent;border-bottom:1px dashed rgba(255,255,255,.2);min-width:130px;display:block;margin-top:4px;color:#fff;position:relative;z-index:1;}
+.biz-sub:empty:before{content:attr(placeholder);opacity:.5;}
+.inv-meta{text-align:right;position:relative;z-index:1;}
+.inv-label{font-size:1.5rem;font-weight:800;opacity:.2;letter-spacing:4px;text-transform:uppercase;}
+.inv-num{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+.date-dual{display:flex;flex-direction:column;gap:5px;margin-top:8px;align-items:flex-end;}
+
+.date-ad{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Space Mono',monospace;background:rgba(255,255,255,.95);padding:4px 8px;border-radius:7px;display:inline-block; border:none; outline:none; cursor:pointer; width:135px; text-align:right;}
+.date-ad::-webkit-calendar-picker-indicator { cursor: pointer; }
+.date-bs{font-size:.85rem;font-weight:700;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.85);padding:4px 10px;border-radius:7px;display:inline-block;}
+
+.inp{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:.875rem;transition:border .2s,box-shadow .2s;outline:none;}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,70,229,.1);}
+.inp::placeholder{color:var(--text3);}
+.inp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.inp-grid .full{grid-column:1/-1;}
+
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:50;max-height:160px;overflow-y:auto;display:none;}
+.sr-item{padding:9px 12px;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;transition:background .15s;}
+.sr-item:last-child{border-bottom:none;}
+.sr-item:hover{background:var(--hover);}
+
+.btn{padding:8px 15px;border-radius:9px;border:none;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px;}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(79,70,229,.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,70,229,.4);}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-green{background:#d1fae5;color:#065f46;border:1.5px solid #a7f3d0;}
+.btn-red{background:#fee2e2;color:#991b1b;border:1.5px solid #fecaca;}
+.btn-wa{background:#25d366;color:#fff;box-shadow:0 4px 14px rgba(37,211,102,.25);}
+.btn-wa:hover{background:#1da851;transform:translateY(-1px);}
+
+.items-table{width:100%;border-collapse:collapse;}
+.items-table thead tr{background:var(--grad);color:#fff;}
+.items-table th{padding:10px 12px;font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.items-table th:first-child{border-radius:0;}
+.items-table th:last-child{text-align:right;}
+.items-table th:nth-child(3),.items-table th:nth-child(4){text-align:right;}
+.items-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+.items-table tbody tr:hover{background:var(--hover);}
+.items-table td{padding:6px 12px;}
+.items-table td:nth-child(3),.items-table td:nth-child(4){width:100px;}
+.items-table td:nth-child(5){width:95px;text-align:right;font-family:'Space Mono',monospace;font-size:.83rem;font-weight:700;}
+.ti{width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:.83rem;color:var(--text);}
+.ti::placeholder{color:var(--text3);}
+.ti.r{text-align:right;}
+.del-row{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 5px;border-radius:5px;transition:all .15s;}
+.del-row:hover{color:var(--red);background:#fee2e2;}
+
+.totals-wrap{display:flex;justify-content:flex-end;margin-top:14px;}
+.totals-box{width:330px;background:var(--surface2);border-radius:12px;border:1.5px solid var(--border);overflow:hidden;}
+.t-row{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--border);font-size:.85rem;}
+.t-row:last-child{border-bottom:none;}
+.t-row label{color:var(--text2);font-weight:500;}
+.t-val{font-family:'Space Mono',monospace;font-weight:700;color:var(--text);}
+.t-row.grand{background:var(--grad);padding:12px 15px;}
+.t-row.grand label,.t-row.grand .t-val{color:#fff;font-size:.9rem;}
+.t-row.remaining{background:linear-gradient(135deg,#dc2626,#ea580c);}
+.t-row.remaining label,.t-row.remaining .t-val{color:#fff;font-size:.95rem;}
+.t-inp{border:none;outline:none;background:transparent;font-family:'Space Mono',monospace;font-size:.85rem;font-weight:700;color:var(--text);text-align:right;width:95px;}
+.t-inp::placeholder{color:var(--text3);font-weight:400;font-family:inherit;}
+.t-row.g-row{background:#ecfdf5;}
+.t-row.g-row label{color:#065f46;}
+.t-row.g-row .t-inp{color:#065f46;}
+.t-row.r-row{background:#fff7ed;}
+.t-row.r-row label{color:#9a3412;}
+.t-row.r-row .t-inp{color:#9a3412;}
+
+.actions-bar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+.actions-left{display:flex;gap:7px;flex-wrap:wrap;}
+
+.contact-btn{width:100%;padding:9px;background:var(--surface2);border:1.5px dashed var(--border);border-radius:9px;color:var(--text2);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:10px;}
+.contact-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700;}
+.b-green{background:#d1fae5;color:#065f46;}
+.b-red{background:#fee2e2;color:#991b1b;}
+.b-yellow{background:#fef3c7;color:#92400e;}
+.b-blue{background:#dbeafe;color:#1e40af;}
+
+.h-table{width:100%;border-collapse:collapse;}
+.h-table thead tr{background:var(--grad);color:#fff;}
+.h-table th{padding:10px 13px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.h-table th:first-child{border-radius:0;}
+.h-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer;}
+.h-table tbody tr:hover{background:var(--hover);}
+.h-table td{padding:10px 13px;font-size:.82rem;}
+
+.ledger-card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
+.ledger-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.lc-name{font-weight:700;font-size:.92rem;}
+.lc-phone{font-size:.73rem;color:var(--text3);margin-top:2px;}
+.lc-baki{font-family:'Space Mono',monospace;font-weight:800;font-size:1.05rem;}
+.lc-baki.due{color:var(--red);}
+.lc-baki.ok{color:var(--green);}
+
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 16px;flex:1;min-width:110px;}
+.stat-label{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.stat-val{font-size:1.4rem;font-weight:800;font-family:'Space Mono',monospace;color:var(--accent);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:14px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:16px;border:1.5px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.25);max-width:560px;width:100%;max-height:88vh;overflow-y:auto;}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1;border-radius:16px 16px 0 0;}
+.modal-title{font-size:.92rem;font-weight:700;}
+.modal-body{padding:18px 20px;}
+.close-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;}
+.close-btn:hover{color:var(--text);}
+.d-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.84rem;}
+.d-label{color:var(--text2);}
+.d-val{font-weight:600;font-family:'Space Mono',monospace;}
+
+.sec-div{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:14px 0 8px;display:flex;align-items:center;gap:7px;}
+.sec-div::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.pay-big{font-family:'Space Mono',monospace;font-size:1.8rem;font-weight:800;color:var(--red);text-align:center;padding:12px;background:#fff0f0;border-radius:10px;margin-bottom:14px;}
+[data-theme="dark"] .pay-big{background:rgba(220,38,38,.15);}
+.pay-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:.82rem;}
+
+.empty-state{text-align:center;padding:40px;color:var(--text3);}
+.empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
+
+#pw-screen{position:fixed;inset:0;background:linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:#fff;border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+#pw-logo{font-size:44px;margin-bottom:10px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:#1a1f36;margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:#8892b0;margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #c7d2fe;background:#fff;transition:all .15s;}
+.pin-dot.filled{background:#4f46e5;border-color:#4f46e5;transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid #e2e8f8;background:#f7f9ff;font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:#1a1f36;}
+.pin-btn:active{background:#e0e7ff;border-color:#4f46e5;transform:scale(.93);}
+.pin-del{font-size:1rem;color:#8892b0;}
+#pw-err{color:#dc2626;font-size:.82rem;margin-top:12px;min-height:18px;}
+</style>
+</head>
+<body>
+
+<script>
+// ============================================================
+// SAFE STORAGE HELPERS
+// ============================================================
+function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
+function safeSetLocal(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+function safeGetSession(k) { try { return sessionStorage.getItem(k); } catch(e) { return null; } }
+function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {} }
+</script>
+
+<datalist id="inventory-list"></datalist>
+
+<div id="pw-screen">
+  <div id="pw-box">
+    <div id="pw-logo">🏪</div>
+    <div id="pw-title">Rabi Kapada Pasal</div>
+    <div id="pw-sub">Enter your 4-digit PIN</div>
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:230px;margin:0 auto;">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <div></div>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn pin-del" onclick="pinDel()">⌫</button>
+    </div>
+    <div id="pw-err"></div>
+  </div>
+</div>
+
+<nav class="top-nav no-print">
+  <div class="nav-brand">
+    <div class="nav-logo">🏪</div>
+    <div>
+      <div class="nav-title">Rabi Kapada Pasal</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System</div>
+    </div>
+  </div>
+  <div class="nav-actions">
+    <span id="sync-status" class="sync-badge">⟳ Connecting...</span>
+    <button class="lang-btn" onclick="toggleLang()" id="lang-btn">नेपाली</button>
+    <button class="btn-icon" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
+  </div>
+</nav>
+
+<div class="tab-bar no-print">
+  <div class="tab active" onclick="switchTab('invoice')" id="tab-invoice">🧾 <span class="L" data-k="New Invoice">New Invoice</span></div>
+  <div class="tab" onclick="switchTab('history')" id="tab-history">📋 <span class="L" data-k="Bill History">Bill History</span></div>
+  <div class="tab" onclick="switchTab('ledger')" id="tab-ledger">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
+</div>
+
+<div class="main">
+
+<div class="panel active" id="panel-invoice">
+  <div class="inv-head">
+    <div style="position:relative;z-index:1;">
+      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
+      <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
+    </div>
+    <div class="inv-meta">
+      <div class="inv-label">INVOICE</div>
+      <div class="inv-num">#<span id="invoice-number">...</span></div>
+      <div class="date-dual">
+        <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
+        <span class="date-bs" id="current-date-bs"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👤 <span class="L" data-k="Bill To">Bill To</span></div>
+      <button class="btn btn-ghost no-print" onclick="saveCustomerOnly()" style="font-size:0.75rem; padding: 4px 10px;">💾 Save Ledger</button>
+    </div>
+    <div class="card-body">
+      <button class="contact-btn no-print" onclick="pickPhoneContact()">📞 <span class="L" data-k="Import from Phone Contacts">Import from Phone Contacts</span></button>
+      <div class="search-wrap no-print" id="search-container">
+        <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="searchDB()" autocomplete="off">
+        <div id="search-results" class="search-results"></div>
+      </div>
+      <div class="inp-grid">
+        <input type="text" class="inp" id="customer-name" placeholder="Full Name">
+        <input type="text" class="inp" id="customer-phone" placeholder="Phone Number">
+        <input type="text" class="inp full" id="customer-address" placeholder="Address">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">📦 <span class="L" data-k="Items">Items</span></div></div>
+    <div style="overflow-x:auto;">
+      <table class="items-table">
+        <thead><tr>
+          <th style="width:42%"><span class="L" data-k="Garment Description">Garment Description</span></th>
+          <th style="width:80px;text-align:center"><span class="L" data-k="Code">Code</span></th>
+          <th style="text-align:right"><span class="L" data-k="Qty">Qty</span></th>
+          <th style="text-align:right"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
+          <th style="text-align:right"><span class="L" data-k="Total">Total</span></th>
+          <th class="no-print" style="width:30px"></th>
+        </tr></thead>
+        <tbody id="invoice-items"></tbody>
+      </table>
+    </div>
+    <div class="no-print" style="padding:10px 18px;border-top:1px solid var(--border);">
+      <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
+        + <span class="L" data-k="Add Row">Add Row</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="totals-wrap">
+    <div class="totals-box">
+      <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
+      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+      <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
+      <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
+      <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
+      <div class="t-row g-row"><label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label><input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46;"></div>
+      <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
+    </div>
+  </div>
+
+  <div class="actions-bar no-print">
+    <div class="actions-left">
+      <button class="btn btn-ghost" onclick="clearForm()">🗑 <span class="L" data-k="Clear">Clear</span></button>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;">
+      <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
+      <button class="btn btn-primary" onclick="saveBill()">💾 <span class="L" data-k="Save & PDF">Save &amp; PDF</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-history">
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+      <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
+      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
+    </div>
+    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Loading...</div></div></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-ledger">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
+      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
+    </div>
+    <div class="card-body" style="padding:0 18px 18px;">
+      <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
+      <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Loading customers...</div></div></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="bill-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-title">Invoice Detail</div><button class="close-btn" onclick="closeModal('bill-modal')">✕</button></div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-header"><div class="modal-title" id="pay-modal-title">💰 Record Payment</div><button class="close-btn" onclick="closeModal('pay-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="pay-big" id="pay-baki-display">NRS 0</div>
+      <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
+      <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
+      <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="confirmPayment()">✅ <span class="L" data-k="Confirm Payment">Confirm Payment</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// LANGUAGE SYSTEM
+// ============================================================
+let lang = 'en';
+const STR = {
+  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & PDF':'Save & PDF','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
+  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Save & PDF':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
+};
+function applyLang() {
+  document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; });
+}
+function toggleLang() {
+  lang = lang==='en'?'np':'en';
+  document.getElementById('lang-btn').textContent = lang==='en'?'नेपाली':'English';
+  applyLang(); renderHistory(); renderLedger();
+}
+
+// ============================================================
+// NEPALI DATE SYSTEM 
+// ============================================================
+const ND=[[2000,[30,32,31,32,31,30,30,30,29,30,29,31]],[2001,[31,31,32,31,31,31,30,29,30,29,30,30]],[2002,[31,31,32,32,31,30,30,29,30,29,30,30]],[2003,[31,32,31,32,31,30,30,30,29,29,30,31]],[2004,[30,32,31,32,31,30,30,30,29,30,29,31]],[2005,[31,31,32,31,31,31,30,29,30,29,30,30]],[2006,[31,31,32,32,31,30,30,29,30,29,30,30]],[2007,[31,32,31,32,31,30,30,30,29,29,30,31]],[2008,[31,31,31,32,31,30,30,30,29,30,29,31]],[2009,[31,31,32,31,31,31,30,29,30,29,30,30]],[2010,[31,31,32,32,31,30,30,29,30,29,30,30]],[2011,[31,32,31,32,31,30,30,30,29,29,30,31]],[2012,[31,31,31,32,31,30,30,30,29,30,29,31]],[2013,[31,31,32,31,31,31,30,29,30,29,30,30]],[2014,[31,31,32,32,31,30,30,29,30,29,30,30]],[2015,[31,32,31,32,31,30,30,30,29,29,30,31]],[2016,[31,31,31,32,31,30,30,30,29,30,29,31]],[2017,[31,31,32,31,31,31,30,29,30,29,30,30]],[2018,[31,31,32,32,31,30,30,29,30,29,30,30]],[2019,[31,32,31,32,31,30,30,30,29,29,30,31]],[2020,[31,31,31,32,31,30,30,30,29,30,29,31]],[2021,[31,31,32,31,31,31,30,29,30,29,30,30]],[2022,[31,31,32,32,31,30,30,29,30,29,30,30]],[2023,[31,32,31,32,31,30,30,30,29,29,30,31]],[2024,[31,31,31,32,31,30,30,30,29,30,29,31]],[2025,[31,31,32,31,31,31,30,29,30,29,30,30]],[2026,[31,31,32,32,31,30,30,29,30,29,30,30]],[2027,[31,32,31,32,31,30,30,30,29,29,30,31]],[2028,[31,31,31,32,31,30,30,30,29,30,29,31]],[2029,[31,31,32,31,31,31,30,29,30,29,30,30]],[2030,[31,31,32,32,31,30,30,29,30,29,30,30]],[2031,[31,32,31,32,31,30,30,30,29,29,30,31]],[2032,[31,31,31,32,31,30,30,30,29,30,29,31]],[2033,[31,31,32,31,31,31,30,29,30,29,30,30]],[2034,[31,31,32,32,31,30,30,29,30,29,30,30]],[2035,[31,32,31,32,31,30,30,30,29,29,30,31]],[2036,[31,31,31,32,31,30,30,30,29,30,29,31]],[2037,[31,31,32,31,31,31,30,29,30,29,30,30]],[2038,[31,31,32,32,31,30,30,29,30,29,30,30]],[2039,[31,32,31,32,31,30,30,30,29,29,30,31]],[2040,[31,31,31,32,31,30,30,30,29,30,29,31]],[2041,[31,31,32,31,31,31,30,29,30,29,30,30]],[2042,[31,31,32,32,31,30,30,29,30,29,30,30]],[2043,[31,32,31,32,31,30,30,30,29,29,30,31]],[2044,[30,32,31,32,31,30,30,30,29,30,29,31]],[2045,[31,31,32,31,31,31,30,29,30,29,30,30]],[2046,[31,31,32,32,31,30,30,29,30,29,30,30]],[2047,[31,32,31,32,31,30,30,30,29,29,30,31]],[2048,[31,31,31,32,31,30,30,30,29,30,29,31]],[2049,[31,31,32,31,31,31,30,29,30,29,30,30]],[2050,[31,31,32,32,31,30,30,29,30,29,30,30]]];
+const NM=['बैशाख','जेठ','असार','श्रावण','भाद्र','आश्विन','कार्तिक','मंसिर','पौष','माघ','फाल्गुन','चैत्र'];
+
+function adToBS(y,m,d){
+  const ref=new Date(1943,3,14), inp=new Date(y,m-1,d);
+  let days=Math.round((inp-ref)/86400000);
+  for(let i=0;i<ND.length;i++){
+    const[yr,mo]=ND[i];
+    for(let j=0;j<12;j++){
+      if(days<mo[j]) return{year:yr,month:j+1,day:days+1,monthName:NM[j]};
+      days-=mo[j];
+    }
+  } return null;
+}
+
+function updateBSDate() {
+  const adVal = document.getElementById('current-date-ad').value;
+  if(!adVal) return;
+  const [y,m,d] = adVal.split('-').map(Number);
+  const bsData = adToBS(y,m,d);
+  if(bsData) {
+      document.getElementById('current-date-bs').innerText = `${bsData.day} ${bsData.monthName} ${bsData.year} BS`;
+  } else {
+      document.getElementById('current-date-bs').innerText = '';
+  }
+}
+
+// Set default date to today
+const todayObj=new Date();
+const todayStr=todayObj.toISOString().split('T')[0];
+document.getElementById('current-date-ad').value = todayStr;
+updateBSDate();
+
+// ============================================================
+// FIREBASE CONNECTION
+// ============================================================
+const fbConfig={
+  apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
+  authDomain:"nwh-bills.firebaseapp.com",
+  databaseURL:"https://nwh-bills-default-rtdb.firebaseio.com/",
+  projectId:"nwh-bills",
+  storageBucket:"nwh-bills.firebasestorage.app",
+  messagingSenderId:"1000335775839",
+  appId:"1:1000335775839:web:c5eeebf5e908edd17563ea"
+};
+
+let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+const syncEl=document.getElementById('sync-status');
+
+function initFB(){
+  try{
+    firebase.initializeApp(fbConfig);
+    db=firebase.database();
+    db.ref('.info/connected').on('value',s=>{
+      if(s.val()===true){
+        fbReady=true;
+        syncEl.innerText='🟢 Synced';
+        syncEl.className='sync-badge synced';
+      }else{
+        syncEl.innerText='🟡 Offline';
+        syncEl.className='sync-badge';
+      }
+    });
+    db.ref('nwh/nextInvoiceNumber').on('value',s=>{
+      const v=s.val();
+      if(v){ cloudNextInvoice=v; document.getElementById('invoice-number').innerText=v; }
+      else db.ref('nwh/nextInvoiceNumber').set(1001);
+    });
+    db.ref('nwh/customers').on('value',s=>{cloudCustomers=s.val()||{};renderLedger();});
+    db.ref('nwh/bills').on('value',s=>{
+      const v=s.val();
+      allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+      renderHistory();
+    });
+  }catch(e){ syncEl.innerText='🔴 Error'; }
+}
+setTimeout(initFB,300);
+
+// ============================================================
+// ITEM CATALOG (AUTO-SAVE)
+// ============================================================
+let inventoryList = [];
+try {
+    let saved = safeGetLocal('nwh_inventory');
+    if (saved) inventoryList = JSON.parse(saved) || [];
+} catch(e) {}
+
+function renderInventory() {
+    const list = document.getElementById('inventory-list');
+    list.innerHTML = '';
+    inventoryList.forEach(item => {
+        let option = document.createElement('option');
+        option.value = item;
+        list.appendChild(option);
+    });
+}
+renderInventory();
+
+function saveNewItems(itemsArray) {
+    let changed = false;
+    itemsArray.forEach(it => {
+        if (it.desc && !inventoryList.includes(it.desc)) {
+            inventoryList.push(it.desc);
+            changed = true;
+        }
+    });
+    if (changed) {
+        safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+        renderInventory();
+    }
+}
+
+// ============================================================
+// TABS / THEME
+// ============================================================
+function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
+function switchTab(name){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');if(name==='ledger')renderLedger();}
+
+// ============================================================
+// INVOICE MATH
+// ============================================================
+function addRow(desc='',qty='',rate='',code=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="text" class="ti item-desc" placeholder="Type item..." value="${desc}" list="inventory-list"></td>
+    <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
+    <td><input type="number" class="ti r qty" placeholder="0" min="0" value="${qty}" oninput="calc()"></td>
+    <td><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="calc()"></td>
+    <td class="amount" style="text-align:right; font-weight:bold; padding-right:12px;">0</td>
+    <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
+  document.getElementById('invoice-items').appendChild(tr);
+  if(qty&&rate) calc();
+}
+addRow();
+
+function calc(){
+  let sub=0;
+  document.querySelectorAll('#invoice-items tr').forEach(r=>{
+    const q=parseFloat(r.querySelector('.qty').value)||0,rt=parseFloat(r.querySelector('.rate').value)||0,a=q*rt;
+    r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');sub+=a;
+  });
+  document.getElementById('items-total').innerText=Math.round(sub).toLocaleString('en-IN');
+  const tr=parseFloat(document.getElementById('transport-expense').value)||0,cb=sub+tr;
+  document.getElementById('current-bill').innerText=Math.round(cb).toLocaleString('en-IN');
+  const pb=parseFloat(document.getElementById('prev-balance').value)||0,gt=cb+pb;
+  document.getElementById('grand-total').innerText=Math.round(gt).toLocaleString('en-IN');
+  const cp=parseFloat(document.getElementById('cash-paid').value)||0;
+  document.getElementById('remaining-balance').innerText=Math.round(gt-cp).toLocaleString('en-IN');
+}
+
+function clearForm(){
+  if(!confirm('Clear all form data?')) return;
+  ['customer-name','customer-phone','customer-address','transport-expense','prev-balance','cash-paid','db-search'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('invoice-items').innerHTML='';addRow();calc();
+}
+
+// ============================================================
+// CUSTOMER SEARCH & SAVE
+// ============================================================
+function searchDB(){
+  const q=document.getElementById('db-search').value.toLowerCase(),box=document.getElementById('search-results');
+  box.innerHTML='';
+  if(q.length<1){box.style.display='none';return;}
+  let n=0;
+  for(let name in cloudCustomers){
+    const ph=(cloudCustomers[name].phone||'').toLowerCase();
+    if(name.toLowerCase().includes(q)||ph.includes(q)){
+      const d=document.createElement('div');d.className='sr-item';
+      d.innerHTML=`<span><strong>${name}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
+      d.onclick=()=>{
+          document.getElementById('customer-name').value=name;
+          document.getElementById('customer-phone').value=cloudCustomers[name].phone||'';
+          document.getElementById('customer-address').value=cloudCustomers[name].address||'';
+          document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
+          document.getElementById('db-search').value='';box.style.display='none';calc();
+      };
+      box.appendChild(d);n++;
+    }
+  }
+  box.style.display=n?'block':'none';
+}
+
+function saveCustomerOnly() {
+    const rawName = document.getElementById('customer-name').value.trim();
+    if(!rawName) { alert('Please enter a Customer Name first.'); return; }
+    const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
+    if(db && fbReady) {
+        db.ref('nwh/customers/' + safeName).set({
+            phone: document.getElementById('customer-phone').value || "",
+            address: document.getElementById('customer-address').value || "",
+            balance: document.getElementById('prev-balance').value || "0"
+        });
+        alert(`✅ Customer "${safeName}" saved to ledger!`);
+    } else {
+        alert("Cannot save customer while offline.");
+    }
+}
+
+async function pickPhoneContact(){
+  if('contacts' in navigator&&'ContactsManager' in window){
+    try{const c=await navigator.contacts.select(['name','tel'],{multiple:false});
+      if(c.length>0){
+        let name=c[0].name[0]||'';
+        name = name.replace(/[.#$\[\]]/g, ' ').trim(); 
+        document.getElementById('customer-name').value=name;
+        document.getElementById('customer-phone').value=c[0].tel[0]||'';
+        if(name&&cloudCustomers[name]){
+            document.getElementById('customer-address').value=cloudCustomers[name].address||'';
+            document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
+        }
+        calc();
+      }
+    }catch(e){}
+  }else{alert('Open in Google Chrome to use Contacts.');}
+}
+
+// ============================================================
+// SAVE BILL & GENERATE PDF (NEW: jsPDF + AutoTable)
+// ============================================================
+function shareWA(){
+  const phone=document.getElementById('customer-phone').value||'';
+  if(!phone){alert('Please enter a phone number first.');return;}
+  const biz="Rabi Kapada Pasal";
+  const billDate = document.getElementById('current-date-ad').value;
+  const billDateBS = document.getElementById('current-date-bs').innerText;
+  const invNum = document.getElementById('invoice-number').innerText;
+  const custName = document.getElementById('customer-name').value||'Customer';
+  const billAmt = document.getElementById('current-bill').innerText;
+  
+  const msg=`🏪 *${biz}*\n📄 Invoice #${invNum}\n📅 ${billDate} (${billDateBS})\n👤 *${custName}*\n🧾 Bill: *NRS ${billAmt}*`;
+  window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function saveBill(){
+  const rawName=document.getElementById('customer-name').value.trim()||'Walk-in Customer';
+  const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
+  const currentBaki=document.getElementById('remaining-balance').innerText.replace(/,/g,'');
+  
+  const billDate = document.getElementById('current-date-ad').value;
+  const billDateBS = document.getElementById('current-date-bs').innerText;
+  
+  const items=[];
+  document.querySelectorAll('#invoice-items tr').forEach(row=>{
+    const desc=row.querySelector('.item-desc').value.trim(),qty=row.querySelector('.qty').value,rate=row.querySelector('.rate').value,code=row.querySelector('.item-code').value.trim(),amount=row.querySelector('.amount').innerText.replace(/,/g,'');
+    if(desc||qty>0) items.push({desc:desc||'Item',qty:qty||0,rate:rate||0,code:code||'',amount});
+  });
+
+  saveNewItems(items);
+
+  const bill={
+      invoiceNum:cloudNextInvoice, date:billDate, dateBS:billDateBS, customer:safeName,
+      phone:document.getElementById('customer-phone').value||'',
+      address:document.getElementById('customer-address').value||'',
+      transport:document.getElementById('transport-expense').value||'0',
+      prevBalance:document.getElementById('prev-balance').value||'0',
+      billAmount:document.getElementById('current-bill').innerText.replace(/,/g,''),
+      grandTotal:document.getElementById('grand-total').innerText.replace(/,/g,''),
+      paid:document.getElementById('cash-paid').value||'0',
+      remaining:currentBaki, items
+  };
+
+  if(db&&fbReady){
+    db.ref('nwh/customers/'+safeName).set({phone:bill.phone,address:bill.address,balance:currentBaki});
+    db.ref('nwh/bills').push(bill);
+    db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
+  }
+
+  generateTruePDF(bill);
+}
+
+function generateTruePDF(bill) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
+    const bizSub = document.getElementById('biz-sub').innerText || "";
+    const primaryColor = [79, 70, 229];
+
+    // --- 1. HEADER ---
+    doc.setFontSize(24);
+    doc.setTextColor(26, 31, 54);
+    doc.text(bizName, 14, 22);
+
+    doc.setFontSize(10);
+    doc.setTextColor(74, 82, 128);
+    doc.text(bizSub, 14, 28);
+
+    doc.setFontSize(20);
+    doc.setTextColor(160, 174, 192);
+    doc.text("INVOICE", 196, 22, { align: 'right' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(26, 31, 54);
+    doc.text(`#${bill.invoiceNum}`, 196, 28, { align: 'right' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(bill.date, 196, 34, { align: 'right' });
+    if (bill.dateBS) {
+        doc.text(bill.dateBS, 196, 39, { align: 'right' });
+    }
+
+    // --- 2. BILL TO BOX ---
+    doc.setFillColor(247, 249, 255);
+    doc.rect(14, 45, 182, 25, 'F');
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(1);
+    doc.line(14, 45, 14, 70);
+
+    doc.setFontSize(9);
+    doc.setTextColor(136, 146, 176);
+    doc.text("BILL TO:", 20, 52);
+
+    doc.setFontSize(12);
+    doc.setTextColor(26, 31, 54);
+    doc.setFont(undefined, 'bold');
+    doc.text(bill.customer, 20, 58);
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(74, 82, 128);
+    let cusInfo = bill.phone || "";
+    if(bill.address) cusInfo += (cusInfo ? " | " : "") + bill.address;
+    doc.text(cusInfo, 20, 64);
+
+    // --- 3. ITEMS TABLE ---
+    const tableBody = bill.items.map(it => [
+        it.desc,
+        it.code || '-',
+        it.qty,
+        it.rate,
+        parseInt(it.amount).toLocaleString('en-IN')
+    ]);
+
+    doc.autoTable({
+        startY: 75,
+        head: [['Description', 'Code', 'Qty', 'Rate', 'Total (NRS)']],
+        body: tableBody,
+        theme: 'grid',
+        headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+            0: { halign: 'left' },
+            1: { halign: 'center' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+            4: { halign: 'right', fontStyle: 'bold' }
+        },
+        styles: { fontSize: 10, cellPadding: 5 }
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 10;
+
+    // --- 4. TOTALS BOX ---
+    const totals = [
+        ["Items Subtotal:", `NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}`],
+        ["Transport (+):", `NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}`],
+        ["Today's Bill:", `NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}`],
+        ["Purano Baki (+):", `NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}`],
+        ["Jamma Total:", `NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}`],
+        ["Nagad Paid (-):", `NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}`],
+        ["Remaining Baki:", `NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}`]
+    ];
+
+    doc.autoTable({
+        startY: finalY,
+        body: totals,
+        theme: 'plain',
+        margin: { left: 100 },
+        columnStyles: {
+            0: { halign: 'left', fontStyle: 'bold', textColor: [74, 82, 128] },
+            1: { halign: 'right', fontStyle: 'bold', textColor: [26, 31, 54] }
+        },
+        willDrawCell: function(data) {
+            if(data.row.index === 2) { 
+                doc.setFillColor(248, 250, 252);
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            }
+            if(data.row.index === 4) { 
+                doc.setFillColor(224, 231, 255);
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                doc.setTextColor(...primaryColor);
+            }
+            if(data.row.index === 6) { 
+                doc.setFillColor(254, 226, 226);
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                doc.setTextColor(220, 38, 38);
+            }
+        }
+    });
+
+    // --- 5. SIGNATURES ---
+    const sigY = doc.lastAutoTable.finalY + 30;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, sigY, 70, sigY);
+    doc.line(140, sigY, 190, sigY);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(136, 146, 176);
+    doc.setFont(undefined, 'normal');
+    doc.text("Customer Signature", 45, sigY + 5, { align: 'center' });
+    doc.text("Authorized Signature & Stamp", 165, sigY + 5, { align: 'center' });
+
+    doc.save(`Invoice-${bill.invoiceNum}.pdf`);
+    clearForm();
+}
+
+// ============================================================
+// HISTORY & LEDGER RENDERING
+// ============================================================
+function renderHistory(){
+  const c=document.getElementById('history-container');
+  if(!allBills.length){c.innerHTML=`<div class="empty-state">No bills yet</div>`;return;}
+  let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
+  allBills.forEach(b=>{
+    const baki=parseInt(b.remaining)||0;
+    html+=`<tr onclick="showBillDetail('${b.key}')">
+      <td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td>
+      <td><strong>${b.customer}</strong></td>
+      <td>NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</td>
+      <td style="color:var(--green)">${parseInt(b.paid).toLocaleString('en-IN')}</td>
+      <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
+    </tr>`;
+  });
+  c.innerHTML=html+'</tbody></table>';
+}
+
+function renderLedger(){
+  const c=document.getElementById('ledger-container');
+  const custs=Object.entries(cloudCustomers);
+  if(!custs.length){c.innerHTML=`<div class="empty-state">No customers yet</div>`;return;}
+  
+  let html = '';
+  custs.forEach(([name,cu])=>{
+    const baki=parseInt(cu.balance)||0;
+    html += `<div class="ledger-card" onclick="showCustDetail('${name.replace(/'/g,'')}')">
+      <div><div class="lc-name">${name}</div><div class="lc-phone">${cu.phone||'—'}</div></div>
+      <div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div>
+    </div>`;
+  });
+  c.innerHTML=html;
+}
+
+// ============================================================
+// MODALS & PAYMENTS
+// ============================================================
+function showBillDetail(key){
+  const b=allBills.find(x=>x.key===key);if(!b) return;
+  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
+  
+  let iHtml='';
+  if(b.items&&b.items.length){
+    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;color:var(--text2)">Item</th><th style="padding:7px 10px;text-align:center;color:var(--text2)">Code</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Qty</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Rate</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Total</th></tr></thead><tbody>`;
+    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:center;font-family:'Space Mono',monospace;font-size:.73rem;color:var(--text3)">${it.code||'—'}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    iHtml+='</tbody></table></div>';
+  }
+
+  const baki=parseInt(b.remaining)||0;
+  
+  document.getElementById('modal-body').innerHTML=`
+    <div class="d-row"><span class="d-label">Date (AD/BS)</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
+    ${iHtml}
+    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:12px" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
+  `;
+  document.getElementById('bill-modal').classList.add('open');
+}
+
+function showCustDetail(name){
+  const cu=cloudCustomers[name];if(!cu) return;
+  const baki=parseInt(cu.balance)||0;
+  document.getElementById('modal-title').innerText=`👤 ${name}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
+    <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
+    <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin:10px 0 4px" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
+  `;
+  document.getElementById('bill-modal').classList.add('open');
+}
+
+let _payKey='',_payCust='';
+function openPayModal(key,cust,baki){
+  _payKey=key;_payCust=cust;
+  document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
+  document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
+  document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
+  closeModal('bill-modal');
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+function payFromLedger(name,baki){
+  const bill=allBills.find(b=>b.customer===name&&(parseInt(b.remaining)||0)>0);
+  if(bill){closeModal('bill-modal');openPayModal(bill.key,name,baki);}
+  else alert('No outstanding bills found.');
+}
+
+function confirmPayment(){
+  const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
+  const note=document.getElementById('pay-note-inp').value.trim();
+  if(amount<=0){alert('Enter a valid amount');return;}
+  const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
+  const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
+  const newPaid=(parseInt(bill.paid)||0)+amount;
+  const entry={amount,date:todayStr,note}; 
+  
+  if(db&&fbReady){
+    db.ref('nwh/bills/'+_payKey+'/remaining').set(newRem.toString());
+    db.ref('nwh/bills/'+_payKey+'/paid').set(newPaid.toString());
+    db.ref('nwh/bills/'+_payKey+'/payments').push(entry);
+    const custBal=Math.max(0,(parseInt(cloudCustomers[_payCust]?.balance)||0)-amount);
+    if(cloudCustomers[_payCust]) db.ref('nwh/customers/'+_payCust+'/balance').set(custBal.toString());
+  }
+  closeModal('pay-modal');
+  alert(`✅ Payment of NRS ${amount.toLocaleString('en-IN')} recorded!`);
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ============================================================
+// PIN LOCK
+// ============================================================
+(function(){
+  const DEFAULT = '8860';
+  let entered = '';
+  
+  let isAuth = false;
+  try { isAuth = safeGetSession('nwh_auth') === '1'; } catch(e) {}
+  
+  if(isAuth){ document.getElementById('pw-screen').style.display='none'; return; }
+  
+  function updateDots(){ for(let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i<entered.length); }
+  
+  window.pinPress=function(digit){
+    if(entered.length>=4) return;
+    entered+=digit; updateDots();
+    document.getElementById('pw-err').innerText='';
+    if(entered.length===4){
+      setTimeout(()=>{
+        if(entered===DEFAULT){ 
+            try { safeSetSession('nwh_auth','1'); } catch(e) {}
+            document.getElementById('pw-screen').style.display='none'; 
+        } 
+        else { document.getElementById('pw-err').innerText='❌ Wrong PIN. Try again.'; entered=''; updateDots(); }
+      },150);
+    }
+  };
+  window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
+})();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('ServiceWorker registered!', reg);
+      }).catch(err => {
+        console.log('ServiceWorker failed: ', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>

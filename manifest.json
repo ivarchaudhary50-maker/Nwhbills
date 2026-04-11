@@ -1,0 +1,16 @@
+{
+  "name": "Rabi Kapada Pasal",
+  "short_name": "Rabi Kapada",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f0f4ff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
