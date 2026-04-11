@@ -332,7 +332,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
   <div class="totals-wrap">
     <div class="totals-box">
       <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
-      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+      <div class="t-row"><label><span class="L" data-k="Transport (+))">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
@@ -347,7 +347,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
       <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-primary" onclick="saveBill()" id="pdf-btn-text">💾 <span class="L" data-k="Save & PDF">Save &amp; Image</span></button>
+      <button class="btn btn-primary" onclick="saveBill()" id="pdf-btn-text">💾 <span class="L" data-k="Save & Image">Save &amp; Image</span></button>
     </div>
   </div>
 </div>
@@ -403,8 +403,8 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 // ============================================================
 let lang = 'en';
 const STR = {
-  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & PDF':'Save & Image','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
-  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Save & PDF':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
+  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & Image':'Save & Image','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
+  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Save & Image':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
 };
 function applyLang() {
   document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; });
@@ -634,7 +634,7 @@ async function pickPhoneContact(){
 }
 
 // ============================================================
-// SAVE BILL & GENERATE IMAGE (NEW: JPEG Export)
+// SAVE BILL & GENERATE IMAGE
 // ============================================================
 function shareWA(){
   const phone=document.getElementById('customer-phone').value||'';
@@ -699,11 +699,11 @@ function generateImageBill(bill) {
         </tr>`;
     });
 
-    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
+    const bizName = "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
 
     const htmlString = `
-    <div id="temp-invoice-wrap" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: Arial, sans-serif; box-sizing: border-box; position: absolute; top: -9999px; left: -9999px; z-index: -1;">
+    <div id="temp-invoice-wrap" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box;">
         <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
             <tr>
                 <td style="vertical-align: top; padding-bottom: 20px;">
@@ -719,7 +719,7 @@ function generateImageBill(bill) {
             </tr>
         </table>
 
-        <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #4f46e5; margin-bottom: 25px;">
+        <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #8b5cf6; margin-bottom: 25px;">
             <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0 0 5px 0;">BILL TO:</p>
             <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
             <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
@@ -728,11 +728,11 @@ function generateImageBill(bill) {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
                 <tr>
-                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
-                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
-                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
-                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
-                    <th style="background: #4f46e5; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
+                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
+                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
+                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
+                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
+                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
                 </tr>
             </thead>
             <tbody>
@@ -749,7 +749,7 @@ function generateImageBill(bill) {
                         <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
                         <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
                         <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
-                        <tr style="background: #e0e7ff; color: #4f46e5; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
+                        <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
                         <tr style="color: #059669;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Nagad Paid (-):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
                         <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
                     </table>
@@ -763,40 +763,60 @@ function generateImageBill(bill) {
     </div>
     `;
 
+    // Setup temporary container
     const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '800px';
+    container.style.zIndex = '99998'; 
     container.innerHTML = htmlString;
+
+    // Setup loading overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    overlay.style.color = 'white';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '99999';
+    overlay.innerHTML = '<h2 style="font-family:sans-serif;">📸 Generating Image...</h2>';
+
     document.body.appendChild(container);
+    document.body.appendChild(overlay);
 
-    const targetElement = document.getElementById('temp-invoice-wrap');
-    const btn = document.getElementById('pdf-btn-text');
-    
-    let oldText = "";
-    if(btn) {
-        oldText = btn.innerHTML;
-        btn.innerHTML = '⏳ Generating Image...';
-    }
+    window.scrollTo(0, 0);
 
-    html2canvas(targetElement, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff'
-    }).then(canvas => {
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    setTimeout(() => {
+        const targetElement = document.getElementById('temp-invoice-wrap');
         
-        const link = document.createElement('a');
-        link.download = `Invoice-${bill.invoiceNum}.jpg`;
-        link.href = imgData;
-        link.click();
+        html2canvas(targetElement, { 
+            scale: 2, 
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            width: 800,
+            windowWidth: 800,
+            scrollY: 0
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            
+            const link = document.createElement('a');
+            link.download = `Invoice-${bill.invoiceNum}.jpg`;
+            link.href = imgData;
+            link.click();
 
-        if(btn) btn.innerHTML = oldText;
-        document.body.removeChild(container);
-        clearForm();
-    }).catch(err => {
-        console.error("Image Error:", err);
-        if(btn) btn.innerHTML = oldText;
-        document.body.removeChild(container);
-        alert("Error generating image. Please try again.");
-    });
+            document.body.removeChild(container);
+            document.body.removeChild(overlay);
+            clearForm();
+        }).catch(err => {
+            console.error("Image Error:", err);
+            document.body.removeChild(container);
+            document.body.removeChild(overlay);
+            alert("Error generating image. Please try again.");
+        });
+    }, 600); 
 }
 
 // ============================================================
