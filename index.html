@@ -347,7 +347,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
       <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-primary" onclick="saveBill()" id="pdf-btn-text">💾 <span class="L" data-k="Save & Image">Save &amp; Image</span></button>
+      <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
     </div>
   </div>
 </div>
@@ -415,14 +415,32 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
   </div>
 </div>
 
+<div class="modal-overlay" id="preview-modal">
+  <div class="modal" style="max-width:900px; width:95%; height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+    <div class="modal-header" style="border-radius:16px 16px 0 0;">
+        <div class="modal-title">👀 Preview & Sign Bill</div>
+        <button class="close-btn" onclick="closeModal('preview-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="preview-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
+        </div>
+    <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-radius:0 0 16px 16px;">
+        <button class="btn btn-ghost" onclick="clearSignature()">🧹 Clear Signature</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="closeModal('preview-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmAndDownload()" id="confirm-btn-text">💾 Confirm & Download</button>
+        </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // LANGUAGE SYSTEM
 // ============================================================
 let lang = 'en';
 const STR = {
-  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Save & Image':'Save & Image','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
-  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Save & Image':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
+  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
+  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
 };
 function applyLang() {
   document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; });
@@ -510,12 +528,22 @@ function initFB(){
       allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
       renderHistory();
     });
+    
+    // Sync Inventory from Cloud instantly
+    db.ref('nwh/inventory').on('value',s=>{
+      const val = s.val();
+      if(Array.isArray(val)) inventoryList = val;
+      else if(val) inventoryList = Object.values(val);
+      renderInventory();
+      safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+    });
+
   }catch(e){ syncEl.innerText='🔴 Error'; }
 }
 setTimeout(initFB,300);
 
 // ============================================================
-// ITEM CATALOG (AUTO-SAVE)
+// ITEM CATALOG (CLOUD AUTO-SAVE)
 // ============================================================
 let inventoryList = [];
 try {
@@ -537,13 +565,15 @@ renderInventory();
 function saveNewItems(itemsArray) {
     let changed = false;
     itemsArray.forEach(it => {
-        if (it.desc && !inventoryList.includes(it.desc)) {
-            inventoryList.push(it.desc);
+        const d = it.desc.trim();
+        if (d && d !== 'Item' && !inventoryList.includes(d)) {
+            inventoryList.push(d);
             changed = true;
         }
     });
     if (changed) {
         safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+        if(db && fbReady) db.ref('nwh/inventory').set(inventoryList);
         renderInventory();
     }
 }
@@ -651,9 +681,6 @@ async function pickPhoneContact(){
   }else{alert('Open in Google Chrome to use Contacts.');}
 }
 
-// ============================================================
-// SAVE BILL & GENERATE IMAGE
-// ============================================================
 function shareWA(){
   const phone=document.getElementById('customer-phone').value||'';
   if(!phone){alert('Please enter a phone number first.');return;}
@@ -668,11 +695,17 @@ function shareWA(){
   window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
 }
 
-function saveBill(){
+// ============================================================
+// PREVIEW & SIGNATURE LOGIC
+// ============================================================
+let pendingBill = null;
+let isDrawing = false;
+let sigCtx = null;
+
+function previewBill(){
   const rawName=document.getElementById('customer-name').value.trim()||'Walk-in Customer';
   const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
   const currentBaki=document.getElementById('remaining-balance').innerText.replace(/,/g,'');
-  
   const billDate = document.getElementById('current-date-ad').value;
   const billDateBS = document.getElementById('current-date-bs').innerText;
   
@@ -682,9 +715,7 @@ function saveBill(){
     if(desc||qty>0) items.push({desc:desc||'Item',qty:qty||0,rate:rate||0,code:code||'',amount});
   });
 
-  saveNewItems(items);
-
-  const bill={
+  pendingBill = {
       invoiceNum:cloudNextInvoice, date:billDate, dateBS:billDateBS, customer:safeName,
       phone:document.getElementById('customer-phone').value||'',
       address:document.getElementById('customer-address').value||'',
@@ -696,16 +727,10 @@ function saveBill(){
       remaining:currentBaki, items
   };
 
-  if(db&&fbReady){
-    db.ref('nwh/customers/'+safeName).set({phone:bill.phone,address:bill.address,balance:currentBaki});
-    db.ref('nwh/bills').push(bill);
-    db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
-  }
-
-  generateImageBill(bill);
+  generatePreviewHTML(pendingBill);
 }
 
-function generateImageBill(bill) {
+function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach(it => {
         rowsHtml += `<tr>
@@ -721,7 +746,7 @@ function generateImageBill(bill) {
     const bizSub = document.getElementById('biz-sub').innerText || "";
 
     const htmlString = `
-    <div id="temp-invoice-wrap" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box;">
+    <div id="actual-bill-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
         <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
             <tr>
                 <td style="vertical-align: top; padding-bottom: 20px;">
@@ -774,66 +799,141 @@ function generateImageBill(bill) {
                 </td>
             </tr>
         </table>
-        <div style="margin-top:70px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0;">
+        <div style="margin-top:70px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
             <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
-            <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Authorized Signature & Stamp</div>
+            <div style="width:200px; display:flex; flex-direction:column; align-items:center;">
+                <canvas id="sig-canvas" width="200" height="80" style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:8px; margin-bottom:4px; touch-action:none;"></canvas>
+                <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
+            </div>
         </div>
     </div>
     `;
 
-    // Setup temporary container
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '800px';
-    container.style.zIndex = '99998'; 
-    container.innerHTML = htmlString;
+    document.getElementById('preview-body').innerHTML = htmlString;
+    document.getElementById('preview-modal').classList.add('open');
+    initSignaturePad();
+}
 
-    // Setup loading overlay
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.backgroundColor = 'var(--bg)';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.zIndex = '99999';
-    overlay.innerHTML = '<div style="font-size:1.5rem; font-weight:bold; color:var(--accent);">📸 Generating Image...</div>';
+function initSignaturePad() {
+    const canvas = document.getElementById('sig-canvas');
+    if(!canvas) return;
+    sigCtx = canvas.getContext('2d');
+    sigCtx.lineWidth = 2.5;
+    sigCtx.lineCap = 'round';
+    sigCtx.strokeStyle = '#1a1f36';
+    
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { 
+            x: (clientX - rect.left) * scaleX, 
+            y: (clientY - rect.top) * scaleY 
+        };
+    };
 
-    document.body.appendChild(container);
-    document.body.appendChild(overlay);
+    const startDraw = (e) => {
+        isDrawing = true;
+        const pos = getPos(e);
+        sigCtx.beginPath();
+        sigCtx.moveTo(pos.x, pos.y);
+        if(e.touches) e.preventDefault();
+    };
 
-    window.scrollTo(0, 0);
+    const draw = (e) => {
+        if(!isDrawing) return;
+        const pos = getPos(e);
+        sigCtx.lineTo(pos.x, pos.y);
+        sigCtx.stroke();
+        if(e.touches) e.preventDefault();
+    };
 
-    setTimeout(() => {
-        const targetElement = document.getElementById('temp-invoice-wrap');
-        
-        html2canvas(targetElement, { 
-            scale: 2, 
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            width: 800,
-            windowWidth: 800,
-            scrollY: 0
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
-            
-            const link = document.createElement('a');
-            link.download = `Invoice-${bill.invoiceNum}.jpg`;
-            link.href = imgData;
-            link.click();
+    const stopDraw = () => { isDrawing = false; };
 
-            document.body.removeChild(container);
-            document.body.removeChild(overlay);
-            clearForm();
-        }).catch(err => {
-            console.error("Image Error:", err);
-            document.body.removeChild(container);
-            document.body.removeChild(overlay);
-            alert("Error generating image. Please try again.");
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, {passive: false});
+    canvas.addEventListener('touchmove', draw, {passive: false});
+    canvas.addEventListener('touchend', stopDraw);
+}
+
+window.clearSignature = function() {
+    if(sigCtx) {
+        const canvas = document.getElementById('sig-canvas');
+        sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function confirmAndDownload() {
+    if(!pendingBill) return;
+
+    const btn = document.getElementById('confirm-btn-text');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Processing...';
+
+    // 1. Push to Cloud Firebase ONLY after they confirm
+    saveNewItems(pendingBill.items);
+    if(db && fbReady){
+        db.ref('nwh/customers/'+pendingBill.customer).set({
+            phone: pendingBill.phone,
+            address: pendingBill.address,
+            balance: pendingBill.remaining
         });
-    }, 600); 
+        db.ref('nwh/bills').push(pendingBill);
+        db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
+    }
+
+    // 2. Generate and Download Image
+    const targetElement = document.getElementById('actual-bill-to-render');
+    const previewBody = document.getElementById('preview-body');
+
+    // Move element out of scroll container briefly so it doesn't get clipped by mobile browser
+    targetElement.style.position = 'absolute';
+    targetElement.style.top = '0';
+    targetElement.style.left = '0';
+    targetElement.style.zIndex = '-9999';
+    targetElement.style.boxShadow = 'none';
+    
+    // Remove dashed border on canvas so it looks clean on the final print
+    const canvas = document.getElementById('sig-canvas');
+    if(canvas) { canvas.style.border = 'none'; canvas.style.background = 'transparent'; }
+
+    document.body.appendChild(targetElement);
+    window.scrollTo(0,0);
+
+    html2canvas(targetElement, { 
+        scale: 4, // UPGRADED to scale 4 for ultra-crisp HD text
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 800,
+        windowWidth: 800
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png'); // SWITCHED from JPEG to lossless PNG
+        
+        const link = document.createElement('a');
+        link.download = `Invoice-${pendingBill.invoiceNum}.png`; // Changed to PNG
+        link.href = imgData;
+        link.click();
+
+        // Put element back just to be clean, then close
+        targetElement.style.position = 'relative';
+        targetElement.style.zIndex = '1';
+        previewBody.appendChild(targetElement);
+        
+        btn.innerHTML = oldText;
+        closeModal('preview-modal');
+        clearForm();
+        pendingBill = null;
+    }).catch(err => {
+        console.error("Image Error:", err);
+        btn.innerHTML = oldText;
+        alert("Error generating image.");
+    });
 }
 
 // ============================================================
