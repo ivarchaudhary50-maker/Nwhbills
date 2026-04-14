@@ -332,7 +332,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
   <div class="totals-wrap">
     <div class="totals-box">
       <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
-      <div class="t-row"><label><span class="L" data-k="Transport (+))">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
@@ -393,6 +393,24 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
       <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="confirmPayment()">✅ <span class="L" data-k="Confirm Payment">Confirm Payment</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-cust-modal">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-header"><div class="modal-title">✏️ Edit Customer</div><button class="close-btn" onclick="closeModal('edit-cust-modal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-cust-oldname">
+      <div class="sec-div">Customer Name</div>
+      <input type="text" class="inp" id="edit-cust-name" style="margin-bottom:10px;">
+      <div class="sec-div">Phone</div>
+      <input type="text" class="inp" id="edit-cust-phone" style="margin-bottom:10px;">
+      <div class="sec-div">Address</div>
+      <input type="text" class="inp" id="edit-cust-address" style="margin-bottom:10px;">
+      <div class="sec-div">Baki (Dues)</div>
+      <input type="number" class="inp" id="edit-cust-baki" style="margin-bottom:14px;">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveEditedCustomer()">💾 Save Changes</button>
     </div>
   </div>
 </div>
@@ -699,7 +717,7 @@ function generateImageBill(bill) {
         </tr>`;
     });
 
-    const bizName = "Rabi Kapada Pasal";
+    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
 
     const htmlString = `
@@ -776,13 +794,12 @@ function generateImageBill(bill) {
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
-    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
-    overlay.style.color = 'white';
+    overlay.style.backgroundColor = 'var(--bg)';
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     overlay.style.zIndex = '99999';
-    overlay.innerHTML = '<h2 style="font-family:sans-serif;">📸 Generating Image...</h2>';
+    overlay.innerHTML = '<div style="font-size:1.5rem; font-weight:bold; color:var(--accent);">📸 Generating Image...</div>';
 
     document.body.appendChild(container);
     document.body.appendChild(overlay);
@@ -820,7 +837,7 @@ function generateImageBill(bill) {
 }
 
 // ============================================================
-// HISTORY & LEDGER RENDERING
+// HISTORY & LEDGER RENDERING (NOW WITH EDIT/DELETE)
 // ============================================================
 function renderHistory(){
   const c=document.getElementById('history-container');
@@ -847,12 +864,75 @@ function renderLedger(){
   let html = '';
   custs.forEach(([name,cu])=>{
     const baki=parseInt(cu.balance)||0;
-    html += `<div class="ledger-card" onclick="showCustDetail('${name.replace(/'/g,'')}')">
-      <div><div class="lc-name">${name}</div><div class="lc-phone">${cu.phone||'—'}</div></div>
-      <div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div>
+    const safeName = name.replace(/'/g, "\\'"); // Prevent JS string break
+    
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
+      <div style="flex:1;">
+        <div class="lc-name">${name}</div>
+        <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
+        <span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span>
+      </div>
     </div>`;
   });
   c.innerHTML=html;
+}
+
+// ============================================================
+// CUSTOMER EDIT / DELETE LOGIC
+// ============================================================
+function editCustomer(oldName) {
+    const cu = cloudCustomers[oldName];
+    if(!cu) return;
+    document.getElementById('edit-cust-oldname').value = oldName;
+    document.getElementById('edit-cust-name').value = oldName;
+    document.getElementById('edit-cust-phone').value = cu.phone || '';
+    document.getElementById('edit-cust-address').value = cu.address || '';
+    document.getElementById('edit-cust-baki').value = cu.balance || '0';
+    document.getElementById('edit-cust-modal').classList.add('open');
+}
+
+function saveEditedCustomer() {
+    const oldName = document.getElementById('edit-cust-oldname').value;
+    let newName = document.getElementById('edit-cust-name').value.trim();
+    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); // Firebase safe
+    
+    const phone = document.getElementById('edit-cust-phone').value.trim();
+    const address = document.getElementById('edit-cust-address').value.trim();
+    const balance = document.getElementById('edit-cust-baki').value || "0";
+
+    if(!newName) { alert("Name cannot be empty."); return; }
+
+    if(db && fbReady) {
+        const newData = { phone, address, balance };
+        if(newName !== oldName) {
+            // Name changed: Create new node, delete old node
+            db.ref('nwh/customers/' + newName).set(newData);
+            db.ref('nwh/customers/' + oldName).remove();
+        } else {
+            // Name same: Just update data
+            db.ref('nwh/customers/' + oldName).set(newData);
+        }
+        closeModal('edit-cust-modal');
+    } else {
+        alert("You are currently offline. Cannot save edits.");
+    }
+}
+
+function deleteCustomer(name) {
+    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
+        if(db && fbReady) {
+            db.ref('nwh/customers/' + name).remove();
+        } else {
+            alert("You are currently offline. Cannot delete.");
+        }
+    }
 }
 
 // ============================================================
