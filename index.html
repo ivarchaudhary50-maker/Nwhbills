@@ -193,22 +193,28 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
-#pw-screen{position:fixed;inset:0;background:linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3);z-index:9999;display:flex;align-items:center;justify-content:center;}
-#pw-box{background:#fff;border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
 #pw-logo{font-size:44px;margin-bottom:10px;}
-#pw-title{font-size:1.2rem;font-weight:800;color:#1a1f36;margin-bottom:3px;}
-#pw-sub{font-size:.82rem;color:#8892b0;margin-bottom:20px;}
-.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #c7d2fe;background:#fff;transition:all .15s;}
-.pin-dot.filled{background:#4f46e5;border-color:#4f46e5;transform:scale(1.15);}
-.pin-btn{padding:13px;border-radius:12px;border:2px solid #e2e8f8;background:#f7f9ff;font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:#1a1f36;}
-.pin-btn:active{background:#e0e7ff;border-color:#4f46e5;transform:scale(.93);}
-.pin-del{font-size:1rem;color:#8892b0;}
-#pw-err{color:#dc2626;font-size:.82rem;margin-top:12px;min-height:18px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
+.pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
+.pin-del{font-size:1rem;color:var(--text3);}
+#pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
 </style>
 </head>
 <body>
 
 <script>
+// ============================================================
+// GLOBAL VARIABLES FOR BILL EDITING
+// ============================================================
+let editBillKey = null;
+let editInvoiceNum = null;
+
 // ============================================================
 // SAFE STORAGE HELPERS
 // ============================================================
@@ -431,181 +437,6 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
         </div>
     </div>
   </div>
-</div>
-
-<script>
-// ============================================================
-// GLOBAL VARIABLES FOR BILL EDITING
-// ============================================================
-let editBillKey = null;
-let editInvoiceNum = null;
-
-// ============================================================
-// SAFE STORAGE HELPERS
-// ============================================================
-function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
-function safeSetLocal(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
-function safeGetSession(k) { try { return sessionStorage.getItem(k); } catch(e) { return null; } }
-function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {} }
-</script>
-
-<datalist id="inventory-list"></datalist>
-
-<div id="pw-screen">
-  <div id="pw-box">
-    <div id="pw-logo">🏪</div>
-    <div id="pw-title">Rabi Kapada Pasal</div>
-    <div id="pw-sub">Enter your 4-digit PIN</div>
-    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
-      <div class="pin-dot" id="d0"></div>
-      <div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div>
-      <div class="pin-dot" id="d3"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:230px;margin:0 auto;">
-      <button class="pin-btn" onclick="pinPress('1')">1</button>
-      <button class="pin-btn" onclick="pinPress('2')">2</button>
-      <button class="pin-btn" onclick="pinPress('3')">3</button>
-      <button class="pin-btn" onclick="pinPress('4')">4</button>
-      <button class="pin-btn" onclick="pinPress('5')">5</button>
-      <button class="pin-btn" onclick="pinPress('6')">6</button>
-      <button class="pin-btn" onclick="pinPress('7')">7</button>
-      <button class="pin-btn" onclick="pinPress('8')">8</button>
-      <button class="pin-btn" onclick="pinPress('9')">9</button>
-      <div></div>
-      <button class="pin-btn" onclick="pinPress('0')">0</button>
-      <button class="pin-btn pin-del" onclick="pinDel()">⌫</button>
-    </div>
-    <div id="pw-err"></div>
-  </div>
-</div>
-
-<nav class="top-nav no-print">
-  <div class="nav-brand">
-    <div class="nav-logo">🏪</div>
-    <div>
-      <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System</div>
-    </div>
-  </div>
-  <div class="nav-actions">
-    <span id="sync-status" class="sync-badge">⟳ Connecting...</span>
-    <button class="lang-btn" onclick="toggleLang()" id="lang-btn">नेपाली</button>
-    <button class="btn-icon" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
-  </div>
-</nav>
-
-<div class="tab-bar no-print">
-  <div class="tab active" onclick="switchTab('invoice')" id="tab-invoice">🧾 <span class="L" data-k="New Invoice">New Invoice</span></div>
-  <div class="tab" onclick="switchTab('history')" id="tab-history">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-  <div class="tab" onclick="switchTab('ledger')" id="tab-ledger">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-</div>
-
-<div class="main">
-
-<div class="panel active" id="panel-invoice">
-  <div class="inv-head">
-    <div style="position:relative;z-index:1;">
-      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
-      <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
-    </div>
-    <div class="inv-meta">
-      <div class="inv-label">INVOICE</div>
-      <div class="inv-num">#<span id="invoice-number">...</span></div>
-      <div class="date-dual">
-        <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
-        <span class="date-bs" id="current-date-bs"></span>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">👤 <span class="L" data-k="Bill To">Bill To</span></div>
-      <button class="btn btn-ghost no-print" onclick="saveCustomerOnly()" style="font-size:0.75rem; padding: 4px 10px;">💾 Save Ledger</button>
-    </div>
-    <div class="card-body">
-      <button class="contact-btn no-print" onclick="pickPhoneContact()">📞 <span class="L" data-k="Import from Phone Contacts">Import from Phone Contacts</span></button>
-      <div class="search-wrap no-print" id="search-container">
-        <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="searchDB()" autocomplete="off">
-        <div id="search-results" class="search-results"></div>
-      </div>
-      <div class="inp-grid">
-        <input type="text" class="inp" id="customer-name" placeholder="Full Name">
-        <input type="text" class="inp" id="customer-phone" placeholder="Phone Number">
-        <input type="text" class="inp full" id="customer-address" placeholder="Address">
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">📦 <span class="L" data-k="Items">Items</span></div></div>
-    <div style="overflow-x:auto;">
-      <table class="items-table">
-        <thead><tr>
-          <th style="width:42%"><span class="L" data-k="Garment Description">Garment Description</span></th>
-          <th style="width:80px;text-align:center"><span class="L" data-k="Code">Code</span></th>
-          <th style="text-align:right"><span class="L" data-k="Qty">Qty</span></th>
-          <th style="text-align:right"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
-          <th style="text-align:right"><span class="L" data-k="Total">Total</span></th>
-          <th class="no-print" style="width:30px"></th>
-        </tr></thead>
-        <tbody id="invoice-items"></tbody>
-      </table>
-    </div>
-    <div class="no-print" style="padding:10px 18px;border-top:1px solid var(--border);">
-      <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
-        + <span class="L" data-k="Add Row">Add Row</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="totals-wrap">
-    <div class="totals-box">
-      <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
-      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
-      <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
-      <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
-      <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
-      <div class="t-row g-row"><label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label><input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46;"></div>
-      <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
-    </div>
-  </div>
-
-  <div class="actions-bar no-print">
-    <div class="actions-left">
-      <button class="btn btn-ghost" onclick="clearForm()">🗑 <span class="L" data-k="Clear">Clear</span></button>
-    </div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;">
-      <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
-    </div>
-  </div>
-</div>
-
-<div class="panel" id="panel-history">
-  <div class="card">
-    <div class="card-header" style="flex-wrap:wrap;gap:8px;">
-      <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
-    </div>
-    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Loading...</div></div></div>
-  </div>
-</div>
-
-<div class="panel" id="panel-ledger">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
-    </div>
-    <div class="card-body" style="padding:0 18px 18px;">
-      <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
-      <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Loading customers...</div></div></div>
-    </div>
-  </div>
-</div>
-
 </div>
 
 <script>
@@ -1054,6 +885,7 @@ window.clearSignature = function() {
     }
 }
 
+// UPGRADED ENGINE: Uses html-to-image for crisp vector-based text
 function confirmAndDownload() {
     if(!pendingBill) return;
 
