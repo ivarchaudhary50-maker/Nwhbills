@@ -193,17 +193,17 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
-#pw-screen{position:fixed;inset:0;background:linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3);z-index:9999;display:flex;align-items:center;justify-content:center;}
-#pw-box{background:#fff;border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
 #pw-logo{font-size:44px;margin-bottom:10px;}
-#pw-title{font-size:1.2rem;font-weight:800;color:#1a1f36;margin-bottom:3px;}
-#pw-sub{font-size:.82rem;color:#8892b0;margin-bottom:20px;}
-.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #c7d2fe;background:#fff;transition:all .15s;}
-.pin-dot.filled{background:#4f46e5;border-color:#4f46e5;transform:scale(1.15);}
-.pin-btn{padding:13px;border-radius:12px;border:2px solid #e2e8f8;background:#f7f9ff;font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:#1a1f36;}
-.pin-btn:active{background:#e0e7ff;border-color:#4f46e5;transform:scale(.93);}
-.pin-del{font-size:1rem;color:#8892b0;}
-#pw-err{color:#dc2626;font-size:.82rem;margin-top:12px;min-height:18px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
+.pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
+.pin-del{font-size:1rem;color:var(--text3);}
+#pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
 </style>
 </head>
 <body>
@@ -345,7 +345,15 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
-      <div class="t-row g-row"><label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label><input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46;"></div>
+      
+      <div class="t-row g-row" style="align-items: flex-start;">
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label>
+          <input type="date" id="cash-paid-date" style="background:rgba(255,255,255,0.6); border:1px dashed #a7f3d0; border-radius:4px; padding:2px 4px; font-size:0.7rem; color:#065f46; outline:none; font-family:inherit; max-width: 110px;">
+        </div>
+        <input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46; margin-top:2px;">
+      </div>
+
       <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
     </div>
   </div>
@@ -398,9 +406,14 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
     <div class="modal-header"><div class="modal-title" id="pay-modal-title">💰 Record Payment</div><button class="close-btn" onclick="closeModal('pay-modal')">✕</button></div>
     <div class="modal-body">
       <div class="pay-big" id="pay-baki-display">NRS 0</div>
+      
+      <div class="sec-div">Payment Date</div>
+      <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Space Mono',monospace;">
+
       <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
       <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
+      
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="confirmPayment()">✅ <span class="L" data-k="Confirm Payment">Confirm Payment</span></button>
     </div>
   </div>
@@ -506,10 +519,11 @@ function updateBSDate() {
   }
 }
 
-// Set default date to today
+// Set default dates to today
 const todayObj=new Date();
 const todayStr=todayObj.toISOString().split('T')[0];
 document.getElementById('current-date-ad').value = todayStr;
+document.getElementById('cash-paid-date').value = todayStr;
 updateBSDate();
 
 // ============================================================
@@ -646,6 +660,7 @@ function calc(){
 function clearForm(){
   if(!confirm('Clear all form data?')) return;
   ['customer-name','customer-phone','customer-address','transport-expense','total-poka','prev-balance','cash-paid','db-search'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cash-paid-date').value = todayStr;
   document.getElementById('invoice-items').innerHTML='';addRow();calc();
   
   // Reset editing mode
@@ -730,7 +745,7 @@ function shareWA(){
 }
 
 // ============================================================
-// PREVIEW & SIGNATURE LOGIC (WITH EDIT MODE & POKA)
+// PREVIEW & SIGNATURE LOGIC (WITH EDIT MODE, POKA, & CASH DATE)
 // ============================================================
 let pendingBill = null;
 let isDrawing = false;
@@ -755,12 +770,13 @@ function previewBill(){
       date:billDate, dateBS:billDateBS, customer:safeName,
       phone:document.getElementById('customer-phone').value||'',
       address:document.getElementById('customer-address').value||'',
-      totalPoka: document.getElementById('total-poka').value || '0', // NEW POKA FIELD
+      totalPoka: document.getElementById('total-poka').value || '0',
       transport:document.getElementById('transport-expense').value||'0',
       prevBalance:document.getElementById('prev-balance').value||'0',
       billAmount:document.getElementById('current-bill').innerText.replace(/,/g,''),
       grandTotal:document.getElementById('grand-total').innerText.replace(/,/g,''),
       paid:document.getElementById('cash-paid').value||'0',
+      cashPaidDate: document.getElementById('cash-paid-date').value || todayStr, // NEW FIELD
       remaining:currentBaki, items
   };
 
@@ -781,6 +797,17 @@ function generatePreviewHTML(bill) {
 
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
+    
+    let cashDateStr = '';
+    if (bill.paid && bill.paid !== '0' && bill.cashPaidDate) {
+        let bsStr = '';
+        try {
+            const [cy,cm,cd] = bill.cashPaidDate.split('-').map(Number);
+            const cBs = adToBS(cy,cm,cd);
+            if(cBs) bsStr = ` (${cBs.day} ${cBs.monthName})`;
+        } catch(e){}
+        cashDateStr = `<br><span style="font-size:11.5px; opacity:0.85; font-weight:normal;">📅 ${bill.cashPaidDate}${bsStr}</span>`;
+    }
 
     const htmlString = `
     <div id="actual-bill-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
@@ -833,7 +860,12 @@ function generatePreviewHTML(bill) {
                         ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka}</td></tr>` : ''}
 
                         <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
-                        <tr style="color: #059669;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Nagad Paid (-):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
+                        
+                        <tr style="color: #059669;">
+                            <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">Nagad Paid (-):${cashDateStr}</td>
+                            <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                        </tr>
+
                         <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
                     </table>
                 </td>
@@ -859,7 +891,6 @@ function generatePreviewHTML(bill) {
 function openSignaturePad() {
     document.getElementById('sig-pad-modal').classList.add('open');
     
-    // Slight delay so the modal can physically render on screen before we measure it
     setTimeout(() => {
         const canvas = document.getElementById('large-sig-canvas');
         canvas.width = canvas.offsetWidth;
@@ -871,12 +902,12 @@ function openSignaturePad() {
 function initSignaturePadCanvas(canvas) {
     if(!canvas) return;
     sigCtx = canvas.getContext('2d');
-    sigCtx.lineWidth = 4; // Thicker, nicer lines for drawing on the big pad
+    sigCtx.lineWidth = 4;
     sigCtx.lineCap = 'round';
     sigCtx.lineJoin = 'round';
     sigCtx.strokeStyle = '#1a1f36';
     
-    sigCtx.clearRect(0, 0, canvas.width, canvas.height); // Wipe clean when opened
+    sigCtx.clearRect(0, 0, canvas.width, canvas.height);
 
     const getPos = (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -893,7 +924,7 @@ function initSignaturePadCanvas(canvas) {
         const pos = getPos(e);
         sigCtx.beginPath();
         sigCtx.moveTo(pos.x, pos.y);
-        if(e.touches) e.preventDefault(); // Lock scroll while drawing
+        if(e.touches) e.preventDefault(); 
     };
 
     const draw = (e) => {
@@ -906,7 +937,6 @@ function initSignaturePadCanvas(canvas) {
 
     const stopDraw = () => { isDrawing = false; };
 
-    // Prevent duplicate event listeners if opened twice
     if(!canvasListenersAdded) {
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
@@ -926,10 +956,9 @@ function saveLargeSignature() {
     const img = document.getElementById('bill-sig-img');
     const btn = document.getElementById('sign-btn');
     
-    // Inject signature into the bill
     img.src = dataUrl;
     img.style.display = 'block';
-    btn.style.display = 'none'; // Hide the "Tap to sign" button
+    btn.style.display = 'none';
     
     closeModal('sig-pad-modal');
 }
@@ -942,7 +971,6 @@ window.clearLargeSignature = function() {
 }
 
 window.clearSignature = function() {
-    // This clears the preview bill back to the original button state
     const img = document.getElementById('bill-sig-img');
     const btn = document.getElementById('sign-btn');
     if(img && btn) {
@@ -970,10 +998,8 @@ function confirmAndDownload() {
         });
 
         if(editBillKey) {
-            // Update existing bill instead of creating new
             db.ref('nwh/bills/' + editBillKey).update(pendingBill);
         } else {
-            // Create brand new bill
             db.ref('nwh/bills').push(pendingBill);
             db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
         }
@@ -983,7 +1009,6 @@ function confirmAndDownload() {
     const targetElement = document.getElementById('actual-bill-to-render');
     const previewBody = document.getElementById('preview-body');
 
-    // Force hide the tap to sign button just in case they didn't sign it
     const signBtnNode = document.getElementById('sign-btn');
     if(signBtnNode) signBtnNode.style.display = 'none';
 
@@ -1012,8 +1037,8 @@ function confirmAndDownload() {
         btn.innerHTML = oldText;
         closeModal('preview-modal');
         
-        // Reset Everything
         ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search'].forEach(id=>document.getElementById(id).value='');
+        document.getElementById('cash-paid-date').value = todayStr;
         document.getElementById('invoice-items').innerHTML='';addRow();calc();
         
         editBillKey = null;
@@ -1030,7 +1055,7 @@ function confirmAndDownload() {
 }
 
 // ============================================================
-// HISTORY & LEDGER RENDERING (NOW WITH EDIT/DELETE)
+// HISTORY & LEDGER RENDERING
 // ============================================================
 function renderHistory(){
   const c=document.getElementById('history-container');
@@ -1092,10 +1117,11 @@ function loadBillForEdit(key) {
     document.getElementById('customer-name').value = b.customer || '';
     document.getElementById('customer-phone').value = b.phone || '';
     document.getElementById('customer-address').value = b.address || '';
-    document.getElementById('total-poka').value = b.totalPoka || ''; // LOAD POKA
+    document.getElementById('total-poka').value = b.totalPoka || ''; 
     document.getElementById('transport-expense').value = b.transport || '';
     document.getElementById('prev-balance').value = b.prevBalance || '';
     document.getElementById('cash-paid').value = b.paid || '';
+    document.getElementById('cash-paid-date').value = b.cashPaidDate || b.date || todayStr;
     
     document.getElementById('current-date-ad').value = b.date || todayStr;
     updateBSDate();
@@ -1162,9 +1188,6 @@ function showCustDetail(name){
   document.getElementById('bill-modal').classList.add('open');
 }
 
-// ============================================================
-// CUSTOMER EDIT / DELETE LOGIC
-// ============================================================
 function editCustomer(oldName) {
     const cu = cloudCustomers[oldName];
     if(!cu) return;
@@ -1179,7 +1202,7 @@ function editCustomer(oldName) {
 function saveEditedCustomer() {
     const oldName = document.getElementById('edit-cust-oldname').value;
     let newName = document.getElementById('edit-cust-name').value.trim();
-    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); // Firebase safe
+    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
     
     const phone = document.getElementById('edit-cust-phone').value.trim();
     const address = document.getElementById('edit-cust-address').value.trim();
@@ -1217,6 +1240,7 @@ function openPayModal(key,cust,baki){
   document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
   document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
   document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
+  document.getElementById('pay-date-inp').value = todayStr; // Default to today
   closeModal('bill-modal');
   document.getElementById('pay-modal').classList.add('open');
 }
@@ -1230,11 +1254,13 @@ function payFromLedger(name,baki){
 function confirmPayment(){
   const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
   const note=document.getElementById('pay-note-inp').value.trim();
+  const payDate = document.getElementById('pay-date-inp').value || todayStr; // Use selected date
+  
   if(amount<=0){alert('Enter a valid amount');return;}
   const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
   const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
   const newPaid=(parseInt(bill.paid)||0)+amount;
-  const entry={amount,date:todayStr,note}; 
+  const entry={amount, date: payDate, note}; // Save actual date
   
   if(db&&fbReady){
     db.ref('nwh/bills/'+_payKey+'/remaining').set(newRem.toString());
