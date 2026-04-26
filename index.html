@@ -193,17 +193,17 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
-#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
-#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+#pw-screen{position:fixed;inset:0;background:linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:#fff;border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
 #pw-logo{font-size:44px;margin-bottom:10px;}
-#pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
-#pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
-.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
-.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
-.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
-.pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
-.pin-del{font-size:1rem;color:var(--text3);}
-#pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:#1a1f36;margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:#8892b0;margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #c7d2fe;background:#fff;transition:all .15s;}
+.pin-dot.filled{background:#4f46e5;border-color:#4f46e5;transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid #e2e8f8;background:#f7f9ff;font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:#1a1f36;}
+.pin-btn:active{background:#e0e7ff;border-color:#4f46e5;transform:scale(.93);}
+.pin-del{font-size:1rem;color:#8892b0;}
+#pw-err{color:#dc2626;font-size:.82rem;margin-top:12px;min-height:18px;}
 </style>
 </head>
 <body>
@@ -406,14 +406,11 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
     <div class="modal-header"><div class="modal-title" id="pay-modal-title">💰 Record Payment</div><button class="close-btn" onclick="closeModal('pay-modal')">✕</button></div>
     <div class="modal-body">
       <div class="pay-big" id="pay-baki-display">NRS 0</div>
-      
       <div class="sec-div">Payment Date</div>
       <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Space Mono',monospace;">
-
       <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
       <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
-      
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="confirmPayment()">✅ <span class="L" data-k="Confirm Payment">Confirm Payment</span></button>
     </div>
   </div>
@@ -423,7 +420,6 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
   <div class="modal" style="max-width:360px;">
     <div class="modal-header"><div class="modal-title">✅ Payment Saved</div><button class="close-btn" onclick="closeModal('receipt-modal')">✕</button></div>
     <div class="modal-body">
-      
       <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
             <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Rabi Kapada Pasal</h2>
@@ -431,19 +427,15 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
         </div>
         <p style="margin:6px 0; font-size:13px;">Date: <span id="rec-date"></span></p>
         <p style="margin:6px 0; font-size:13px;">Cust: <strong id="rec-cust"></strong></p>
-        
         <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:15px 0; margin:15px 0; background:#f8fafc;">
             <h3 style="margin:0; text-align:center; color:#065f46; font-size:1.2rem;">PAID: NRS <span id="rec-amt"></span></h3>
         </div>
-        
         <p style="margin:6px 0; font-size:14px; font-weight:bold; color:#dc2626;">Remaining: NRS <span id="rec-baki"></span></p>
         <p style="margin:6px 0; font-size:12px; color:#4a5280;">Note: <span id="rec-note"></span></p>
-        
         <div style="text-align:center; margin-top:25px; border-top:1px dashed #ccc; padding-top:10px;">
             <p style="margin:0; font-size:11px; opacity:0.8;">Thank you for your business!</p>
         </div>
       </div>
-
       <div style="display:flex; gap:10px;">
           <button class="btn btn-wa" style="flex:1; justify-content:center;" onclick="shareReceiptWA()">💬 Text to WA</button>
           <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="downloadReceiptImage()">🖼️ Save Image</button>
@@ -711,7 +703,7 @@ function checkAndAutoFillRate(inputElement) {
     if(!hintSpan) {
         hintSpan = document.createElement('div');
         hintSpan.className = 'rate-hint';
-        hintSpan.style = 'font-size: 0.65rem; color: var(--green); position: absolute; margin-top: 2px; right: 12px;';
+        hintSpan.style = 'font-size: 0.65rem; color: var(--green); position: absolute; margin-top: 2px; right: 12px; pointer-events: none;';
         rateInput.parentNode.appendChild(hintSpan);
         rateInput.parentNode.style.position = 'relative';
     }
@@ -726,7 +718,7 @@ function checkAndAutoFillRate(inputElement) {
             const match = allBills[i].items.find(it => it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
             if(match && match.rate) {
                 lastRate = match.rate;
-                break; // Found newest
+                break; // Found newest since array is reversed
             }
         }
     }
@@ -744,7 +736,6 @@ function checkAndAutoFillRate(inputElement) {
 }
 
 function manualRateOverride(inputElement) {
-    // If the user types a rate manually, turn off autofill protection for this box
     inputElement.dataset.autofilled = 'false';
     calc();
 }
@@ -811,7 +802,6 @@ function searchDB(){
           document.getElementById('customer-address').value=cloudCustomers[name].address||'';
           document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
           document.getElementById('db-search').value='';box.style.display='none';calc();
-          // Trigger autofill check on all existing rows just in case
           document.querySelectorAll('.item-desc').forEach(el => checkAndAutoFillRate(el));
       };
       box.appendChild(d);n++;
@@ -1173,9 +1163,8 @@ function showPriceBook(custName) {
     const list = document.getElementById('price-book-list');
     list.innerHTML = '';
     
-    // Find unique items and their most recent rate
     const historyMap = {};
-    for(let i=allBills.length-1; i>=0; i--) { // Start from oldest to newest to overwrite with latest
+    for(let i=allBills.length-1; i>=0; i--) { 
         if(allBills[i].customer === custName && allBills[i].items) {
             allBills[i].items.forEach(it => {
                 const desc = it.desc.trim();
@@ -1257,7 +1246,7 @@ function downloadLedgerStatement() {
     const oldBg = targetElement.style.background;
     targetElement.style.background = '#ffffff'; 
     
-    htmlToImage.toPng(targetElement, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+    htmlToImage.toPng(targetElement, { pixelRatio: 3, backgroundColor: '#ffffff' }).then(function (dataUrl) {
         const link = document.createElement('a');
         link.download = `Ledger-${document.getElementById('ls-cust-name').innerText}.png`;
         link.href = dataUrl;
@@ -1343,7 +1332,9 @@ function loadBillForEdit(key) {
         b.items.forEach(it => {
             addRow(it.desc, it.qty, it.rate, it.code);
         });
-    } else { addRow(); }
+    } else {
+        addRow();
+    }
     calc();
 
     document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">Editing #${b.invoiceNum}</span>`;
@@ -1352,9 +1343,6 @@ function loadBillForEdit(key) {
     switchTab('invoice');
 }
 
-// ============================================================
-// MODALS & E-RECEIPTS
-// ============================================================
 function showBillDetail(key){
   const b=allBills.find(x=>x.key===key);if(!b) return;
   document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
@@ -1398,58 +1386,6 @@ function showCustDetail(name){
   document.getElementById('bill-modal').classList.add('open');
 }
 
-function toggleLang() {
-  lang = lang==='en'?'np':'en';
-  document.getElementById('lang-btn').textContent = lang==='en'?'नेपाली':'English';
-  applyLang(); renderHistory(); renderLedger();
-}
-
-function editCustomer(oldName) {
-    const cu = cloudCustomers[oldName];
-    if(!cu) return;
-    document.getElementById('edit-cust-oldname').value = oldName;
-    document.getElementById('edit-cust-name').value = oldName;
-    document.getElementById('edit-cust-phone').value = cu.phone || '';
-    document.getElementById('edit-cust-address').value = cu.address || '';
-    document.getElementById('edit-cust-baki').value = cu.balance || '0';
-    document.getElementById('edit-cust-modal').classList.add('open');
-}
-
-function saveEditedCustomer() {
-    const oldName = document.getElementById('edit-cust-oldname').value;
-    let newName = document.getElementById('edit-cust-name').value.trim();
-    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
-    
-    const phone = document.getElementById('edit-cust-phone').value.trim();
-    const address = document.getElementById('edit-cust-address').value.trim();
-    const balance = document.getElementById('edit-cust-baki').value || "0";
-
-    if(!newName) { alert("Name cannot be empty."); return; }
-
-    if(db && fbReady) {
-        const newData = { phone, address, balance };
-        if(newName !== oldName) {
-            db.ref('nwh/customers/' + newName).set(newData);
-            db.ref('nwh/customers/' + oldName).remove();
-        } else {
-            db.ref('nwh/customers/' + oldName).set(newData);
-        }
-        closeModal('edit-cust-modal');
-    } else {
-        alert("You are currently offline. Cannot save edits.");
-    }
-}
-
-function deleteCustomer(name) {
-    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
-        if(db && fbReady) {
-            db.ref('nwh/customers/' + name).remove();
-        } else {
-            alert("You are currently offline. Cannot delete.");
-        }
-    }
-}
-
 let _payKey='',_payCust='';
 function openPayModal(key,cust,baki){
   _payKey=key;_payCust=cust;
@@ -1491,7 +1427,6 @@ function confirmPayment(){
   
   closeModal('pay-modal');
   
-  // Setup E-Receipt
   document.getElementById('rec-date').innerText = payDate;
   document.getElementById('rec-cust').innerText = _payCust;
   document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
