@@ -208,22 +208,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </head>
 <body>
 
-<script>
-// ============================================================
-// GLOBAL VARIABLES FOR BILL EDITING
-// ============================================================
-let editBillKey = null;
-let editInvoiceNum = null;
-
-// ============================================================
-// SAFE STORAGE HELPERS
-// ============================================================
-function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
-function safeSetLocal(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
-function safeGetSession(k) { try { return sessionStorage.getItem(k); } catch(e) { return null; } }
-function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {} }
-</script>
-
 <datalist id="inventory-list"></datalist>
 
 <div id="pw-screen">
@@ -277,121 +261,115 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 </div>
 
 <div class="main">
-
-<div class="panel active" id="panel-invoice">
-  <div class="inv-head">
-    <div style="position:relative;z-index:1;">
-      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
-      <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
-    </div>
-    <div class="inv-meta">
-      <div class="inv-label">INVOICE</div>
-      <div class="inv-num">#<span id="invoice-number">...</span></div>
-      <div class="date-dual">
-        <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
-        <span class="date-bs" id="current-date-bs"></span>
+  <div class="panel active" id="panel-invoice">
+    <div class="inv-head">
+      <div style="position:relative;z-index:1;">
+        <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
+        <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
       </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">👤 <span class="L" data-k="Bill To">Bill To</span></div>
-      <button class="btn btn-ghost no-print" onclick="saveCustomerOnly()" style="font-size:0.75rem; padding: 4px 10px;">💾 Save Ledger</button>
-    </div>
-    <div class="card-body">
-      <button class="contact-btn no-print" onclick="pickPhoneContact()">📞 <span class="L" data-k="Import from Phone Contacts">Import from Phone Contacts</span></button>
-      <div class="search-wrap no-print" id="search-container">
-        <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="searchDB()" autocomplete="off">
-        <div id="search-results" class="search-results"></div>
-      </div>
-      <div class="inp-grid">
-        <input type="text" class="inp" id="customer-name" placeholder="Full Name">
-        <input type="text" class="inp" id="customer-phone" placeholder="Phone Number">
-        <input type="text" class="inp full" id="customer-address" placeholder="Address">
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">📦 <span class="L" data-k="Items">Items</span></div></div>
-    <div style="overflow-x:auto;">
-      <table class="items-table">
-        <thead><tr>
-          <th style="width:42%"><span class="L" data-k="Garment Description">Garment Description</span></th>
-          <th style="width:80px;text-align:center"><span class="L" data-k="Code">Code</span></th>
-          <th style="text-align:right"><span class="L" data-k="Qty">Qty</span></th>
-          <th style="text-align:right"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
-          <th style="text-align:right"><span class="L" data-k="Total">Total</span></th>
-          <th class="no-print" style="width:30px"></th>
-        </tr></thead>
-        <tbody id="invoice-items"></tbody>
-      </table>
-    </div>
-    <div class="no-print" style="padding:10px 18px;border-top:1px solid var(--border);">
-      <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
-        + <span class="L" data-k="Add Row">Add Row</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="totals-wrap">
-    <div class="totals-box">
-      <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
-      
-      <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
-
-      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
-      <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
-      <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
-      <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
-      
-      <div class="t-row g-row" style="align-items: flex-start;">
-        <div style="display:flex; flex-direction:column; gap:3px;">
-          <label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label>
-          <input type="date" id="cash-paid-date" style="background:rgba(255,255,255,0.6); border:1px dashed #a7f3d0; border-radius:4px; padding:2px 4px; font-size:0.7rem; color:#065f46; outline:none; font-family:inherit; max-width: 110px;">
+      <div class="inv-meta">
+        <div class="inv-label">INVOICE</div>
+        <div class="inv-num">#<span id="invoice-number">...</span></div>
+        <div class="date-dual">
+          <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
+          <span class="date-bs" id="current-date-bs"></span>
         </div>
-        <input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46; margin-top:2px;">
       </div>
+    </div>
 
-      <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👤 <span class="L" data-k="Bill To">Bill To</span></div>
+        <button class="btn btn-ghost no-print" onclick="saveCustomerOnly()" style="font-size:0.75rem; padding: 4px 10px;">💾 Save Ledger</button>
+      </div>
+      <div class="card-body">
+        <button class="contact-btn no-print" onclick="pickPhoneContact()">📞 <span class="L" data-k="Import from Phone Contacts">Import from Phone Contacts</span></button>
+        <div class="search-wrap no-print" id="search-container">
+          <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="searchDB()" autocomplete="off">
+          <div id="search-results" class="search-results"></div>
+        </div>
+        <div class="inp-grid">
+          <input type="text" class="inp" id="customer-name" placeholder="Full Name">
+          <input type="text" class="inp" id="customer-phone" placeholder="Phone Number">
+          <input type="text" class="inp full" id="customer-address" placeholder="Address">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">📦 <span class="L" data-k="Items">Items</span></div></div>
+      <div style="overflow-x:auto;">
+        <table class="items-table">
+          <thead><tr>
+            <th style="width:42%"><span class="L" data-k="Garment Description">Garment Description</span></th>
+            <th style="width:80px;text-align:center"><span class="L" data-k="Code">Code</span></th>
+            <th style="text-align:right"><span class="L" data-k="Qty">Qty</span></th>
+            <th style="text-align:right"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
+            <th style="text-align:right"><span class="L" data-k="Total">Total</span></th>
+            <th class="no-print" style="width:30px"></th>
+          </tr></thead>
+          <tbody id="invoice-items"></tbody>
+        </table>
+      </div>
+      <div class="no-print" style="padding:10px 18px;border-top:1px solid var(--border);">
+        <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
+          + <span class="L" data-k="Add Row">Add Row</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="totals-wrap">
+      <div class="totals-box">
+        <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
+        <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
+        <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+        <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
+        <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
+        <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
+        <div class="t-row g-row" style="align-items: flex-start;">
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label>
+            <input type="date" id="cash-paid-date" style="background:rgba(255,255,255,0.6); border:1px dashed #a7f3d0; border-radius:4px; padding:2px 4px; font-size:0.7rem; color:#065f46; outline:none; font-family:inherit; max-width: 110px;">
+          </div>
+          <input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46; margin-top:2px;">
+        </div>
+        <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
+      </div>
+    </div>
+
+    <div class="actions-bar no-print">
+      <div class="actions-left">
+        <button class="btn btn-ghost" onclick="clearForm()">🗑 <span class="L" data-k="Clear">Clear</span></button>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
+        <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
+      </div>
     </div>
   </div>
 
-  <div class="actions-bar no-print">
-    <div class="actions-left">
-      <button class="btn btn-ghost" onclick="clearForm()">🗑 <span class="L" data-k="Clear">Clear</span></button>
-    </div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap;">
-      <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
-    </div>
-  </div>
-</div>
-
-<div class="panel" id="panel-history">
-  <div class="card">
-    <div class="card-header" style="flex-wrap:wrap;gap:8px;">
-      <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
-    </div>
-    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Loading...</div></div></div>
-  </div>
-</div>
-
-<div class="panel" id="panel-ledger">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
-    </div>
-    <div class="card-body" style="padding:0 18px 18px;">
-      <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
-      <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Loading customers...</div></div></div>
+  <div class="panel" id="panel-history">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px;">
+        <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
+        <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
+      </div>
+      <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Loading...</div></div></div>
     </div>
   </div>
-</div>
 
+  <div class="panel" id="panel-ledger">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
+        <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
+      </div>
+      <div class="card-body" style="padding:0 18px 18px;">
+        <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
+        <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Loading customers...</div></div></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="bill-modal">
@@ -545,14 +523,16 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 </div>
 
 <script>
-// ============================================================
-// LANGUAGE SYSTEM
-// ============================================================
+// GLOBAL VARIABLES
+let editBillKey = null;
+let editInvoiceNum = null;
 let lang = 'en';
+
 const STR = {
   en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
   np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
 };
+
 function applyLang() {
   document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; });
 }
@@ -562,9 +542,7 @@ function toggleLang() {
   applyLang(); renderHistory(); renderLedger();
 }
 
-// ============================================================
-// NEPALI DATE SYSTEM 
-// ============================================================
+// DATE SYSTEM
 const ND=[[2000,[30,32,31,32,31,30,30,30,29,30,29,31]],[2001,[31,31,32,31,31,31,30,29,30,29,30,30]],[2002,[31,31,32,32,31,30,30,29,30,29,30,30]],[2003,[31,32,31,32,31,30,30,30,29,29,30,31]],[2004,[30,32,31,32,31,30,30,30,29,30,29,31]],[2005,[31,31,32,31,31,31,30,29,30,29,30,30]],[2006,[31,31,32,32,31,30,30,29,30,29,30,30]],[2007,[31,32,31,32,31,30,30,30,29,29,30,31]],[2008,[31,31,31,32,31,30,30,30,29,30,29,31]],[2009,[31,31,32,31,31,31,30,29,30,29,30,30]],[2010,[31,31,32,32,31,30,30,29,30,29,30,30]],[2011,[31,32,31,32,31,30,30,30,29,29,30,31]],[2012,[31,31,31,32,31,30,30,30,29,30,29,31]],[2013,[31,31,32,31,31,31,30,29,30,29,30,30]],[2014,[31,31,32,32,31,30,30,29,30,29,30,30]],[2015,[31,32,31,32,31,30,30,30,29,29,30,31]],[2016,[31,31,31,32,31,30,30,30,29,30,29,31]],[2017,[31,31,32,31,31,31,30,29,30,29,30,30]],[2018,[31,31,32,32,31,30,30,29,30,29,30,30]],[2019,[31,32,31,32,31,30,30,30,29,29,30,31]],[2020,[31,31,31,32,31,30,30,30,29,30,29,31]],[2021,[31,31,32,31,31,31,30,29,30,29,30,30]],[2022,[31,31,32,32,31,30,30,29,30,29,30,30]],[2023,[31,32,31,32,31,30,30,30,29,29,30,31]],[2024,[31,31,31,32,31,30,30,30,29,30,29,31]],[2025,[31,31,32,31,31,31,30,29,30,29,30,30]],[2026,[31,31,32,32,31,30,30,29,30,29,30,30]],[2027,[31,32,31,32,31,30,30,30,29,29,30,31]],[2028,[31,31,31,32,31,30,30,30,29,30,29,31]],[2029,[31,31,32,31,31,31,30,29,30,29,30,30]],[2030,[31,31,32,32,31,30,30,29,30,29,30,30]],[2031,[31,32,31,32,31,30,30,30,29,29,30,31]],[2032,[31,31,31,32,31,30,30,30,29,30,29,31]],[2033,[31,31,32,31,31,31,30,29,30,29,30,30]],[2034,[31,31,32,32,31,30,30,29,30,29,30,30]],[2035,[31,32,31,32,31,30,30,30,29,29,30,31]],[2036,[31,31,31,32,31,30,30,30,29,30,29,31]],[2037,[31,31,32,31,31,31,30,29,30,29,30,30]],[2038,[31,31,32,32,31,30,30,29,30,29,30,30]],[2039,[31,32,31,32,31,30,30,30,29,29,30,31]],[2040,[31,31,31,32,31,30,30,30,29,30,29,31]],[2041,[31,31,32,31,31,31,30,29,30,29,30,30]],[2042,[31,31,32,32,31,30,30,29,30,29,30,30]],[2043,[31,32,31,32,31,30,30,30,29,29,30,31]],[2044,[30,32,31,32,31,30,30,30,29,30,29,31]],[2045,[31,31,32,31,31,31,30,29,30,29,30,30]],[2046,[31,31,32,32,31,30,30,29,30,29,30,30]],[2047,[31,32,31,32,31,30,30,30,29,29,30,31]],[2048,[31,31,31,32,31,30,30,30,29,30,29,31]],[2049,[31,31,32,31,31,31,30,29,30,29,30,30]],[2050,[31,31,32,32,31,30,30,29,30,29,30,30]]];
 const NM=['बैशाख','जेठ','असार','श्रावण','भाद्र','आश्विन','कार्तिक','मंसिर','पौष','माघ','फाल्गुन','चैत्र'];
 
@@ -597,6 +575,18 @@ const todayStr=todayObj.toISOString().split('T')[0];
 document.getElementById('current-date-ad').value = todayStr;
 document.getElementById('cash-paid-date').value = todayStr;
 updateBSDate();
+
+function filterHistory(){
+  const q = document.getElementById('history-search').value.toLowerCase();
+  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
+  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+}
+
+function filterLedger(){
+  const q = document.getElementById('ledger-search').value.toLowerCase();
+  const cards = document.querySelectorAll('#ledger-container .ledger-card');
+  cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+}
 
 // ============================================================
 // FIREBASE CONNECTION
@@ -635,18 +625,13 @@ function initFB(){
         if(!editBillKey) document.getElementById('invoice-number').innerText=v; 
       }
       else db.ref('nwh/nextInvoiceNumber').set(1001);
-    }, err => { alert("Firebase Error (Invoice): " + err.message); });
-    
-    db.ref('nwh/customers').on('value',s=>{
-        cloudCustomers=s.val()||{};
-        renderLedger();
-    }, err => { alert("Firebase Error (Customers): " + err.message); });
-    
+    });
+    db.ref('nwh/customers').on('value',s=>{cloudCustomers=s.val()||{};renderLedger();});
     db.ref('nwh/bills').on('value',s=>{
       const v=s.val();
       allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
       renderHistory();
-    }, err => { alert("Firebase Error (Bills): " + err.message); });
+    });
     
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
@@ -659,25 +644,6 @@ function initFB(){
   }catch(e){ syncEl.innerText='🔴 Error'; }
 }
 setTimeout(initFB,300);
-
-// ============================================================
-// SEARCH AND FILTER FUNCTIONS (MISSING PREVIOUSLY)
-// ============================================================
-function filterHistory(){
-  const q = document.getElementById('history-search').value.toLowerCase();
-  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
-  rows.forEach(r => {
-    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
-
-function filterLedger(){
-  const q = document.getElementById('ledger-search').value.toLowerCase();
-  const cards = document.querySelectorAll('#ledger-container .ledger-card');
-  cards.forEach(c => {
-    c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
@@ -715,7 +681,6 @@ function saveNewItems(itemsArray) {
     }
 }
 
-// MAGIC AUTO-FILL LOGIC
 function checkAndAutoFillRate(inputElement) {
     const row = inputElement.closest('tr');
     const custName = document.getElementById('customer-name').value.trim().replace(/[.#$\[\]]/g, ' ');
