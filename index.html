@@ -322,9 +322,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="totals-wrap">
     <div class="totals-box">
       <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
-      
       <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
-
       <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
@@ -446,32 +444,41 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </div>
 
 <div class="modal-overlay" id="ledger-statement-modal" style="z-index: 350;">
-  <div class="modal" style="max-width:650px; width:95%; height:85vh; display:flex; flex-direction:column; padding:0;">
+  <div class="modal" style="max-width:900px; width:95%; height:90vh; display:flex; flex-direction:column; padding:0;">
     <div class="modal-header">
         <div class="modal-title" id="ls-title">📜 Statement of Account</div>
         <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
     </div>
-    <div class="modal-body" style="flex:1; overflow:auto; padding:15px;" id="ledger-statement-render">
-        <div style="text-align:center; margin-bottom:15px;">
-            <h2 style="margin:0; font-size:1.2rem;">Rabi Kapada Pasal</h2>
-            <p style="margin:0; font-size:0.85rem; color:var(--text2);">Statement of Account</p>
-            <p style="margin:5px 0 0 0; font-weight:bold;" id="ls-cust-name"></p>
+    
+    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
+        <div id="ledger-statement-render" style="width:800px; background:#ffffff; padding:40px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
+            <div style="text-align:center; margin-bottom:25px;">
+                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
+                <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
+                <div style="margin-top:20px; padding:15px; background:#f7f9ff; border-left:4px solid #8b5cf6; text-align:left;">
+                    <p style="margin:0; font-size:12px; font-weight:bold; color:#8892b0;">CUSTOMER:</p>
+                    <p style="margin:2px 0 0 0; font-size:18px; font-weight:bold; color:#1a1f36;" id="ls-cust-name"></p>
+                    <p style="margin:2px 0 0 0; font-size:14px; color:#4a5280;" id="ls-cust-sub"></p>
+                </div>
+            </div>
+            <table class="items-table" style="width:100%; border-collapse:collapse;">
+                <thead style="background:var(--grad); color:#fff;">
+                    <tr>
+                        <th style="padding:12px; font-size:13px; text-align:left;">Date</th>
+                        <th style="padding:12px; font-size:13px; text-align:left;">Details</th>
+                        <th style="text-align:right; padding:12px; font-size:13px;">Bill (+)</th>
+                        <th style="text-align:right; padding:12px; font-size:13px;">Paid (-)</th>
+                        <th style="text-align:right; padding:12px; font-size:13px;">Balance</th>
+                    </tr>
+                </thead>
+                <tbody id="ledger-statement-list"></tbody>
+            </table>
         </div>
-        <table class="items-table" style="width:100%; border:1px solid var(--border);">
-            <thead style="background:var(--grad); color:#fff;">
-                <tr>
-                    <th style="padding:8px; font-size:0.7rem;">Date</th>
-                    <th style="padding:8px; font-size:0.7rem;">Details</th>
-                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Bill (+)</th>
-                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Paid (-)</th>
-                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Balance</th>
-                </tr>
-            </thead>
-            <tbody id="ledger-statement-list"></tbody>
-        </table>
     </div>
-    <div style="padding:15px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary" onclick="downloadLedgerStatement()">🖼️ Download Statement</button>
+    
+    <div style="padding:15px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; background:var(--surface);">
+        <button class="btn btn-ghost" onclick="closeModal('ledger-statement-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="downloadLedgerStatement()" id="ls-download-btn">🖼️ Download Statement</button>
     </div>
   </div>
 </div>
@@ -881,7 +888,7 @@ function shareWA(){
 }
 
 // ============================================================
-// PREVIEW & SIGNATURE LOGIC (MASSIVE SIGNATURE BOX)
+// PREVIEW & SIGNATURE LOGIC
 // ============================================================
 let pendingBill = null;
 let isDrawing = false;
@@ -1212,6 +1219,15 @@ function showPriceBook(custName) {
 
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
+    
+    // Add Sub Info (Phone & Address) if available
+    const cu = cloudCustomers[custName] || {};
+    let subInfo = [];
+    if(cu.address) subInfo.push(cu.address);
+    if(cu.phone) subInfo.push(cu.phone);
+    const subEl = document.getElementById('ls-cust-sub');
+    if (subEl) subEl.innerText = subInfo.join(' • ');
+    
     const list = document.getElementById('ledger-statement-list');
     list.innerHTML = '';
     
@@ -1251,32 +1267,60 @@ function showLedgerStatement(custName) {
             let debitStr = e.debit > 0 ? e.debit.toLocaleString('en-IN') : '';
             let creditStr = e.credit > 0 ? e.credit.toLocaleString('en-IN') : '';
             
-            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:8px; font-size:0.75rem; white-space:nowrap;">${e.date}</td>
-                <td style="padding:8px; font-size:0.75rem;">${e.desc}</td>
-                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-size:0.75rem;">${debitStr}</td>
-                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-size:0.75rem; color:var(--green);">${creditStr}</td>
-                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-weight:bold; font-size:0.75rem; color:${bal>0?'var(--red)':'var(--text)'};">${bal.toLocaleString('en-IN')}</td>
+            list.innerHTML += `<tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:12px; font-size:13px; white-space:nowrap; color:#4a5280;">${e.date}</td>
+                <td style="padding:12px; font-size:13px; color:#1a1f36; max-width: 250px; overflow:hidden; text-overflow:ellipsis;">${e.desc}</td>
+                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${debitStr}</td>
+                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${creditStr}</td>
+                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:${bal>0?'#dc2626':'#1a1f36'};">${bal.toLocaleString('en-IN')}</td>
             </tr>`;
         });
     }
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
+// FIX: EXPORT TRUE UNCLIPPED LEDGER TO IMAGE
 function downloadLedgerStatement() {
+    const btn = document.getElementById('ls-download-btn');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Processing...';
+
     const targetElement = document.getElementById('ledger-statement-render');
-    const oldBg = targetElement.style.background;
-    targetElement.style.background = '#ffffff'; 
-    
-    htmlToImage.toPng(targetElement, { pixelRatio: 3, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+    const modalBody = document.getElementById('ls-modal-body');
+
+    // Extract element from scrolling container to prevent cropping
+    targetElement.style.position = 'absolute';
+    targetElement.style.top = '0';
+    targetElement.style.left = '0';
+    targetElement.style.zIndex = '-9999';
+    targetElement.style.boxShadow = 'none';
+
+    document.body.appendChild(targetElement);
+    window.scrollTo(0,0);
+
+    htmlToImage.toPng(targetElement, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
         const link = document.createElement('a');
-        link.download = `Ledger-${document.getElementById('ls-cust-name').innerText}.png`;
+        link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
         link.href = dataUrl;
         link.click();
-        targetElement.style.background = oldBg;
+
+        // Return element back to modal
+        targetElement.style.position = 'relative';
+        targetElement.style.zIndex = '1';
+        targetElement.style.boxShadow = '0 10px 40px rgba(0,0,0,0.15)';
+        modalBody.appendChild(targetElement);
+
+        btn.innerHTML = oldText;
     }).catch(function (err) {
         console.error("Ledger Image Error:", err);
-        targetElement.style.background = oldBg;
+        btn.innerHTML = oldText;
+        alert("Error generating image.");
+
+        // Return element back to modal on error
+        targetElement.style.position = 'relative';
+        targetElement.style.zIndex = '1';
+        targetElement.style.boxShadow = '0 10px 40px rgba(0,0,0,0.15)';
+        modalBody.appendChild(targetElement);
     });
 }
 
