@@ -193,17 +193,17 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
-#pw-screen{position:fixed;inset:0;background:linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3);z-index:9999;display:flex;align-items:center;justify-content:center;}
-#pw-box{background:#fff;border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
 #pw-logo{font-size:44px;margin-bottom:10px;}
-#pw-title{font-size:1.2rem;font-weight:800;color:#1a1f36;margin-bottom:3px;}
-#pw-sub{font-size:.82rem;color:#8892b0;margin-bottom:20px;}
-.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid #c7d2fe;background:#fff;transition:all .15s;}
-.pin-dot.filled{background:#4f46e5;border-color:#4f46e5;transform:scale(1.15);}
-.pin-btn{padding:13px;border-radius:12px;border:2px solid #e2e8f8;background:#f7f9ff;font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:#1a1f36;}
-.pin-btn:active{background:#e0e7ff;border-color:#4f46e5;transform:scale(.93);}
-.pin-del{font-size:1rem;color:#8892b0;}
-#pw-err{color:#dc2626;font-size:.82rem;margin-top:12px;min-height:18px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
+.pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
+.pin-del{font-size:1rem;color:var(--text3);}
+#pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
 </style>
 </head>
 <body>
@@ -635,13 +635,18 @@ function initFB(){
         if(!editBillKey) document.getElementById('invoice-number').innerText=v; 
       }
       else db.ref('nwh/nextInvoiceNumber').set(1001);
-    });
-    db.ref('nwh/customers').on('value',s=>{cloudCustomers=s.val()||{};renderLedger();});
+    }, err => { alert("Firebase Error (Invoice): " + err.message); });
+    
+    db.ref('nwh/customers').on('value',s=>{
+        cloudCustomers=s.val()||{};
+        renderLedger();
+    }, err => { alert("Firebase Error (Customers): " + err.message); });
+    
     db.ref('nwh/bills').on('value',s=>{
       const v=s.val();
       allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
       renderHistory();
-    });
+    }, err => { alert("Firebase Error (Bills): " + err.message); });
     
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
@@ -654,6 +659,25 @@ function initFB(){
   }catch(e){ syncEl.innerText='🔴 Error'; }
 }
 setTimeout(initFB,300);
+
+// ============================================================
+// SEARCH AND FILTER FUNCTIONS (MISSING PREVIOUSLY)
+// ============================================================
+function filterHistory(){
+  const q = document.getElementById('history-search').value.toLowerCase();
+  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
+  rows.forEach(r => {
+    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function filterLedger(){
+  const q = document.getElementById('ledger-search').value.toLowerCase();
+  const cards = document.querySelectorAll('#ledger-container .ledger-card');
+  cards.forEach(c => {
+    c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
@@ -698,7 +722,6 @@ function checkAndAutoFillRate(inputElement) {
     const descInput = row.querySelector('.item-desc');
     const rateInput = row.querySelector('.rate');
     
-    // Ensure we have a hint span
     let hintSpan = row.querySelector('.rate-hint');
     if(!hintSpan) {
         hintSpan = document.createElement('div');
@@ -711,14 +734,13 @@ function checkAndAutoFillRate(inputElement) {
     hintSpan.innerText = '';
     if(!custName || !descInput.value.trim()) return;
     
-    // Search history for this customer's last rate for this item
     let lastRate = null;
     for(let i=0; i<allBills.length; i++) {
         if(allBills[i].customer === custName && allBills[i].items) {
             const match = allBills[i].items.find(it => it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
             if(match && match.rate) {
                 lastRate = match.rate;
-                break; // Found newest since array is reversed
+                break; 
             }
         }
     }
@@ -1384,6 +1406,52 @@ function showCustDetail(name){
     ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
   `;
   document.getElementById('bill-modal').classList.add('open');
+}
+
+function editCustomer(oldName) {
+    const cu = cloudCustomers[oldName];
+    if(!cu) return;
+    document.getElementById('edit-cust-oldname').value = oldName;
+    document.getElementById('edit-cust-name').value = oldName;
+    document.getElementById('edit-cust-phone').value = cu.phone || '';
+    document.getElementById('edit-cust-address').value = cu.address || '';
+    document.getElementById('edit-cust-baki').value = cu.balance || '0';
+    document.getElementById('edit-cust-modal').classList.add('open');
+}
+
+function saveEditedCustomer() {
+    const oldName = document.getElementById('edit-cust-oldname').value;
+    let newName = document.getElementById('edit-cust-name').value.trim();
+    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
+    
+    const phone = document.getElementById('edit-cust-phone').value.trim();
+    const address = document.getElementById('edit-cust-address').value.trim();
+    const balance = document.getElementById('edit-cust-baki').value || "0";
+
+    if(!newName) { alert("Name cannot be empty."); return; }
+
+    if(db && fbReady) {
+        const newData = { phone, address, balance };
+        if(newName !== oldName) {
+            db.ref('nwh/customers/' + newName).set(newData);
+            db.ref('nwh/customers/' + oldName).remove();
+        } else {
+            db.ref('nwh/customers/' + oldName).set(newData);
+        }
+        closeModal('edit-cust-modal');
+    } else {
+        alert("You are currently offline. Cannot save edits.");
+    }
+}
+
+function deleteCustomer(name) {
+    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
+        if(db && fbReady) {
+            db.ref('nwh/customers/' + name).remove();
+        } else {
+            alert("You are currently offline. Cannot delete.");
+        }
+    }
 }
 
 let _payKey='',_payCust='';
