@@ -419,6 +419,87 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
   </div>
 </div>
 
+<div class="modal-overlay" id="receipt-modal" style="z-index: 400;">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header"><div class="modal-title">✅ Payment Saved</div><button class="close-btn" onclick="closeModal('receipt-modal')">✕</button></div>
+    <div class="modal-body">
+      
+      <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+        <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
+            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Rabi Kapada Pasal</h2>
+            <p style="margin:4px 0 0 0; font-size:12px;">Payment Receipt</p>
+        </div>
+        <p style="margin:6px 0; font-size:13px;">Date: <span id="rec-date"></span></p>
+        <p style="margin:6px 0; font-size:13px;">Cust: <strong id="rec-cust"></strong></p>
+        
+        <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:15px 0; margin:15px 0; background:#f8fafc;">
+            <h3 style="margin:0; text-align:center; color:#065f46; font-size:1.2rem;">PAID: NRS <span id="rec-amt"></span></h3>
+        </div>
+        
+        <p style="margin:6px 0; font-size:14px; font-weight:bold; color:#dc2626;">Remaining: NRS <span id="rec-baki"></span></p>
+        <p style="margin:6px 0; font-size:12px; color:#4a5280;">Note: <span id="rec-note"></span></p>
+        
+        <div style="text-align:center; margin-top:25px; border-top:1px dashed #ccc; padding-top:10px;">
+            <p style="margin:0; font-size:11px; opacity:0.8;">Thank you for your business!</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+          <button class="btn btn-wa" style="flex:1; justify-content:center;" onclick="shareReceiptWA()">💬 Text to WA</button>
+          <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="downloadReceiptImage()">🖼️ Save Image</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="price-book-modal">
+  <div class="modal" style="max-width:450px;">
+    <div class="modal-header"><div class="modal-title" id="pb-title">📕 Price Book</div><button class="close-btn" onclick="closeModal('price-book-modal')">✕</button></div>
+    <div class="modal-body" style="padding:0;">
+        <table class="items-table" style="width:100%; border-top:none;">
+            <thead style="background:var(--surface2); color:var(--text2);">
+                <tr>
+                    <th style="padding:10px 18px;">Item Description</th>
+                    <th style="text-align:right; padding:10px 18px;">Last Rate Paid</th>
+                </tr>
+            </thead>
+            <tbody id="price-book-list"></tbody>
+        </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ledger-statement-modal" style="z-index: 350;">
+  <div class="modal" style="max-width:650px; width:95%; height:85vh; display:flex; flex-direction:column; padding:0;">
+    <div class="modal-header">
+        <div class="modal-title" id="ls-title">📜 Statement of Account</div>
+        <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1; overflow:auto; padding:15px;" id="ledger-statement-render">
+        <div style="text-align:center; margin-bottom:15px;">
+            <h2 style="margin:0; font-size:1.2rem;">Rabi Kapada Pasal</h2>
+            <p style="margin:0; font-size:0.85rem; color:var(--text2);">Statement of Account</p>
+            <p style="margin:5px 0 0 0; font-weight:bold;" id="ls-cust-name"></p>
+        </div>
+        <table class="items-table" style="width:100%; border:1px solid var(--border);">
+            <thead style="background:var(--grad); color:#fff;">
+                <tr>
+                    <th style="padding:8px; font-size:0.7rem;">Date</th>
+                    <th style="padding:8px; font-size:0.7rem;">Details</th>
+                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Bill (+)</th>
+                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Paid (-)</th>
+                    <th style="text-align:right; padding:8px; font-size:0.7rem;">Balance</th>
+                </tr>
+            </thead>
+            <tbody id="ledger-statement-list"></tbody>
+        </table>
+    </div>
+    <div style="padding:15px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="downloadLedgerStatement()">🖼️ Download Statement</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="edit-cust-modal">
   <div class="modal" style="max-width:340px;">
     <div class="modal-header"><div class="modal-title">✏️ Edit Customer</div><button class="close-btn" onclick="closeModal('edit-cust-modal')">✕</button></div>
@@ -519,7 +600,6 @@ function updateBSDate() {
   }
 }
 
-// Set default dates to today
 const todayObj=new Date();
 const todayStr=todayObj.toISOString().split('T')[0];
 document.getElementById('current-date-ad').value = todayStr;
@@ -571,7 +651,6 @@ function initFB(){
       renderHistory();
     });
     
-    // Sync Inventory from Cloud instantly
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
       if(Array.isArray(val)) inventoryList = val;
@@ -585,7 +664,7 @@ function initFB(){
 setTimeout(initFB,300);
 
 // ============================================================
-// ITEM CATALOG (CLOUD AUTO-SAVE)
+// ITEM CATALOG & AUTO-FILL RATE MEMORY
 // ============================================================
 let inventoryList = [];
 try {
@@ -620,21 +699,65 @@ function saveNewItems(itemsArray) {
     }
 }
 
-// ============================================================
-// TABS / THEME
-// ============================================================
-function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
-function switchTab(name){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');if(name==='ledger')renderLedger();}
+// MAGIC AUTO-FILL LOGIC
+function checkAndAutoFillRate(inputElement) {
+    const row = inputElement.closest('tr');
+    const custName = document.getElementById('customer-name').value.trim().replace(/[.#$\[\]]/g, ' ');
+    const descInput = row.querySelector('.item-desc');
+    const rateInput = row.querySelector('.rate');
+    
+    // Ensure we have a hint span
+    let hintSpan = row.querySelector('.rate-hint');
+    if(!hintSpan) {
+        hintSpan = document.createElement('div');
+        hintSpan.className = 'rate-hint';
+        hintSpan.style = 'font-size: 0.65rem; color: var(--green); position: absolute; margin-top: 2px; right: 12px;';
+        rateInput.parentNode.appendChild(hintSpan);
+        rateInput.parentNode.style.position = 'relative';
+    }
+    
+    hintSpan.innerText = '';
+    if(!custName || !descInput.value.trim()) return;
+    
+    // Search history for this customer's last rate for this item
+    let lastRate = null;
+    for(let i=0; i<allBills.length; i++) {
+        if(allBills[i].customer === custName && allBills[i].items) {
+            const match = allBills[i].items.find(it => it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
+            if(match && match.rate) {
+                lastRate = match.rate;
+                break; // Found newest
+            }
+        }
+    }
+    
+    if(lastRate) {
+        if(!rateInput.value || rateInput.dataset.autofilled === 'true') {
+            rateInput.value = lastRate;
+            rateInput.dataset.autofilled = 'true';
+            calc();
+        }
+        hintSpan.innerText = `Last: ${lastRate}`;
+    } else {
+        rateInput.dataset.autofilled = 'false';
+    }
+}
+
+function manualRateOverride(inputElement) {
+    // If the user types a rate manually, turn off autofill protection for this box
+    inputElement.dataset.autofilled = 'false';
+    calc();
+}
 
 // ============================================================
 // INVOICE MATH
 // ============================================================
 function addRow(desc='',qty='',rate='',code=''){
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td><input type="text" class="ti item-desc" placeholder="Type item..." value="${desc}" list="inventory-list"></td>
+  tr.innerHTML=`<td><input type="text" class="ti item-desc" placeholder="Type item..." value="${desc}" list="inventory-list" oninput="checkAndAutoFillRate(this)"></td>
     <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
     <td><input type="number" class="ti r qty" placeholder="0" min="0" value="${qty}" oninput="calc()"></td>
-    <td><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="calc()"></td>
+    <td style="position:relative;"><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="manualRateOverride(this)"></td>
     <td class="amount" style="text-align:right; font-weight:bold; padding-right:12px;">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   document.getElementById('invoice-items').appendChild(tr);
@@ -663,7 +786,6 @@ function clearForm(){
   document.getElementById('cash-paid-date').value = todayStr;
   document.getElementById('invoice-items').innerHTML='';addRow();calc();
   
-  // Reset editing mode
   editBillKey = null;
   editInvoiceNum = null;
   document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">New Invoice</span>`;
@@ -689,6 +811,8 @@ function searchDB(){
           document.getElementById('customer-address').value=cloudCustomers[name].address||'';
           document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
           document.getElementById('db-search').value='';box.style.display='none';calc();
+          // Trigger autofill check on all existing rows just in case
+          document.querySelectorAll('.item-desc').forEach(el => checkAndAutoFillRate(el));
       };
       box.appendChild(d);n++;
     }
@@ -745,7 +869,7 @@ function shareWA(){
 }
 
 // ============================================================
-// PREVIEW & SIGNATURE LOGIC (WITH EDIT MODE, POKA, & CASH DATE)
+// PREVIEW & SIGNATURE LOGIC (MASSIVE SIGNATURE BOX)
 // ============================================================
 let pendingBill = null;
 let isDrawing = false;
@@ -766,7 +890,7 @@ function previewBill(){
   });
 
   pendingBill = {
-      invoiceNum: editInvoiceNum || cloudNextInvoice, // Use old num if editing
+      invoiceNum: editInvoiceNum || cloudNextInvoice,
       date:billDate, dateBS:billDateBS, customer:safeName,
       phone:document.getElementById('customer-phone').value||'',
       address:document.getElementById('customer-address').value||'',
@@ -776,7 +900,7 @@ function previewBill(){
       billAmount:document.getElementById('current-bill').innerText.replace(/,/g,''),
       grandTotal:document.getElementById('grand-total').innerText.replace(/,/g,''),
       paid:document.getElementById('cash-paid').value||'0',
-      cashPaidDate: document.getElementById('cash-paid-date').value || todayStr, // NEW FIELD
+      cashPaidDate: document.getElementById('cash-paid-date').value || todayStr,
       remaining:currentBaki, items
   };
 
@@ -872,11 +996,12 @@ function generatePreviewHTML(bill) {
             </tr>
         </table>
         
-        <div style="margin-top:70px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
+        <div style="margin-top:50px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
             <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
-            <div style="width:200px; display:flex; flex-direction:column; align-items:center; position:relative;">
-                <img id="bill-sig-img" src="" style="width:200px; height:80px; object-fit:contain; display:none; margin-bottom:4px;" />
-                <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:20px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; margin-bottom:4px; color:#4a5280; font-weight:bold; font-size:14px; font-family:inherit;">✏️ Tap to Sign</button>
+            
+            <div style="width:350px; display:flex; flex-direction:column; align-items:center; position:relative;">
+                <img id="bill-sig-img" src="" style="width:350px; height:120px; object-fit:contain; display:none; margin-bottom:4px;" />
+                <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:30px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; margin-bottom:4px; color:#4a5280; font-weight:bold; font-size:15px; font-family:inherit;">✏️ Tap to Sign (Large)</button>
                 <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
             </div>
         </div>
@@ -887,10 +1012,8 @@ function generatePreviewHTML(bill) {
     document.getElementById('preview-modal').classList.add('open');
 }
 
-// LARGE SIGNATURE PAD (OPTION B)
 function openSignaturePad() {
     document.getElementById('sig-pad-modal').classList.add('open');
-    
     setTimeout(() => {
         const canvas = document.getElementById('large-sig-canvas');
         canvas.width = canvas.offsetWidth;
@@ -906,17 +1029,13 @@ function initSignaturePadCanvas(canvas) {
     sigCtx.lineCap = 'round';
     sigCtx.lineJoin = 'round';
     sigCtx.strokeStyle = '#1a1f36';
-    
     sigCtx.clearRect(0, 0, canvas.width, canvas.height);
 
     const getPos = (e) => {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { 
-            x: clientX - rect.left, 
-            y: clientY - rect.top 
-        };
+        return { x: clientX - rect.left, y: clientY - rect.top };
     };
 
     const startDraw = (e) => {
@@ -952,22 +1071,17 @@ function initSignaturePadCanvas(canvas) {
 function saveLargeSignature() {
     const canvas = document.getElementById('large-sig-canvas');
     const dataUrl = canvas.toDataURL('image/png');
-    
     const img = document.getElementById('bill-sig-img');
     const btn = document.getElementById('sign-btn');
-    
     img.src = dataUrl;
     img.style.display = 'block';
     btn.style.display = 'none';
-    
     closeModal('sig-pad-modal');
 }
 
 window.clearLargeSignature = function() {
     const canvas = document.getElementById('large-sig-canvas');
-    if(canvas && sigCtx) {
-        sigCtx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    if(canvas && sigCtx) sigCtx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 window.clearSignature = function() {
@@ -988,7 +1102,6 @@ function confirmAndDownload() {
     const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
 
-    // 1. Push to Cloud Firebase ONLY after they confirm
     saveNewItems(pendingBill.items);
     if(db && fbReady){
         db.ref('nwh/customers/'+pendingBill.customer).set({
@@ -1005,10 +1118,8 @@ function confirmAndDownload() {
         }
     }
 
-    // 2. Generate and Download Image
     const targetElement = document.getElementById('actual-bill-to-render');
     const previewBody = document.getElementById('preview-body');
-
     const signBtnNode = document.getElementById('sign-btn');
     if(signBtnNode) signBtnNode.style.display = 'none';
 
@@ -1055,8 +1166,109 @@ function confirmAndDownload() {
 }
 
 // ============================================================
-// HISTORY & LEDGER RENDERING
+// TRUE LEDGER & PRICE BOOK SYSTEM
 // ============================================================
+function showPriceBook(custName) {
+    document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
+    const list = document.getElementById('price-book-list');
+    list.innerHTML = '';
+    
+    // Find unique items and their most recent rate
+    const historyMap = {};
+    for(let i=allBills.length-1; i>=0; i--) { // Start from oldest to newest to overwrite with latest
+        if(allBills[i].customer === custName && allBills[i].items) {
+            allBills[i].items.forEach(it => {
+                const desc = it.desc.trim();
+                if(desc && desc !== 'Item') historyMap[desc] = it.rate;
+            });
+        }
+    }
+    
+    const items = Object.entries(historyMap).sort((a,b) => a[0].localeCompare(b[0]));
+    if(items.length === 0) {
+        list.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:var(--text3);">No item history found.</td></tr>`;
+    } else {
+        items.forEach(([desc, rate]) => {
+            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:10px 18px; font-weight:500;">${desc}</td>
+                <td style="text-align:right; padding:10px 18px; font-family:'Space Mono',monospace; font-weight:700; color:var(--green);">NRS ${rate}</td>
+            </tr>`;
+        });
+    }
+    
+    document.getElementById('price-book-modal').classList.add('open');
+}
+
+function showLedgerStatement(custName) {
+    document.getElementById('ls-cust-name').innerText = custName;
+    const list = document.getElementById('ledger-statement-list');
+    list.innerHTML = '';
+    
+    let entries = [];
+    allBills.filter(b => b.customer === custName).forEach(b => {
+        let billTotal = (parseInt(b.billAmount)||0) + (parseInt(b.transport)||0);
+        let initialPaid = parseInt(b.paid) || 0;
+        
+        if(b.payments) {
+            let sumDetailed = 0;
+            Object.values(b.payments).forEach(p => {
+                entries.push({
+                    date: p.date, time: new Date(p.date).getTime(),
+                    desc: `Pay against Inv #${b.invoiceNum}` + (p.note ? ` (${p.note})`:''),
+                    debit: 0, credit: parseInt(p.amount)||0
+                });
+                sumDetailed += parseInt(p.amount)||0;
+            });
+            initialPaid = Math.max(0, initialPaid - sumDetailed);
+        }
+        
+        entries.push({
+            date: b.date, time: new Date(b.date).getTime() - 1000, 
+            desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: initialPaid
+        });
+    });
+    
+    entries.sort((a,b) => a.time - b.time);
+    
+    let bal = 0;
+    if(entries.length === 0) {
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text3);">No records found.</td></tr>`;
+    } else {
+        entries.forEach(e => {
+            bal += e.debit;
+            bal -= e.credit;
+            let debitStr = e.debit > 0 ? e.debit.toLocaleString('en-IN') : '';
+            let creditStr = e.credit > 0 ? e.credit.toLocaleString('en-IN') : '';
+            
+            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px; font-size:0.75rem; white-space:nowrap;">${e.date}</td>
+                <td style="padding:8px; font-size:0.75rem;">${e.desc}</td>
+                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-size:0.75rem;">${debitStr}</td>
+                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-size:0.75rem; color:var(--green);">${creditStr}</td>
+                <td style="text-align:right; padding:8px; font-family:'Space Mono',monospace; font-weight:bold; font-size:0.75rem; color:${bal>0?'var(--red)':'var(--text)'};">${bal.toLocaleString('en-IN')}</td>
+            </tr>`;
+        });
+    }
+    document.getElementById('ledger-statement-modal').classList.add('open');
+}
+
+function downloadLedgerStatement() {
+    const targetElement = document.getElementById('ledger-statement-render');
+    const oldBg = targetElement.style.background;
+    targetElement.style.background = '#ffffff'; 
+    
+    htmlToImage.toPng(targetElement, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+        const link = document.createElement('a');
+        link.download = `Ledger-${document.getElementById('ls-cust-name').innerText}.png`;
+        link.href = dataUrl;
+        link.click();
+        targetElement.style.background = oldBg;
+    }).catch(function (err) {
+        console.error("Ledger Image Error:", err);
+        targetElement.style.background = oldBg;
+    });
+}
+
 function renderHistory(){
   const c=document.getElementById('history-container');
   if(!allBills.length){c.innerHTML=`<div class="empty-state">No bills yet</div>`;return;}
@@ -1088,14 +1300,15 @@ function renderLedger(){
       <div style="flex:1;">
         <div class="lc-name">${name}</div>
         <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
-        <div style="display:flex; gap:6px;">
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button>
           <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
         </div>
       </div>
       <div style="text-align:right">
         <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
-        <span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span>
+        <span class="badge ${baki>0?'b-red':'b-green'}" style="margin-bottom:4px;">${baki>0?'Due':'Cleared'}</span>
       </div>
     </div>`;
   });
@@ -1103,7 +1316,7 @@ function renderLedger(){
 }
 
 // ============================================================
-// BILL EDITING LOGIC (PULL TO MAIN SCREEN)
+// EDIT BILL LOGIC
 // ============================================================
 function loadBillForEdit(key) {
     const b = allBills.find(x => x.key === key);
@@ -1112,7 +1325,6 @@ function loadBillForEdit(key) {
     editBillKey = b.key;
     editInvoiceNum = b.invoiceNum;
 
-    // Fill form
     document.getElementById('invoice-number').innerText = b.invoiceNum;
     document.getElementById('customer-name').value = b.customer || '';
     document.getElementById('customer-phone').value = b.phone || '';
@@ -1126,18 +1338,14 @@ function loadBillForEdit(key) {
     document.getElementById('current-date-ad').value = b.date || todayStr;
     updateBSDate();
 
-    // Fill items
     document.getElementById('invoice-items').innerHTML = '';
     if(b.items && b.items.length > 0) {
         b.items.forEach(it => {
             addRow(it.desc, it.qty, it.rate, it.code);
         });
-    } else {
-        addRow();
-    }
+    } else { addRow(); }
     calc();
 
-    // Update UI
     document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">Editing #${b.invoiceNum}</span>`;
     
     closeModal('bill-modal');
@@ -1145,7 +1353,7 @@ function loadBillForEdit(key) {
 }
 
 // ============================================================
-// MODALS & PAYMENTS
+// MODALS & E-RECEIPTS
 // ============================================================
 function showBillDetail(key){
   const b=allBills.find(x=>x.key===key);if(!b) return;
@@ -1183,9 +1391,17 @@ function showCustDetail(name){
     <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
     <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
     <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
-    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin:10px 0 4px" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
+    
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${name.replace(/'/g, "\\'")}')">📜 View Statement of Account</button>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
   `;
   document.getElementById('bill-modal').classList.add('open');
+}
+
+function toggleLang() {
+  lang = lang==='en'?'np':'en';
+  document.getElementById('lang-btn').textContent = lang==='en'?'नेपाली':'English';
+  applyLang(); renderHistory(); renderLedger();
 }
 
 function editCustomer(oldName) {
@@ -1240,7 +1456,7 @@ function openPayModal(key,cust,baki){
   document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
   document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
   document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
-  document.getElementById('pay-date-inp').value = todayStr; // Default to today
+  document.getElementById('pay-date-inp').value = todayStr;
   closeModal('bill-modal');
   document.getElementById('pay-modal').classList.add('open');
 }
@@ -1254,23 +1470,56 @@ function payFromLedger(name,baki){
 function confirmPayment(){
   const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
   const note=document.getElementById('pay-note-inp').value.trim();
-  const payDate = document.getElementById('pay-date-inp').value || todayStr; // Use selected date
+  const payDate = document.getElementById('pay-date-inp').value || todayStr; 
   
   if(amount<=0){alert('Enter a valid amount');return;}
   const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
+  
   const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
   const newPaid=(parseInt(bill.paid)||0)+amount;
-  const entry={amount, date: payDate, note}; // Save actual date
+  const entry={amount, date: payDate, note}; 
+  
+  const currentCustBal = parseInt(cloudCustomers[_payCust]?.balance) || 0;
+  const newCustBal = Math.max(0, currentCustBal - amount);
   
   if(db&&fbReady){
     db.ref('nwh/bills/'+_payKey+'/remaining').set(newRem.toString());
     db.ref('nwh/bills/'+_payKey+'/paid').set(newPaid.toString());
     db.ref('nwh/bills/'+_payKey+'/payments').push(entry);
-    const custBal=Math.max(0,(parseInt(cloudCustomers[_payCust]?.balance)||0)-amount);
-    if(cloudCustomers[_payCust]) db.ref('nwh/customers/'+_payCust+'/balance').set(custBal.toString());
+    if(cloudCustomers[_payCust]) db.ref('nwh/customers/'+_payCust+'/balance').set(newCustBal.toString());
   }
+  
   closeModal('pay-modal');
-  alert(`✅ Payment of NRS ${amount.toLocaleString('en-IN')} recorded!`);
+  
+  // Setup E-Receipt
+  document.getElementById('rec-date').innerText = payDate;
+  document.getElementById('rec-cust').innerText = _payCust;
+  document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
+  document.getElementById('rec-baki').innerText = newCustBal.toLocaleString('en-IN');
+  document.getElementById('rec-note').innerText = note || '—';
+  
+  document.getElementById('receipt-modal').classList.add('open');
+}
+
+function shareReceiptWA() {
+    const amt = document.getElementById('rec-amt').innerText;
+    const baki = document.getElementById('rec-baki').innerText;
+    const note = document.getElementById('rec-note').innerText;
+    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
+    if(note !== '—') msg += `\n📝 Note: ${note}`;
+    
+    const phone = cloudCustomers[_payCust]?.phone || '';
+    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function downloadReceiptImage() {
+    const targetElement = document.getElementById('thermal-receipt');
+    htmlToImage.toPng(targetElement, { pixelRatio: 3, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+        const link = document.createElement('a');
+        link.download = `Receipt-${_payCust}.png`;
+        link.href = dataUrl;
+        link.click();
+    });
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
