@@ -327,7 +327,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
-      
       <div class="t-row g-row" style="align-items: flex-start;">
         <div style="display:flex; flex-direction:column; gap:3px;">
           <label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label>
@@ -335,7 +334,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         </div>
         <input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46; margin-top:2px;">
       </div>
-
       <div class="t-row remaining"><label>🔴 <span class="L" data-k="Remaining Baki">Remaining Baki</span></label><span class="t-val" id="remaining-balance">0</span></div>
     </div>
   </div>
@@ -602,7 +600,7 @@ document.getElementById('cash-paid-date').value = todayStr;
 updateBSDate();
 
 // ============================================================
-// TAB SYSTEM
+// TAB SYSTEM & FILTERS
 // ============================================================
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
 
@@ -1138,32 +1136,29 @@ function confirmAndDownload() {
     }
 
     const targetElement = document.getElementById('actual-bill-to-render');
-    const previewBody = document.getElementById('preview-body');
     const signBtnNode = document.getElementById('sign-btn');
     if(signBtnNode) signBtnNode.style.display = 'none';
 
-    targetElement.style.position = 'absolute';
-    targetElement.style.top = '0';
-    targetElement.style.left = '0';
-    targetElement.style.zIndex = '-9999';
-    targetElement.style.boxShadow = 'none'; 
+    // The Ultimate Clone Fix to prevent the gray screen
+    const clone = targetElement.cloneNode(true);
+    document.body.appendChild(clone);
+    clone.style.position = 'absolute';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.zIndex = '-9999';
+    clone.style.boxShadow = 'none';
 
-    document.body.appendChild(targetElement);
-    window.scrollTo(0,0);
-
-    htmlToImage.toPng(targetElement, { 
-        pixelRatio: 3, 
+    htmlToImage.toPng(clone, { 
+        pixelRatio: 2, // Safest memory level for mobile 
         backgroundColor: '#ffffff'
     }).then(function (dataUrl) {
+        document.body.removeChild(clone);
+
         const link = document.createElement('a');
         link.download = `Invoice-${pendingBill.invoiceNum}.png`;
         link.href = dataUrl;
         link.click();
 
-        targetElement.style.position = 'relative';
-        targetElement.style.zIndex = '1';
-        previewBody.appendChild(targetElement);
-        
         btn.innerHTML = oldText;
         closeModal('preview-modal');
         
@@ -1179,8 +1174,11 @@ function confirmAndDownload() {
         pendingBill = null;
     }).catch(function (error) {
         console.error("Image Error:", error);
+        document.body.removeChild(clone);
+        if(signBtnNode && !document.getElementById('bill-sig-img').src) signBtnNode.style.display = 'block';
+        
         btn.innerHTML = oldText;
-        alert("Error generating image.");
+        alert("Error generating image. Memory full. Please try again.");
     });
 }
 
@@ -1220,7 +1218,6 @@ function showPriceBook(custName) {
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
     
-    // Add Sub Info (Phone & Address) if available
     const cu = cloudCustomers[custName] || {};
     let subInfo = [];
     if(cu.address) subInfo.push(cu.address);
@@ -1279,48 +1276,34 @@ function showLedgerStatement(custName) {
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
-// FIX: EXPORT TRUE UNCLIPPED LEDGER TO IMAGE
 function downloadLedgerStatement() {
     const btn = document.getElementById('ls-download-btn');
     const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
 
     const targetElement = document.getElementById('ledger-statement-render');
-    const modalBody = document.getElementById('ls-modal-body');
 
-    // Extract element from scrolling container to prevent cropping
-    targetElement.style.position = 'absolute';
-    targetElement.style.top = '0';
-    targetElement.style.left = '0';
-    targetElement.style.zIndex = '-9999';
-    targetElement.style.boxShadow = 'none';
+    // Clone fix for Ledger
+    const clone = targetElement.cloneNode(true);
+    document.body.appendChild(clone);
+    clone.style.position = 'absolute';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.zIndex = '-9999';
+    clone.style.boxShadow = 'none';
 
-    document.body.appendChild(targetElement);
-    window.scrollTo(0,0);
-
-    htmlToImage.toPng(targetElement, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+    htmlToImage.toPng(clone, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+        document.body.removeChild(clone);
         const link = document.createElement('a');
         link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
         link.href = dataUrl;
         link.click();
-
-        // Return element back to modal
-        targetElement.style.position = 'relative';
-        targetElement.style.zIndex = '1';
-        targetElement.style.boxShadow = '0 10px 40px rgba(0,0,0,0.15)';
-        modalBody.appendChild(targetElement);
-
         btn.innerHTML = oldText;
     }).catch(function (err) {
         console.error("Ledger Image Error:", err);
+        document.body.removeChild(clone);
         btn.innerHTML = oldText;
         alert("Error generating image.");
-
-        // Return element back to modal on error
-        targetElement.style.position = 'relative';
-        targetElement.style.zIndex = '1';
-        targetElement.style.boxShadow = '0 10px 40px rgba(0,0,0,0.15)';
-        modalBody.appendChild(targetElement);
     });
 }
 
@@ -1561,11 +1544,25 @@ function shareReceiptWA() {
 
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
-    htmlToImage.toPng(targetElement, { pixelRatio: 3, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+    
+    const clone = targetElement.cloneNode(true);
+    document.body.appendChild(clone);
+    clone.style.position = 'absolute';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.zIndex = '-9999';
+    clone.style.boxShadow = 'none';
+
+    htmlToImage.toPng(clone, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
+        document.body.removeChild(clone);
         const link = document.createElement('a');
         link.download = `Receipt-${_payCust}.png`;
         link.href = dataUrl;
         link.click();
+    }).catch(function (err) {
+        document.body.removeChild(clone);
+        console.error(err);
+        alert('Error generating receipt image.');
     });
 }
 
