@@ -551,7 +551,7 @@ let lang = 'en';
 // ============================================================
 const STR = {
   en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment' },
-  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
+  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल ইতিহাস','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि' }
 };
 
 function applyLang() {
@@ -886,7 +886,7 @@ function shareWA(){
 }
 
 // ============================================================
-// PREVIEW & SIGNATURE LOGIC
+// PREVIEW & SIGNATURE LOGIC (ZERO MEMORY CRASH TRICK)
 // ============================================================
 let pendingBill = null;
 let isDrawing = false;
@@ -1119,6 +1119,7 @@ function confirmAndDownload() {
     const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
 
+    // 1. Push to Cloud Firebase
     saveNewItems(pendingBill.items);
     if(db && fbReady){
         db.ref('nwh/customers/'+pendingBill.customer).set({
@@ -1135,24 +1136,29 @@ function confirmAndDownload() {
         }
     }
 
+    // 2. Generate and Download Image - ZERO MEMORY FIX
     const targetElement = document.getElementById('actual-bill-to-render');
+    const modalBody = document.getElementById('preview-body');
+    const modal = modalBody.parentElement;
     const signBtnNode = document.getElementById('sign-btn');
+    
     if(signBtnNode) signBtnNode.style.display = 'none';
 
-    // The Ultimate Clone Fix to prevent the gray screen
-    const clone = targetElement.cloneNode(true);
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.zIndex = '-9999';
-    clone.style.boxShadow = 'none';
+    // Temporarily remove scrollbars to prevent cropping without cloning!
+    const oldBodyOverflow = modalBody.style.overflow;
+    const oldModalOverflow = modal.style.overflow;
+    modalBody.style.overflow = 'visible';
+    modal.style.overflow = 'visible';
 
-    htmlToImage.toPng(clone, { 
-        pixelRatio: 2, // Safest memory level for mobile 
-        backgroundColor: '#ffffff'
+    htmlToImage.toPng(targetElement, { 
+        pixelRatio: 2, // Standard HD, safe for mobile RAM
+        backgroundColor: '#ffffff',
+        width: targetElement.scrollWidth,
+        height: targetElement.scrollHeight
     }).then(function (dataUrl) {
-        document.body.removeChild(clone);
+        // Put scrollbars back
+        modalBody.style.overflow = oldBodyOverflow;
+        modal.style.overflow = oldModalOverflow;
 
         const link = document.createElement('a');
         link.download = `Invoice-${pendingBill.invoiceNum}.png`;
@@ -1173,12 +1179,14 @@ function confirmAndDownload() {
         
         pendingBill = null;
     }).catch(function (error) {
-        console.error("Image Error:", error);
-        document.body.removeChild(clone);
+        // Put scrollbars back on error
+        modalBody.style.overflow = oldBodyOverflow;
+        modal.style.overflow = oldModalOverflow;
         if(signBtnNode && !document.getElementById('bill-sig-img').src) signBtnNode.style.display = 'block';
         
+        console.error("Image Error:", error);
         btn.innerHTML = oldText;
-        alert("Error generating image. Memory full. Please try again.");
+        alert("Error generating image. " + error.message);
     });
 }
 
@@ -1282,28 +1290,37 @@ function downloadLedgerStatement() {
     btn.innerHTML = '⏳ Processing...';
 
     const targetElement = document.getElementById('ledger-statement-render');
+    const modalBody = document.getElementById('ls-modal-body');
+    const modal = modalBody.parentElement;
 
-    // Clone fix for Ledger
-    const clone = targetElement.cloneNode(true);
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.zIndex = '-9999';
-    clone.style.boxShadow = 'none';
+    // Zero-Memory Fix: Un-hide scrollbars instead of cloning
+    const oldBodyOverflow = modalBody.style.overflow;
+    const oldModalOverflow = modal.style.overflow;
+    modalBody.style.overflow = 'visible';
+    modal.style.overflow = 'visible';
 
-    htmlToImage.toPng(clone, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
-        document.body.removeChild(clone);
+    htmlToImage.toPng(targetElement, { 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff',
+        width: targetElement.scrollWidth,
+        height: targetElement.scrollHeight
+    }).then(function (dataUrl) {
+        modalBody.style.overflow = oldBodyOverflow;
+        modal.style.overflow = oldModalOverflow;
+
         const link = document.createElement('a');
         link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
         link.href = dataUrl;
         link.click();
+        
         btn.innerHTML = oldText;
     }).catch(function (err) {
+        modalBody.style.overflow = oldBodyOverflow;
+        modal.style.overflow = oldModalOverflow;
+        
         console.error("Ledger Image Error:", err);
-        document.body.removeChild(clone);
         btn.innerHTML = oldText;
-        alert("Error generating image.");
+        alert("Error generating image. " + err.message);
     });
 }
 
@@ -1545,24 +1562,17 @@ function shareReceiptWA() {
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
     
-    const clone = targetElement.cloneNode(true);
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.zIndex = '-9999';
-    clone.style.boxShadow = 'none';
-
-    htmlToImage.toPng(clone, { pixelRatio: 2, backgroundColor: '#ffffff' }).then(function (dataUrl) {
-        document.body.removeChild(clone);
+    htmlToImage.toPng(targetElement, { 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff' 
+    }).then(function (dataUrl) {
         const link = document.createElement('a');
         link.download = `Receipt-${_payCust}.png`;
         link.href = dataUrl;
         link.click();
     }).catch(function (err) {
-        document.body.removeChild(clone);
         console.error(err);
-        alert('Error generating receipt image.');
+        alert('Error generating receipt image. ' + err.message);
     });
 }
 
