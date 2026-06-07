@@ -6,16 +6,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rabi Kapada Pasal - Cloud Billing</title>
+<title>Pooja Readymade - Cloud Billing</title>
 
-<!-- PWA Links -->
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 
-<!-- STABLE High-Resolution Engine (html2canvas) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -215,7 +213,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <div id="pw-screen">
   <div id="pw-box">
     <div id="pw-logo">🏪</div>
-    <div id="pw-title">Rabi Kapada Pasal</div>
+    <div id="pw-title">Pooja Readymade</div>
     <div id="pw-sub">Enter your 4-digit PIN</div>
     <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
       <div class="pin-dot" id="d0"></div>
@@ -245,7 +243,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="nav-brand">
     <div class="nav-logo">🏪</div>
     <div>
-      <div class="nav-title">Rabi Kapada Pasal</div>
+      <div class="nav-title">Pooja Readymade</div>
       <div class="nav-sub" id="nav-sub">Cloud Billing System</div>
     </div>
   </div>
@@ -267,7 +265,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <div class="panel active" id="panel-invoice">
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
-      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
+      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Pooja Readymade</div>
       <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
     </div>
     <div class="inv-meta">
@@ -276,8 +274,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="date-dual">
         <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
         <div id="bs-date-pills" style="display:flex; gap:5px; justify-content:flex-end;">
-            <!-- Nepali Date Pills auto-populate here -->
-        </div>
+            </div>
       </div>
     </div>
   </div>
@@ -323,12 +320,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
   </div>
 
-  <!-- DYNAMIC NOTES -->
   <div class="card no-print" style="margin-bottom:14px;">
     <div class="card-header"><div class="card-title">📝 <span class="L" data-k="Notes / Remarks">Notes / Remarks</span></div></div>
     <div class="card-body" id="notes-container" style="padding: 10px 18px;">
-      <!-- Dynamic note rows will appear here -->
-    </div>
+      </div>
     <div style="padding:10px 18px;border-top:1px solid var(--border);">
       <button onclick="addNoteRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
         + Add Note Row
@@ -391,7 +386,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 </div>
 
-<!-- ALL MODALS -->
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="modal-title">Invoice Detail</div><button class="close-btn" onclick="closeModal('bill-modal')">✕</button></div>
@@ -420,7 +414,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="modal-body">
       <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
-            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Rabi Kapada Pasal</h2>
+            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Pooja Readymade</h2>
             <p style="margin:4px 0 0 0; font-size:12px;">Payment Receipt</p>
         </div>
         <p style="margin:6px 0; font-size:13px;">Date: <span id="rec-date"></span></p>
@@ -469,7 +463,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="modal-body" id="ls-modal-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
         <div id="ledger-statement-render" style="width:800px; background:#ffffff; padding:40px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
             <div style="text-align:center; margin-bottom:25px;">
-                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
+                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Pooja Readymade</h2>
                 <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
                 <div style="margin-top:20px; padding:15px; background:#f7f9ff; border-left:4px solid #8b5cf6; text-align:left;">
                     <p style="margin:0; font-size:12px; font-weight:bold; color:#8892b0;">CUSTOMER:</p>
@@ -524,8 +518,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <button class="close-btn" onclick="closeModal('preview-modal')">✕</button>
     </div>
     <div class="modal-body" id="preview-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
-        <!-- Bill injected here -->
-    </div>
+        </div>
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="clearSignature()">🧹 Clear Signature</button>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -948,7 +941,7 @@ async function pickPhoneContact(){
 function shareWA(){
   const phone=document.getElementById('customer-phone').value||'';
   if(!phone){alert('Please enter a phone number first.');return;}
-  const biz="Rabi Kapada Pasal";
+  const biz="Pooja Readymade";
   const billDate = document.getElementById('current-date-ad').value;
   
   const bsPills = document.querySelectorAll('#bs-date-pills .bs-pill');
@@ -1023,7 +1016,7 @@ function generatePreviewHTML(bill) {
         </tr>`;
     });
 
-    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
+    const bizName = document.getElementById('biz-name').innerText || "Pooja Readymade";
     const bizSub = document.getElementById('biz-sub').innerText || "";
     
     let cashDateStr = '';
@@ -1338,51 +1331,82 @@ function showLedgerStatement(custName) {
     const list = document.getElementById('ledger-statement-list');
     list.innerHTML = '';
     
-    let entries = [];
+    // Filter bills and sort by date/time
+    let events = [];
     allBills.filter(b => b.customer === custName).forEach(b => {
-        let billTotal = (parseInt(b.billAmount)||0) + (parseInt(b.transport)||0);
-        let initialPaid = parseInt(b.paid) || 0;
+        // 1. Core bill amount
+        let billTotal = parseInt(b.billAmount) || 0;
         
+        // 2. Track payments individually
+        let sumDetailed = 0;
         if(b.payments) {
-            let sumDetailed = 0;
             Object.values(b.payments).forEach(p => {
-                entries.push({
-                    date: p.date, time: new Date(p.date).getTime(),
+                let amt = parseInt(p.amount) || 0;
+                sumDetailed += amt;
+                events.push({
+                    date: p.date,
+                    time: new Date(p.date).getTime() + 1000, 
                     desc: `Pay against Inv #${b.invoiceNum}` + (p.note ? ` (${p.note})`:''),
-                    debit: 0, credit: parseInt(p.amount)||0
+                    debit: 0, credit: amt
                 });
-                sumDetailed += parseInt(p.amount)||0;
             });
-            initialPaid = Math.max(0, initialPaid - sumDetailed);
         }
         
-        entries.push({
-            date: b.date, time: new Date(b.date).getTime() - 1000, 
-            desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: initialPaid
+        events.push({
+            date: b.date, 
+            time: new Date(b.date).getTime(), 
+            desc: `Invoice #${b.invoiceNum}`, 
+            debit: billTotal, 
+            credit: Math.max(0, (parseInt(b.paid) || 0) - sumDetailed),
+            declaredPrev: parseInt(b.prevBalance) || 0
         });
     });
     
-    entries.sort((a,b) => a.time - b.time);
+    events.sort((a,b) => a.time - b.time);
     
     let bal = 0;
-    if(entries.length === 0) {
+    let listHtml = '';
+    
+    // START RECONCILIATION
+    if(events.length === 0) {
         list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text3);">No records found.</td></tr>`;
     } else {
-        entries.forEach(e => {
+        // Apply starting balance from the first invoice's recorded previous balance
+        bal = events[0].declaredPrev;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+            <td style="padding:12px; font-size:13px; color:#4a5280;">—</td>
+            <td style="padding:12px; font-size:13px; font-style:italic; color:#4a5280;">Opening Balance</td>
+            <td style="text-align:right; padding:12px;"></td><td style="text-align:right; padding:12px;"></td>
+            <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:#dc2626;">${bal.toLocaleString('en-IN')}</td>
+        </tr>`;
+
+        events.forEach(e => {
             bal += e.debit;
             bal -= e.credit;
-            let debitStr = e.debit > 0 ? e.debit.toLocaleString('en-IN') : '';
-            let creditStr = e.credit > 0 ? e.credit.toLocaleString('en-IN') : '';
             
-            list.innerHTML += `<tr style="border-bottom:1px solid #e2e8f0;">
+            listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:12px; font-size:13px; white-space:nowrap; color:#4a5280;">${e.date}</td>
-                <td style="padding:12px; font-size:13px; color:#1a1f36; max-width: 250px; overflow:hidden; text-overflow:ellipsis;">${e.desc}</td>
-                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${debitStr}</td>
-                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${creditStr}</td>
+                <td style="padding:12px; font-size:13px; color:#1a1f36;">${e.desc}</td>
+                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td>
+                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td>
                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:${bal>0?'#dc2626':'#1a1f36'};">${bal.toLocaleString('en-IN')}</td>
             </tr>`;
         });
+        
+        // Final Forced Reconciliation
+        const actualDbBalance = parseInt(cu.balance) || 0;
+        if (Math.abs(bal - actualDbBalance) > 1) {
+             let correction = actualDbBalance - bal;
+             listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#fef2f2;">
+                 <td style="padding:12px; font-size:13px; color:#4a5280;">—</td>
+                 <td style="padding:12px; font-size:13px; font-weight:bold; color:#991b1b;">Reconciliation Adjustment</td>
+                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${correction > 0 ? correction.toLocaleString('en-IN') : ''}</td>
+                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${correction < 0 ? Math.abs(correction).toLocaleString('en-IN') : ''}</td>
+                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:#dc2626;">${actualDbBalance.toLocaleString('en-IN')}</td>
+             </tr>`;
+        }
     }
+    list.innerHTML = listHtml;
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
@@ -1661,7 +1685,7 @@ function shareReceiptWA() {
     const amt = document.getElementById('rec-amt').innerText;
     const baki = document.getElementById('rec-baki').innerText;
     const note = document.getElementById('rec-note').innerText;
-    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
+    let msg = `🏪 *Pooja Readymade*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
     if(note !== '—') msg += `\n📝 Note: ${note}`;
     
     const phone = cloudCustomers[_payCust]?.phone || '';
