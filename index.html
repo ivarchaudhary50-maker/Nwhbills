@@ -320,6 +320,21 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
   </div>
 
+  <div class="card no-print">
+    <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+      <div class="card-title">📦 Poka Packing Details</div>
+      <div style="display:flex; align-items:center; gap: 10px; flex-wrap:wrap;">
+        <label style="font-size:0.75rem; display:flex; align-items:center; gap:5px; color:var(--text2); cursor:pointer;">
+          <input type="checkbox" id="include-poka-toggle" checked style="accent-color:var(--accent); transform:scale(1.2);"> Attach to Main Bill
+        </label>
+        <button class="btn btn-ghost" onclick="syncPokasToInvoice()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--accent); color:var(--accent);">📤 Push to Invoice</button>
+        <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.75rem; padding:4px 12px;">+ Add Bundle</button>
+      </div>
+    </div>
+    <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:12px;">
+      </div>
+  </div>
+
   <div class="card no-print" style="margin-bottom:14px;">
     <div class="card-header"><div class="card-title">📝 <span class="L" data-k="Notes / Remarks">Notes / Remarks</span></div></div>
     <div class="card-body" id="notes-container" style="padding: 10px 18px;">
@@ -356,6 +371,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
       <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
+      <button class="btn btn-ghost" onclick="previewPackingSlip()">📦 Slip Only</button>
       <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
     </div>
   </div>
@@ -529,6 +545,21 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
+<div class="modal-overlay" id="slip-modal" style="z-index: 300;">
+  <div class="modal" style="max-width:900px; width:95%; height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+    <div class="modal-header" style="border-radius:16px 16px 0 0;">
+        <div class="modal-title">📦 Preview Standalone Packing Slip</div>
+        <button class="close-btn" onclick="closeModal('slip-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="slip-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
+        </div>
+    <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 16px 16px;">
+        <button class="btn btn-ghost" onclick="closeModal('slip-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="downloadSlipOnly()" id="slip-dl-btn">💾 Download Slip Image</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="sig-pad-modal" style="z-index: 400;">
   <div class="modal" style="max-width:600px; width:95%; height:60vh; display:flex; flex-direction:column; padding:0;">
     <div class="modal-header">
@@ -557,6 +588,7 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 let editBillKey = null;
 let editInvoiceNum = null;
 let lang = 'en';
+let pokaCounter = 0;
 
 // ============================================================
 // LANGUAGE SYSTEM
@@ -824,8 +856,169 @@ function addNoteRow(dateVal = '', textVal = '') {
     `;
     container.appendChild(div);
 }
-// Initialize the first empty row
 addNoteRow();
+
+// ============================================================
+// POKA INTERFACE MATRIX GENERATOR (WITH MULTIPLIER)
+// ============================================================
+function addPokaGroup(items = null) {
+    // Dynamic sequential ID generation perfectly numbers the groups
+    const existing = document.querySelectorAll('.poka-card-wrapper').length;
+    pokaCounter = existing + 1; 
+    
+    const currentId = pokaCounter;
+    const container = document.getElementById('poka-groups-container');
+    
+    const div = document.createElement('div');
+    div.className = 'poka-card-wrapper';
+    div.style = 'background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:var(--shadow);';
+    div.id = `poka-wrapper-${currentId}`;
+    
+    div.innerHTML = `
+        <div style="background:var(--surface2); padding:8px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:0.85rem; color:var(--text)">📦 Poka Package #${currentId}</span>
+            <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer;">✕ Remove Poka</button>
+        </div>
+        <div style="padding:10px;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="text-align:left; font-size:0.72rem; color:var(--text3); text-transform:uppercase;">
+                        <th style="padding:4px; width:45%;">Garment Description</th>
+                        <th style="padding:4px; width:40%;">Breakdown (e.g. 11+13...)</th>
+                        <th style="padding:4px; width:15%; text-align:right;">Total</th>
+                        <th style="width:30px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="poka-items-tbody-${currentId}"></tbody>
+            </table>
+            <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.72rem; padding:4px 10px; margin-top:8px; border-style:dashed;">+ Add Garment Breakdown</button>
+        </div>
+    `;
+    container.appendChild(div);
+    
+    if (items && items.length > 0) {
+        items.forEach(it => {
+            let form = it.formula;
+            let mult = '10'; // Default to 10 unless specifically extracted
+            if (form.includes('×')) {
+               const parts = form.split('×');
+               form = parts[0].replace(/[() ]/g, '');
+               mult = parts[1].trim();
+            }
+            addPokaItemRow(currentId, it.desc, form, mult);
+        });
+    } else {
+        addPokaItemRow(currentId);
+    }
+    syncPokaCountValue();
+}
+
+function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
+    const tbody = document.getElementById(`poka-items-tbody-${pokaId}`);
+    const tr = document.createElement('tr');
+    tr.className = 'poka-item-row';
+    tr.innerHTML = `
+        <td style="padding:4px;">
+            <input type="text" class="ti poka-desc-inp" placeholder="Type package item..." value="${desc}" list="inventory-list" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem;">
+        </td>
+        <td style="padding:4px; display:flex; align-items:center; gap:5px;">
+            <input type="text" class="ti poka-formula-inp" placeholder="11+13..." value="${formula}" oninput="evaluatePokaRowSum(this)" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem; font-family:'Space Mono', monospace; font-weight:600; flex:1;">
+            <span style="color:var(--text3); font-size:0.8rem;">×</span>
+            <input type="number" class="ti poka-mult-inp" value="${mult}" oninput="evaluatePokaRowSum(this)" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem; font-family:'Space Mono', monospace; font-weight:600; width:45px; text-align:center;">
+        </td>
+        <td class="poka-row-sum-output" style="padding:4px; text-align:right; font-family:'Space Mono', monospace; font-size:0.83rem; font-weight:700; color:var(--text2);">0</td>
+        <td style="text-align:center;"><button class="del-row" onclick="this.closest('tr').remove(); syncPokaCountValue();">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+    if(formula) evaluatePokaRowSum(tr.querySelector('.poka-formula-inp'));
+}
+
+function evaluatePokaRowSum(inputElement) {
+    const row = inputElement.closest('tr');
+    const formulaVal = row.querySelector('.poka-formula-inp').value;
+    const multVal = parseFloat(row.querySelector('.poka-mult-inp').value) || 1;
+    const outputTd = row.querySelector('.poka-row-sum-output');
+    
+    let clean = formulaVal.replace(/[^0-9+\-*/().]/g, '');
+    if(!clean) { outputTd.innerText = '0'; return; }
+    
+    try {
+        let baseSum = new Function('return ' + clean)();
+        let total = Math.round(baseSum * multVal);
+        outputTd.innerText = total.toLocaleString('en-IN');
+    } catch(e) {
+        outputTd.innerText = '...'; 
+    }
+}
+
+function removePokaGroup(id) {
+    const el = document.getElementById(`poka-wrapper-${id}`);
+    if(el) el.remove();
+    syncPokaCountValue();
+    // Re-index remaining groups so it never skips a number
+    document.querySelectorAll('.poka-card-wrapper').forEach((wrapper, index) => {
+        const newId = index + 1;
+        wrapper.id = `poka-wrapper-${newId}`;
+        wrapper.querySelector('span').innerText = `📦 Poka Package #${newId}`;
+        wrapper.querySelector('button.del-row').setAttribute('onclick', `removePokaGroup(${newId})`);
+        wrapper.querySelector('tbody').id = `poka-items-tbody-${newId}`;
+        wrapper.querySelector('.btn-ghost').setAttribute('onclick', `addPokaItemRow(${newId})`);
+    });
+}
+
+function syncPokaCountValue() {
+    const elements = document.querySelectorAll('.poka-card-wrapper');
+    document.getElementById('total-poka').value = elements.length > 0 ? elements.length : '';
+}
+
+// BULLETPROOF SMART SYNC (Consolidates items by description and overwrites to prevent duplicates)
+function syncPokasToInvoice() {
+    // 1. Group all poka items by their exact description
+    const summary = {};
+    let totalItemsFound = 0;
+
+    document.querySelectorAll('.poka-card-wrapper').forEach(group => {
+        group.querySelectorAll('.poka-item-row').forEach(row => {
+            const desc = row.querySelector('.poka-desc-inp').value.trim();
+            const sum = parseInt(row.querySelector('.poka-row-sum-output').innerText.replace(/,/g, '')) || 0;
+            
+            if (desc && sum > 0) {
+                if (!summary[desc]) summary[desc] = 0;
+                summary[desc] += sum;
+                totalItemsFound++;
+            }
+        });
+    });
+    
+    const uniqueItems = Object.keys(summary);
+    
+    if (uniqueItems.length === 0) {
+        alert("⚠️ No valid items to sync. Make sure bundles have descriptions and quantities.");
+        return;
+    }
+
+    // 2. Ask for confirmation to prevent accidental overwrites if table isn't empty
+    const firstInvoiceRowDesc = document.querySelector('#invoice-items .item-desc').value.trim();
+    if (firstInvoiceRowDesc !== '') {
+        if (!confirm("This will overwrite your current invoice items with the consolidated Poka totals. Proceed?")) {
+            return;
+        }
+    }
+
+    // 3. Clear existing invoice table completely to prevent duplications
+    document.getElementById('invoice-items').innerHTML = '';
+
+    // 4. Push consolidated items back into the invoice table
+    uniqueItems.forEach(desc => {
+        addRow(desc, summary[desc], '', '');
+        // Trigger the auto-rate fill for this newly added row
+        const lastRow = document.getElementById('invoice-items').lastElementChild;
+        if (lastRow) checkAndAutoFillRate(lastRow.querySelector('.item-desc'));
+    });
+    
+    calc();
+    alert(`✅ Successfully consolidated ${totalItemsFound} Poka entries into ${uniqueItems.length} clean invoice line(s)!`);
+}
 
 // ============================================================
 // INVOICE MATH
@@ -867,8 +1060,9 @@ function clearForm(){
   document.getElementById('cash-paid-date').value = todayStr;
   
   document.getElementById('invoice-items').innerHTML='';addRow();calc();
-  
   document.getElementById('notes-container').innerHTML = '';
+  document.getElementById('poka-groups-container').innerHTML = '';
+  pokaCounter = 0; // Fixes sequential numbering
   addNoteRow();
   
   editBillKey = null;
@@ -956,14 +1150,9 @@ function shareWA(){
 }
 
 // ============================================================
-// PREVIEW & SIGNATURE LOGIC
+// DATA EXTRACTION HELPER
 // ============================================================
-let pendingBill = null;
-let isDrawing = false;
-let sigCtx = null;
-let canvasListenersAdded = false;
-
-function previewBill(){
+function extractPendingBillData() {
   const rawName=document.getElementById('customer-name').value.trim()||'Walk-in Customer';
   const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
   const currentBaki=document.getElementById('remaining-balance').innerText.replace(/,/g,'');
@@ -985,12 +1174,34 @@ function previewBill(){
       if(d || t) notesArr.push({ date: d, text: t });
   });
 
-  pendingBill = {
+  const structuredPokas = [];
+  document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
+      const pNum = index + 1;
+      const pItems = [];
+      group.querySelectorAll('.poka-item-row').forEach(row => {
+          const desc = row.querySelector('.poka-desc-inp').value.trim();
+          const formula = row.querySelector('.poka-formula-inp').value.trim();
+          const mult = row.querySelector('.poka-mult-inp').value.trim();
+          const sum = row.querySelector('.poka-row-sum-output').innerText;
+          
+          if(desc || formula) {
+              let displayFormula = formula;
+              if (mult && mult !== '1') displayFormula = `(${formula}) × ${mult}`;
+              pItems.push({ desc: desc || 'Garment Item', formula: displayFormula, total: sum });
+          }
+      });
+      if(pItems.length > 0) {
+          structuredPokas.push({ pokaNum: pNum, items: pItems });
+      }
+  });
+
+  return {
       invoiceNum: editInvoiceNum || cloudNextInvoice,
       date:billDate, dateBS:billDateBS, customer:safeName,
       phone:document.getElementById('customer-phone').value||'',
       address:document.getElementById('customer-address').value||'',
       billNotes: notesArr,
+      pokaDetails: structuredPokas,
       totalPoka: document.getElementById('total-poka').value || '0',
       transport:document.getElementById('transport-expense').value||'0',
       prevBalance:document.getElementById('prev-balance').value||'0',
@@ -1000,7 +1211,125 @@ function previewBill(){
       cashPaidDate: document.getElementById('cash-paid-date').value || todayStr,
       remaining:currentBaki, items
   };
+}
 
+// ============================================================
+// STANDALONE POKA PACKING SLIP
+// ============================================================
+function previewPackingSlip() {
+    const bill = extractPendingBillData();
+    if (!bill.pokaDetails || bill.pokaDetails.length === 0) {
+        alert("No Poka bundle details have been added. Please add packing details first.");
+        return;
+    }
+    
+    const bizName = document.getElementById('biz-name').innerText || "Pooja Readymade";
+    
+    let htmlString = `
+    <div id="actual-slip-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
+        <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
+            <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase; letter-spacing: 1px;">PACKING SLIP (POKA DETAILS)</h1>
+            <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
+        </div>
+
+        <table style="width: 100%; margin-bottom: 30px;">
+            <tr>
+                <td style="width: 50%; vertical-align: top;">
+                    <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; border-radius: 4px;">
+                        <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
+                        <p style="font-size: 16px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                        ${bill.phone ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+                        ${bill.address ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.address}</p>` : ''}
+                    </div>
+                </td>
+                <td style="width: 50%; vertical-align: top; text-align: right;">
+                    <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${bill.date}</p>
+                    <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Ref Invoice:</strong> #${bill.invoiceNum}</p>
+                    <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka} Pokas</p>
+                </td>
+            </tr>
+        </table>
+    `;
+
+    bill.pokaDetails.forEach(p => {
+        htmlString += `
+        <div style="margin-bottom: 25px; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+            <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800; color: #1e293b; border-bottom: 2px solid #cbd5e1; display:flex; justify-content:space-between;">
+                <span>📦 Poka Package #${p.pokaNum}</span>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
+                        <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Garment Description</th>
+                        <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Quantity Breakdown</th>
+                        <th style="padding: 12px 15px; text-align: right; color: #475569; font-weight: 700;">Total Pcs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${p.items.map(it => `
+                        <tr style="border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 12px 15px; font-weight: bold; color: #0f172a;">${it.desc}</td>
+                            <td style="padding: 12px 15px; font-family: 'Space Mono', monospace; color: #334155; font-size: 15px; letter-spacing: 1.5px;">${it.formula || '—'}</td>
+                            <td style="padding: 12px 15px; text-align: right; font-family: 'Space Mono', monospace; font-weight: bold; color: #0f172a; font-size: 15px;">${it.total}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    });
+
+    htmlString += `
+        <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+            This is a logistics packing slip only. It does not contain pricing or financial information.
+        </div>
+    </div>`;
+
+    document.getElementById('slip-body').innerHTML = htmlString;
+    document.getElementById('slip-modal').classList.add('open');
+}
+
+function downloadSlipOnly() {
+    const btn = document.getElementById('slip-dl-btn');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Processing...';
+
+    const originalElement = document.getElementById('actual-slip-to-render');
+    const clone = originalElement.cloneNode(true);
+    
+    document.body.appendChild(clone);
+    clone.style.position = 'absolute';
+    clone.style.top = '-9999px';
+    clone.style.left = '0';
+    clone.style.width = '800px';
+
+    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+        document.body.removeChild(clone);
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        const refName = document.getElementById('customer-name').value.trim() || 'Customer';
+        link.download = `PackingSlip-${refName}.png`;
+        link.href = dataUrl;
+        link.click();
+        
+        btn.innerHTML = oldText;
+        closeModal('slip-modal');
+    }).catch(function (error) {
+        if(document.body.contains(clone)) document.body.removeChild(clone);
+        console.error("Slip Error:", error);
+        btn.innerHTML = oldText;
+        alert("Error generating image.");
+    });
+}
+
+// ============================================================
+// MAIN INVOICE PREVIEW & SIGNATURE LOGIC
+// ============================================================
+let isDrawing = false;
+let sigCtx = null;
+let canvasListenersAdded = false;
+
+function previewBill(){
+  pendingBill = extractPendingBillData();
   generatePreviewHTML(pendingBill);
 }
 
@@ -1015,6 +1344,43 @@ function generatePreviewHTML(bill) {
             <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right; font-weight:bold;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
+
+    let packingDetailsHTML = "";
+    const includePoka = document.getElementById('include-poka-toggle').checked;
+    
+    if (includePoka && bill.pokaDetails && bill.pokaDetails.length > 0) {
+        packingDetailsHTML += `<div style="margin-top:40px; padding-top:40px; position:relative; page-break-before: auto;">
+            <div style="position:absolute; top:0; left:0; right:0; border-top:2px dashed #94a3b8;"></div>
+            <div style="position:absolute; top:-12px; left:40%; font-size:14px; background:#ffffff; padding:0 15px; color:#64748b; font-weight:bold; letter-spacing:1px;">✂️ TEAR HERE</div>
+            
+            <h3 style="margin:0 0 15px 0; font-size:16px; color:#1a1f36; letter-spacing:0.5px;">📦 ATTACHED PACKING LIST (POKA DETAILS)</h3>`;
+        
+        bill.pokaDetails.forEach(p => {
+            packingDetailsHTML += `
+            <div style="margin-bottom:15px; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
+                <div style="background:#f1f5f9; padding:6px 12px; font-size:13px; font-weight:bold; color:#334155; border-bottom:1px solid #cbd5e1;">Poka Package Bundle #${p.pokaNum}</div>
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#f8fafc; text-align:left; border-bottom:1px solid #e2e8f0;">
+                            <th style="padding:8px 12px; color:#4a5280;">Garment Description</th>
+                            <th style="padding:8px 12px; color:#4a5280;">Quantity Breakdown</th>
+                            <th style="padding:8px 12px; text-align:right; color:#4a5280;">Total Pieces</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${p.items.map(it => `
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:8px 12px; font-weight:bold; color:#1a1f36;">${it.desc}</td>
+                                <td style="padding:8px 12px; font-family:monospace; color:#4a5280; font-weight:600; letter-spacing:1px;">${it.formula || '—'}</td>
+                                <td style="padding:8px 12px; text-align:right; font-family:monospace; font-weight:bold; color:#1a1f36;">${it.total} Pcs</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        });
+        packingDetailsHTML += `</div>`;
+    }
 
     const bizName = document.getElementById('biz-name').innerText || "Pooja Readymade";
     const bizSub = document.getElementById('biz-sub').innerText || "";
@@ -1072,7 +1438,7 @@ function generatePreviewHTML(bill) {
             <tr>
                 <td style="width: 45%; vertical-align: top; padding-right: 20px;">
                     ${bill.billNotes && bill.billNotes.length > 0 ? `
-                    <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6; border-radius: 4px;">
+                    <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6; border-radius: 4px; margin-bottom:15px;">
                         <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
                         <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                             ${bill.billNotes.map(n => `
@@ -1092,7 +1458,7 @@ function generatePreviewHTML(bill) {
                         <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
                         <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
                         
-                        ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka}</td></tr>` : ''}
+                        ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka} Bundles</td></tr>` : ''}
 
                         <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
                         
@@ -1116,6 +1482,8 @@ function generatePreviewHTML(bill) {
                 <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
             </div>
         </div>
+
+        ${packingDetailsHTML}
     </div>
     `;
 
@@ -1241,7 +1609,7 @@ function confirmAndDownload() {
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
     clone.style.left = '0';
-    clone.style.width = '800px'; // Lock to original size
+    clone.style.width = '800px'; 
 
     html2canvas(clone, { 
         scale: 2, 
@@ -1266,8 +1634,9 @@ function confirmAndDownload() {
         document.getElementById('cash-paid-date').value = todayStr;
         
         document.getElementById('invoice-items').innerHTML='';addRow();calc();
-        
         document.getElementById('notes-container').innerHTML = '';
+        document.getElementById('poka-groups-container').innerHTML = '';
+        pokaCounter = 0;
         addNoteRow();
         
         editBillKey = null;
@@ -1331,14 +1700,12 @@ function showLedgerStatement(custName) {
     const list = document.getElementById('ledger-statement-list');
     list.innerHTML = '';
     
-    // Filter bills and sort by date/time
     let events = [];
     allBills.filter(b => b.customer === custName).forEach(b => {
-        // 1. Core bill amount
         let billTotal = parseInt(b.billAmount) || 0;
-        
-        // 2. Track payments individually
         let sumDetailed = 0;
+        let invNumSafe = parseInt(b.invoiceNum) || 0;
+
         if(b.payments) {
             Object.values(b.payments).forEach(p => {
                 let amt = parseInt(p.amount) || 0;
@@ -1346,33 +1713,53 @@ function showLedgerStatement(custName) {
                 events.push({
                     date: p.date,
                     time: new Date(p.date).getTime() + 1000, 
+                    invoiceNum: invNumSafe,
                     desc: `Pay against Inv #${b.invoiceNum}` + (p.note ? ` (${p.note})`:''),
-                    debit: 0, credit: amt
+                    debit: 0, credit: amt,
+                    isInvoice: false
                 });
             });
         }
-        
+
         events.push({
             date: b.date, 
             time: new Date(b.date).getTime(), 
+            invoiceNum: invNumSafe,
             desc: `Invoice #${b.invoiceNum}`, 
             debit: billTotal, 
-            credit: Math.max(0, (parseInt(b.paid) || 0) - sumDetailed),
-            declaredPrev: parseInt(b.prevBalance) || 0
+            credit: 0,
+            declaredPrev: parseInt(b.prevBalance) || 0,
+            isInvoice: true
         });
+
+        let initialPaid = Math.max(0, (parseInt(b.paid) || 0) - sumDetailed);
+        if(initialPaid > 0) {
+            let pDate = b.cashPaidDate || b.date;
+            events.push({
+                date: pDate,
+                time: new Date(pDate).getTime() + 500, 
+                invoiceNum: invNumSafe,
+                desc: `Cash Paid (Inv #${b.invoiceNum})`,
+                debit: 0, credit: initialPaid,
+                isInvoice: false
+            });
+        }
     });
     
-    events.sort((a,b) => a.time - b.time);
+    events.sort((a,b) => {
+        if (a.time !== b.time) return a.time - b.time;
+        if (a.invoiceNum !== b.invoiceNum) return a.invoiceNum - b.invoiceNum;
+        return (a.isInvoice === b.isInvoice) ? 0 : (a.isInvoice ? -1 : 1);
+    });
     
-    let bal = 0;
     let listHtml = '';
     
-    // START RECONCILIATION
     if(events.length === 0) {
         list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text3);">No records found.</td></tr>`;
     } else {
-        // Apply starting balance from the first invoice's recorded previous balance
-        bal = events[0].declaredPrev;
+        const firstInvoice = events.find(e => e.isInvoice);
+        let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
+
         listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
             <td style="padding:12px; font-size:13px; color:#4a5280;">—</td>
             <td style="padding:12px; font-size:13px; font-style:italic; color:#4a5280;">Opening Balance</td>
@@ -1393,7 +1780,6 @@ function showLedgerStatement(custName) {
             </tr>`;
         });
         
-        // Final Forced Reconciliation
         const actualDbBalance = parseInt(cu.balance) || 0;
         if (Math.abs(bal - actualDbBalance) > 1) {
              let correction = actualDbBalance - bal;
@@ -1417,7 +1803,6 @@ function downloadLedgerStatement() {
 
     const originalElement = document.getElementById('ledger-statement-render');
 
-    // CLONE TRICK: Fixes html2canvas cropping bug in scrollable modals
     const clone = originalElement.cloneNode(true);
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
@@ -1441,7 +1826,6 @@ function downloadLedgerStatement() {
         btn.innerHTML = oldText;
     }).catch(function (err) {
         if(document.body.contains(clone)) document.body.removeChild(clone);
-        
         console.error("Ledger Image Error:", err);
         btn.innerHTML = oldText;
         alert("Error generating image. " + (err.message || "Unknown error"));
@@ -1534,6 +1918,14 @@ function loadBillForEdit(key) {
         addNoteRow('', b.billNotes); 
     } else {
         addNoteRow();
+    }
+
+    document.getElementById('poka-groups-container').innerHTML = '';
+    pokaCounter = 0;
+    if (b.pokaDetails && b.pokaDetails.length > 0) {
+        b.pokaDetails.forEach(p => {
+            addPokaGroup(p.items);
+        });
     }
 
     document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">Editing #${b.invoiceNum}</span>`;
