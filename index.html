@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pooja Readymade - Cloud Billing</title>
+<title>Rabi Kapada Pasal - Cloud Billing</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
@@ -213,7 +213,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <div id="pw-screen">
   <div id="pw-box">
     <div id="pw-logo">🏪</div>
-    <div id="pw-title">Pooja Readymade</div>
+    <div id="pw-title">Rabi Kapada Pasal</div>
     <div id="pw-sub">Enter your 4-digit PIN</div>
     <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
       <div class="pin-dot" id="d0"></div>
@@ -243,7 +243,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="nav-brand">
     <div class="nav-logo">🏪</div>
     <div>
-      <div class="nav-title">Pooja Readymade</div>
+      <div class="nav-title">Rabi Kapada Pasal</div>
       <div class="nav-sub" id="nav-sub">Cloud Billing System</div>
     </div>
   </div>
@@ -265,7 +265,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <div class="panel active" id="panel-invoice">
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
-      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Pooja Readymade</div>
+      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
       <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
     </div>
     <div class="inv-meta">
@@ -430,7 +430,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="modal-body">
       <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
         <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
-            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Pooja Readymade</h2>
+            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Rabi Kapada Pasal</h2>
             <p style="margin:4px 0 0 0; font-size:12px;">Payment Receipt</p>
         </div>
         <p style="margin:6px 0; font-size:13px;">Date: <span id="rec-date"></span></p>
@@ -479,7 +479,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="modal-body" id="ls-modal-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
         <div id="ledger-statement-render" style="width:800px; background:#ffffff; padding:40px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
             <div style="text-align:center; margin-bottom:25px;">
-                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Pooja Readymade</h2>
+                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
                 <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
                 <div style="margin-top:20px; padding:15px; background:#f7f9ff; border-left:4px solid #8b5cf6; text-align:left;">
                     <p style="margin:0; font-size:12px; font-weight:bold; color:#8892b0;">CUSTOMER:</p>
@@ -1135,7 +1135,7 @@ async function pickPhoneContact(){
 function shareWA(){
   const phone=document.getElementById('customer-phone').value||'';
   if(!phone){alert('Please enter a phone number first.');return;}
-  const biz="Pooja Readymade";
+  const biz="Rabi Kapada Pasal";
   const billDate = document.getElementById('current-date-ad').value;
   
   const bsPills = document.querySelectorAll('#bs-date-pills .bs-pill');
@@ -1223,7 +1223,7 @@ function previewPackingSlip() {
         return;
     }
     
-    const bizName = document.getElementById('biz-name').innerText || "Pooja Readymade";
+    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     
     let htmlString = `
     <div id="actual-slip-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
@@ -1382,7 +1382,7 @@ function generatePreviewHTML(bill) {
         packingDetailsHTML += `</div>`;
     }
 
-    const bizName = document.getElementById('biz-name').innerText || "Pooja Readymade";
+    const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
     
     let cashDateStr = '';
@@ -2077,7 +2077,7 @@ function shareReceiptWA() {
     const amt = document.getElementById('rec-amt').innerText;
     const baki = document.getElementById('rec-baki').innerText;
     const note = document.getElementById('rec-note').innerText;
-    let msg = `🏪 *Pooja Readymade*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
+    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
     if(note !== '—') msg += `\n📝 Note: ${note}`;
     
     const phone = cloudCustomers[_payCust]?.phone || '';
