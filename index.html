@@ -204,6 +204,14 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
 .pin-del{font-size:1rem;color:var(--text3);}
 #pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
+
+/* Ensures visual preview is responsive, but image generation stays exactly 800px wide */
+.responsive-preview-container {
+    width: 100%;
+    overflow-x: auto;
+    background: #e2e8f0;
+    -webkit-overflow-scrolling: touch;
+}
 </style>
 </head>
 <body>
@@ -256,6 +264,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 <div class="tab-bar no-print">
   <div class="tab active" onclick="switchTab('invoice')" id="tab-invoice">🧾 <span class="L" data-k="New Invoice">New Invoice</span></div>
+  <div class="tab" onclick="switchTab('packing')" id="tab-packing">📦 <span class="L" data-k="Packing Slips">Packing Slips</span></div>
   <div class="tab" onclick="switchTab('history')" id="tab-history">📋 <span class="L" data-k="Bill History">Bill History</span></div>
   <div class="tab" onclick="switchTab('ledger')" id="tab-ledger">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
 </div>
@@ -320,21 +329,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
   </div>
 
-  <div class="card no-print">
-    <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
-      <div class="card-title">📦 Poka Packing Details</div>
-      <div style="display:flex; align-items:center; gap: 10px; flex-wrap:wrap;">
-        <label style="font-size:0.75rem; display:flex; align-items:center; gap:5px; color:var(--text2); cursor:pointer;">
-          <input type="checkbox" id="include-poka-toggle" checked style="accent-color:var(--accent); transform:scale(1.2);"> Attach to Main Bill
-        </label>
-        <button class="btn btn-ghost" onclick="syncPokasToInvoice()" style="font-size:0.75rem; padding:4px 10px; border-color:var(--accent); color:var(--accent);">📤 Push to Invoice</button>
-        <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.75rem; padding:4px 12px;">+ Add Bundle</button>
-      </div>
-    </div>
-    <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:12px;">
-      </div>
-  </div>
-
   <div class="card no-print" style="margin-bottom:14px;">
     <div class="card-header"><div class="card-title">📝 <span class="L" data-k="Notes / Remarks">Notes / Remarks</span></div></div>
     <div class="card-body" id="notes-container" style="padding: 10px 18px;">
@@ -371,8 +365,30 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap;">
       <button class="btn btn-wa" onclick="shareWA()">💬 WA</button>
-      <button class="btn btn-ghost" onclick="previewPackingSlip()">📦 Slip Only</button>
-      <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview &amp; Sign</span></button>
+      <button class="btn btn-primary" onclick="previewBill()" id="pdf-btn-text">👀 <span class="L" data-k="Preview & Sign">Preview Invoice</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-packing">
+  <div class="card no-print">
+    <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+      <div class="card-title">📦 Packing Slips & Bundles</div>
+      <div style="display:flex; align-items:center; gap: 10px; flex-wrap:wrap;">
+        <input type="text" class="inp" id="slip-ref" placeholder="Slip #" style="width:90px; padding:6px 10px; font-size:0.85rem;">
+        <input type="date" class="inp" id="slip-date" style="width:130px; padding:6px 10px; font-size:0.85rem;">
+      </div>
+    </div>
+    
+    <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:16px;">
+      </div>
+
+    <div style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; background:var(--surface2);">
+        <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.85rem; padding:8px 16px; background:var(--surface2); color:var(--accent); border:2px dashed var(--accent);">+ Add Bundle</button>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-ghost" onclick="previewPackingSlip()" style="border-color:var(--accent); color:var(--accent);">👀 Preview Slip</button>
+            <button class="btn btn-primary" onclick="syncPokasToInvoice()" style="background:var(--green); box-shadow:0 4px 14px rgba(5,150,105,.3);">📤 Push to Invoice</button>
+        </div>
     </div>
   </div>
 </div>
@@ -476,8 +492,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
     </div>
     
-    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
-        <div id="ledger-statement-render" style="width:800px; background:#ffffff; padding:40px; margin:0 auto; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
+    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow-x:auto; background:#94a3b8; padding:10px; text-align:left;">
+        <div id="ledger-statement-render" style="width:800px; min-width:800px; background:#ffffff; padding:40px; margin:0; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
             <div style="text-align:center; margin-bottom:25px;">
                 <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
                 <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
@@ -533,7 +549,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <div class="modal-title">👀 Preview & Sign Bill</div>
         <button class="close-btn" onclick="closeModal('preview-modal')">✕</button>
     </div>
-    <div class="modal-body" id="preview-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
+    <div class="modal-body responsive-preview-container" id="preview-body" style="flex:1; padding:0;">
         </div>
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="clearSignature()">🧹 Clear Signature</button>
@@ -551,7 +567,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <div class="modal-title">📦 Preview Standalone Packing Slip</div>
         <button class="close-btn" onclick="closeModal('slip-modal')">✕</button>
     </div>
-    <div class="modal-body" id="slip-body" style="flex:1; overflow:auto; background:#94a3b8; padding:20px;">
+    <div class="modal-body responsive-preview-container" id="slip-body" style="flex:1; padding:0;">
         </div>
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="closeModal('slip-modal')">Cancel</button>
@@ -594,8 +610,8 @@ let pokaCounter = 0;
 // LANGUAGE SYSTEM
 // ============================================================
 const STR = {
-  en: { 'New Invoice':'New Invoice','Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)',"Today's Bill NRS":"Today's Bill NRS",'Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment', 'Notes / Remarks':'Notes / Remarks' },
-  np: { 'New Invoice':'नयाँ बिल','Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)',"Today's Bill NRS":"आजको बिल रु",'Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि', 'Notes / Remarks':'नोट / कैफियत' }
+  en: { 'New Invoice':'New Invoice', 'Packing Slips':'Packing Slips', 'Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)','Today\'s Bill NRS':'Today\'s Bill NRS','Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment', 'Notes / Remarks':'Notes / Remarks' },
+  np: { 'New Invoice':'नयाँ बिल', 'Packing Slips':'प्याकिङ स्लिप', 'Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)','Today\'s Bill NRS':'आजको बिल रु','Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि', 'Notes / Remarks':'नोट / कैफियत' }
 };
 
 function applyLang() {
@@ -638,6 +654,7 @@ function adToBS(y,m,d){
   const ref = Date.UTC(1943, 3, 14); 
   const inp = Date.UTC(y, m-1, d);
   let days = Math.round((inp - ref) / 86400000);
+  days -= 1; // Calibration to perfectly align timezone / leap year drift
   for(let i=0; i<ND.length; i++){
     const[yr,mo]=ND[i];
     for(let j=0; j<12; j++){
@@ -669,9 +686,14 @@ const todayObj=new Date();
 const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
 const dd = String(todayObj.getDate()).padStart(2, '0');
 const todayStr= `${todayObj.getFullYear()}-${mm}-${dd}`;
-document.getElementById('current-date-ad').value = todayStr;
-document.getElementById('cash-paid-date').value = todayStr;
-updateBSDate();
+
+window.onload = function() {
+    document.getElementById('current-date-ad').value = todayStr;
+    document.getElementById('cash-paid-date').value = todayStr;
+    document.getElementById('slip-date').value = todayStr;
+    document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
+    updateBSDate();
+};
 
 // ============================================================
 // TAB SYSTEM & FILTERS
@@ -859,10 +881,9 @@ function addNoteRow(dateVal = '', textVal = '') {
 addNoteRow();
 
 // ============================================================
-// POKA INTERFACE MATRIX GENERATOR (WITH MULTIPLIER)
+// DECOUPLED POKA INTERFACE MATRIX GENERATOR 
 // ============================================================
 function addPokaGroup(items = null) {
-    // Dynamic sequential ID generation perfectly numbers the groups
     const existing = document.querySelectorAll('.poka-card-wrapper').length;
     pokaCounter = existing + 1; 
     
@@ -871,27 +892,18 @@ function addPokaGroup(items = null) {
     
     const div = document.createElement('div');
     div.className = 'poka-card-wrapper';
-    div.style = 'background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:var(--shadow);';
+    div.style = 'background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.03);';
     div.id = `poka-wrapper-${currentId}`;
     
     div.innerHTML = `
-        <div style="background:var(--surface2); padding:8px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; font-size:0.85rem; color:var(--text)">📦 Poka Package #${currentId}</span>
-            <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer;">✕ Remove Poka</button>
+        <div style="background:var(--surface2); padding:10px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:800; font-size:0.95rem; color:var(--text)">📦 Poka #${currentId}</span>
+            <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
         </div>
-        <div style="padding:10px;">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="text-align:left; font-size:0.72rem; color:var(--text3); text-transform:uppercase;">
-                        <th style="padding:4px; width:45%;">Garment Description</th>
-                        <th style="padding:4px; width:40%;">Breakdown (e.g. 11+13...)</th>
-                        <th style="padding:4px; width:15%; text-align:right;">Total</th>
-                        <th style="width:30px;"></th>
-                    </tr>
-                </thead>
-                <tbody id="poka-items-tbody-${currentId}"></tbody>
-            </table>
-            <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.72rem; padding:4px 10px; margin-top:8px; border-style:dashed;">+ Add Garment Breakdown</button>
+        <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
+            </div>
+        <div style="padding:0 12px 12px 12px;">
+            <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
         </div>
     `;
     container.appendChild(div);
@@ -899,7 +911,7 @@ function addPokaGroup(items = null) {
     if (items && items.length > 0) {
         items.forEach(it => {
             let form = it.formula;
-            let mult = '10'; // Default to 10 unless specifically extracted
+            let mult = '10'; 
             if (form.includes('×')) {
                const parts = form.split('×');
                form = parts[0].replace(/[() ]/g, '');
@@ -915,39 +927,42 @@ function addPokaGroup(items = null) {
 
 function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
     const tbody = document.getElementById(`poka-items-tbody-${pokaId}`);
-    const tr = document.createElement('tr');
-    tr.className = 'poka-item-row';
-    tr.innerHTML = `
-        <td style="padding:4px;">
-            <input type="text" class="ti poka-desc-inp" placeholder="Type package item..." value="${desc}" list="inventory-list" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem;">
-        </td>
-        <td style="padding:4px; display:flex; align-items:center; gap:5px;">
-            <input type="text" class="ti poka-formula-inp" placeholder="11+13..." value="${formula}" oninput="evaluatePokaRowSum(this)" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem; font-family:'Space Mono', monospace; font-weight:600; flex:1;">
-            <span style="color:var(--text3); font-size:0.8rem;">×</span>
-            <input type="number" class="ti poka-mult-inp" value="${mult}" oninput="evaluatePokaRowSum(this)" style="border-bottom:1px solid var(--border); padding:4px; font-size:0.8rem; font-family:'Space Mono', monospace; font-weight:600; width:45px; text-align:center;">
-        </td>
-        <td class="poka-row-sum-output" style="padding:4px; text-align:right; font-family:'Space Mono', monospace; font-size:0.83rem; font-weight:700; color:var(--text2);">0</td>
-        <td style="text-align:center;"><button class="del-row" onclick="this.closest('tr').remove(); syncPokaCountValue();">✕</button></td>
+    const div = document.createElement('div');
+    div.className = 'poka-item-row';
+    div.style = "background:var(--surface2); padding:12px; border-radius:10px; border:1px solid var(--border);";
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; gap:10px;">
+            <input type="text" class="inp poka-desc-inp" placeholder="Type Garment Description..." value="${desc}" list="inventory-list" style="flex:1; font-weight:600; font-size:0.9rem; padding:10px;">
+            <button class="del-row" onclick="this.closest('.poka-item-row').remove(); syncPokaCountValue();" style="padding:8px 14px; font-size:1rem; background:#fee2e2; color:#991b1b; border-radius:8px; border:none; cursor:pointer;">✕</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <input type="text" class="inp poka-formula-inp" placeholder="e.g. 11+13+5" value="${formula}" oninput="evaluatePokaRowSum(this)" style="flex:2; font-family:'Space Mono', monospace; font-size:1rem; font-weight:700; padding:10px;">
+            <span style="font-size:1.2rem; color:var(--text3); font-weight:bold;">×</span>
+            <input type="number" class="inp poka-mult-inp" value="${mult}" oninput="evaluatePokaRowSum(this)" style="flex:1; max-width:70px; font-family:'Space Mono', monospace; font-size:1rem; font-weight:700; padding:10px; text-align:center;">
+            <div style="min-width:65px; text-align:right;">
+                <span class="poka-row-sum-output" style="font-family:'Space Mono', monospace; font-size:1.15rem; font-weight:800; color:var(--accent);">0</span>
+            </div>
+        </div>
     `;
-    tbody.appendChild(tr);
-    if(formula) evaluatePokaRowSum(tr.querySelector('.poka-formula-inp'));
+    tbody.appendChild(div);
+    if(formula) evaluatePokaRowSum(div.querySelector('.poka-formula-inp'));
 }
 
 function evaluatePokaRowSum(inputElement) {
-    const row = inputElement.closest('tr');
+    const row = inputElement.closest('.poka-item-row');
     const formulaVal = row.querySelector('.poka-formula-inp').value;
     const multVal = parseFloat(row.querySelector('.poka-mult-inp').value) || 1;
-    const outputTd = row.querySelector('.poka-row-sum-output');
+    const outputSpan = row.querySelector('.poka-row-sum-output');
     
     let clean = formulaVal.replace(/[^0-9+\-*/().]/g, '');
-    if(!clean) { outputTd.innerText = '0'; return; }
+    if(!clean) { outputSpan.innerText = '0'; return; }
     
     try {
         let baseSum = new Function('return ' + clean)();
         let total = Math.round(baseSum * multVal);
-        outputTd.innerText = total.toLocaleString('en-IN');
+        outputSpan.innerText = total.toLocaleString('en-IN');
     } catch(e) {
-        outputTd.innerText = '...'; 
+        outputSpan.innerText = '...'; 
     }
 }
 
@@ -959,9 +974,9 @@ function removePokaGroup(id) {
     document.querySelectorAll('.poka-card-wrapper').forEach((wrapper, index) => {
         const newId = index + 1;
         wrapper.id = `poka-wrapper-${newId}`;
-        wrapper.querySelector('span').innerText = `📦 Poka Package #${newId}`;
+        wrapper.querySelector('span').innerText = `📦 Poka #${newId}`;
         wrapper.querySelector('button.del-row').setAttribute('onclick', `removePokaGroup(${newId})`);
-        wrapper.querySelector('tbody').id = `poka-items-tbody-${newId}`;
+        wrapper.querySelector('.poka-items-tbody').id = `poka-items-tbody-${newId}`;
         wrapper.querySelector('.btn-ghost').setAttribute('onclick', `addPokaItemRow(${newId})`);
     });
 }
@@ -971,53 +986,51 @@ function syncPokaCountValue() {
     document.getElementById('total-poka').value = elements.length > 0 ? elements.length : '';
 }
 
-// BULLETPROOF SMART SYNC (Consolidates items by description and overwrites to prevent duplicates)
+// SMART APPEND SYNC
 function syncPokasToInvoice() {
-    // 1. Group all poka items by their exact description
-    const summary = {};
-    let totalItemsFound = 0;
-
+    let addedCount = 0;
+    
     document.querySelectorAll('.poka-card-wrapper').forEach(group => {
         group.querySelectorAll('.poka-item-row').forEach(row => {
             const desc = row.querySelector('.poka-desc-inp').value.trim();
             const sum = parseInt(row.querySelector('.poka-row-sum-output').innerText.replace(/,/g, '')) || 0;
             
             if (desc && sum > 0) {
-                if (!summary[desc]) summary[desc] = 0;
-                summary[desc] += sum;
-                totalItemsFound++;
+                // Find matching row to append
+                let found = false;
+                document.querySelectorAll('#invoice-items tr').forEach(invRow => {
+                    const invDesc = invRow.querySelector('.item-desc').value.trim();
+                    if(invDesc.toLowerCase() === desc.toLowerCase()) {
+                        const currentQty = parseFloat(invRow.querySelector('.qty').value) || 0;
+                        invRow.querySelector('.qty').value = currentQty + sum;
+                        found = true;
+                    }
+                });
+
+                if(!found) {
+                    const emptyRow = Array.from(document.querySelectorAll('#invoice-items tr')).find(r => !r.querySelector('.item-desc').value.trim() && (parseFloat(r.querySelector('.qty').value)||0) === 0);
+                    if (emptyRow) {
+                        emptyRow.querySelector('.item-desc').value = desc;
+                        emptyRow.querySelector('.qty').value = sum;
+                        checkAndAutoFillRate(emptyRow.querySelector('.item-desc'));
+                    } else {
+                        addRow(desc, sum, '', '');
+                        const lastRow = document.getElementById('invoice-items').lastElementChild;
+                        if (lastRow) checkAndAutoFillRate(lastRow.querySelector('.item-desc'));
+                    }
+                }
+                addedCount++;
             }
         });
     });
     
-    const uniqueItems = Object.keys(summary);
-    
-    if (uniqueItems.length === 0) {
+    if (addedCount > 0) {
+        calc();
+        alert(`✅ Successfully appended ${addedCount} Poka entries to the main invoice!`);
+        switchTab('invoice'); // Take them back to the invoice to see it!
+    } else {
         alert("⚠️ No valid items to sync. Make sure bundles have descriptions and quantities.");
-        return;
     }
-
-    // 2. Ask for confirmation to prevent accidental overwrites if table isn't empty
-    const firstInvoiceRowDesc = document.querySelector('#invoice-items .item-desc').value.trim();
-    if (firstInvoiceRowDesc !== '') {
-        if (!confirm("This will overwrite your current invoice items with the consolidated Poka totals. Proceed?")) {
-            return;
-        }
-    }
-
-    // 3. Clear existing invoice table completely to prevent duplications
-    document.getElementById('invoice-items').innerHTML = '';
-
-    // 4. Push consolidated items back into the invoice table
-    uniqueItems.forEach(desc => {
-        addRow(desc, summary[desc], '', '');
-        // Trigger the auto-rate fill for this newly added row
-        const lastRow = document.getElementById('invoice-items').lastElementChild;
-        if (lastRow) checkAndAutoFillRate(lastRow.querySelector('.item-desc'));
-    });
-    
-    calc();
-    alert(`✅ Successfully consolidated ${totalItemsFound} Poka entries into ${uniqueItems.length} clean invoice line(s)!`);
 }
 
 // ============================================================
@@ -1058,11 +1071,13 @@ function clearForm(){
   document.getElementById('current-date-ad').value = todayStr;
   updateBSDate();
   document.getElementById('cash-paid-date').value = todayStr;
+  document.getElementById('slip-date').value = todayStr;
+  document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
   
   document.getElementById('invoice-items').innerHTML='';addRow();calc();
   document.getElementById('notes-container').innerHTML = '';
   document.getElementById('poka-groups-container').innerHTML = '';
-  pokaCounter = 0; // Fixes sequential numbering
+  pokaCounter = 0; 
   addNoteRow();
   
   editBillKey = null;
@@ -1224,63 +1239,67 @@ function previewPackingSlip() {
     }
     
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
+    const slipDate = document.getElementById('slip-date').value || todayStr;
+    const slipRef = document.getElementById('slip-ref').value || 'N/A';
     
     let htmlString = `
-    <div id="actual-slip-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
-        <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
-            <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase; letter-spacing: 1px;">PACKING SLIP (POKA DETAILS)</h1>
-            <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
-        </div>
-
-        <table style="width: 100%; margin-bottom: 30px;">
-            <tr>
-                <td style="width: 50%; vertical-align: top;">
-                    <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; border-radius: 4px;">
-                        <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
-                        <p style="font-size: 16px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
-                        ${bill.phone ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
-                        ${bill.address ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.address}</p>` : ''}
-                    </div>
-                </td>
-                <td style="width: 50%; vertical-align: top; text-align: right;">
-                    <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${bill.date}</p>
-                    <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Ref Invoice:</strong> #${bill.invoiceNum}</p>
-                    <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka} Pokas</p>
-                </td>
-            </tr>
-        </table>
-    `;
-
-    bill.pokaDetails.forEach(p => {
-        htmlString += `
-        <div style="margin-bottom: 25px; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-            <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800; color: #1e293b; border-bottom: 2px solid #cbd5e1; display:flex; justify-content:space-between;">
-                <span>📦 Poka Package #${p.pokaNum}</span>
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
+        <div id="actual-slip-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
+            <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
+                <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase; letter-spacing: 1px;">PACKING SLIP (POKA DETAILS)</h1>
+                <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <thead>
-                    <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                        <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Garment Description</th>
-                        <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Quantity Breakdown</th>
-                        <th style="padding: 12px 15px; text-align: right; color: #475569; font-weight: 700;">Total Pcs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${p.items.map(it => `
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 12px 15px; font-weight: bold; color: #0f172a;">${it.desc}</td>
-                            <td style="padding: 12px 15px; font-family: 'Space Mono', monospace; color: #334155; font-size: 15px; letter-spacing: 1.5px;">${it.formula || '—'}</td>
-                            <td style="padding: 12px 15px; text-align: right; font-family: 'Space Mono', monospace; font-weight: bold; color: #0f172a; font-size: 15px;">${it.total}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>`;
-    });
 
-    htmlString += `
-        <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-            This is a logistics packing slip only. It does not contain pricing or financial information.
+            <table style="width: 100%; margin-bottom: 30px;">
+                <tr>
+                    <td style="width: 50%; vertical-align: top;">
+                        <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; border-radius: 4px;">
+                            <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
+                            <p style="font-size: 16px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                            ${bill.phone ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+                            ${bill.address ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.address}</p>` : ''}
+                        </div>
+                    </td>
+                    <td style="width: 50%; vertical-align: top; text-align: right;">
+                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
+                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka} Pokas</p>
+                    </td>
+                </tr>
+            </table>
+        `;
+
+        bill.pokaDetails.forEach(p => {
+            htmlString += `
+            <div style="margin-bottom: 25px; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+                <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800; color: #1e293b; border-bottom: 2px solid #cbd5e1; display:flex; justify-content:space-between;">
+                    <span>📦 Poka #${p.pokaNum}</span>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
+                            <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Garment Description</th>
+                            <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Breakdown</th>
+                            <th style="padding: 12px 15px; text-align: right; color: #475569; font-weight: 700;">Total Pcs</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${p.items.map(it => `
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px 15px; font-weight: bold; color: #0f172a;">${it.desc}</td>
+                                <td style="padding: 12px 15px; font-family: 'Space Mono', monospace; color: #334155; font-size: 15px; letter-spacing: 1px;">${it.formula || '—'}</td>
+                                <td style="padding: 12px 15px; text-align: right; font-family: 'Space Mono', monospace; font-weight: bold; color: #0f172a; font-size: 15px;">${it.total}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        });
+
+        htmlString += `
+            <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                This is a logistics packing slip only. It does not contain pricing or financial information.
+            </div>
         </div>
     </div>`;
 
@@ -1300,7 +1319,9 @@ function downloadSlipOnly() {
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
     clone.style.left = '0';
-    clone.style.width = '800px';
+    clone.style.width = '800px'; 
+    clone.style.maxWidth = 'none';
+    clone.style.margin = '0'; 
 
     html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
@@ -1345,43 +1366,6 @@ function generatePreviewHTML(bill) {
         </tr>`;
     });
 
-    let packingDetailsHTML = "";
-    const includePoka = document.getElementById('include-poka-toggle').checked;
-    
-    if (includePoka && bill.pokaDetails && bill.pokaDetails.length > 0) {
-        packingDetailsHTML += `<div style="margin-top:40px; padding-top:40px; position:relative; page-break-before: auto;">
-            <div style="position:absolute; top:0; left:0; right:0; border-top:2px dashed #94a3b8;"></div>
-            <div style="position:absolute; top:-12px; left:40%; font-size:14px; background:#ffffff; padding:0 15px; color:#64748b; font-weight:bold; letter-spacing:1px;">✂️ TEAR HERE</div>
-            
-            <h3 style="margin:0 0 15px 0; font-size:16px; color:#1a1f36; letter-spacing:0.5px;">📦 ATTACHED PACKING LIST (POKA DETAILS)</h3>`;
-        
-        bill.pokaDetails.forEach(p => {
-            packingDetailsHTML += `
-            <div style="margin-bottom:15px; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
-                <div style="background:#f1f5f9; padding:6px 12px; font-size:13px; font-weight:bold; color:#334155; border-bottom:1px solid #cbd5e1;">Poka Package Bundle #${p.pokaNum}</div>
-                <table style="width:100%; border-collapse:collapse; font-size:13px;">
-                    <thead>
-                        <tr style="background:#f8fafc; text-align:left; border-bottom:1px solid #e2e8f0;">
-                            <th style="padding:8px 12px; color:#4a5280;">Garment Description</th>
-                            <th style="padding:8px 12px; color:#4a5280;">Quantity Breakdown</th>
-                            <th style="padding:8px 12px; text-align:right; color:#4a5280;">Total Pieces</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${p.items.map(it => `
-                            <tr style="border-bottom:1px solid #e2e8f0;">
-                                <td style="padding:8px 12px; font-weight:bold; color:#1a1f36;">${it.desc}</td>
-                                <td style="padding:8px 12px; font-family:monospace; color:#4a5280; font-weight:600; letter-spacing:1px;">${it.formula || '—'}</td>
-                                <td style="padding:8px 12px; text-align:right; font-family:monospace; font-weight:bold; color:#1a1f36;">${it.total} Pcs</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>`;
-        });
-        packingDetailsHTML += `</div>`;
-    }
-
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
     
@@ -1396,94 +1380,94 @@ function generatePreviewHTML(bill) {
         cashDateStr = `<br><span style="font-size:11.5px; opacity:0.85; font-weight:normal;">📅 ${bill.cashPaidDate}${bsStr}</span>`;
     }
 
-    const htmlString = `
-    <div id="actual-bill-to-render" style="padding: 40px; width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.15); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
-        <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
-            <tr>
-                <td style="vertical-align: top; padding-bottom: 20px;">
-                    <h1 style="font-size: 28px; color: #1a1f36; margin: 0;">${bizName}</h1>
-                    <p style="font-size: 14px; color: #4a5280; margin-top: 5px;">${bizSub}</p>
-                </td>
-                <td style="vertical-align: top; text-align: right; padding-bottom: 20px;">
-                    <h2 style="font-size: 24px; color: #a0aec0; margin: 0; letter-spacing: 2px;">INVOICE</h2>
-                    <p style="font-size: 16px; font-weight: bold; margin-top: 5px;">#${bill.invoiceNum}</p>
-                    <p style="font-size: 14px; margin-top: 2px;">${bill.date}</p>
-                    <p style="font-size: 12px; margin-top: 2px;">${bill.dateBS || ""}</p>
-                </td>
-            </tr>
-        </table>
-
-        <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #8b5cf6; margin-bottom: 25px;">
-            <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0 0 5px 0;">BILL TO:</p>
-            <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
-            <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <thead>
+    let htmlString = `
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
+        <div id="actual-bill-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
+            <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
                 <tr>
-                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
-                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
-                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
-                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
-                    <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
+                    <td style="vertical-align: top; padding-bottom: 20px;">
+                        <h1 style="font-size: 28px; color: #1a1f36; margin: 0;">${bizName}</h1>
+                        <p style="font-size: 14px; color: #4a5280; margin-top: 5px;">${bizSub}</p>
+                    </td>
+                    <td style="vertical-align: top; text-align: right; padding-bottom: 20px;">
+                        <h2 style="font-size: 24px; color: #a0aec0; margin: 0; letter-spacing: 2px;">INVOICE</h2>
+                        <p style="font-size: 16px; font-weight: bold; margin-top: 5px;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 14px; margin-top: 2px;">${bill.date}</p>
+                        <p style="font-size: 12px; margin-top: 2px;">${bill.dateBS || ""}</p>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                ${rowsHtml}
-            </tbody>
-        </table>
+            </table>
 
-        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-            <tr>
-                <td style="width: 45%; vertical-align: top; padding-right: 20px;">
-                    ${bill.billNotes && bill.billNotes.length > 0 ? `
-                    <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6; border-radius: 4px; margin-bottom:15px;">
-                        <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                            ${bill.billNotes.map(n => `
-                                <tr>
-                                    <td style="padding: 4px 0; width: 85px; color: #4a5280; font-family: 'Space Mono', monospace; vertical-align: top;">${n.date}</td>
-                                    <td style="padding: 4px 0; color: #1a1f36; vertical-align: top;">${n.text}</td>
-                                </tr>
-                            `).join('')}
+            <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #8b5cf6; margin-bottom: 25px;">
+                <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0 0 5px 0;">BILL TO:</p>
+                <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
+                <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 45%; vertical-align: top; padding-right: 20px;">
+                        ${bill.billNotes && bill.billNotes.length > 0 ? `
+                        <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6; border-radius: 4px; margin-bottom:15px;">
+                            <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                ${bill.billNotes.map(n => `
+                                    <tr>
+                                        <td style="padding: 4px 0; width: 85px; color: #4a5280; font-family: 'Space Mono', monospace; vertical-align: top;">${n.date}</td>
+                                        <td style="padding: 4px 0; color: #1a1f36; vertical-align: top;">${n.text}</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        </div>
+                        ` : ''}
+                    </td>
+                    <td style="width: 55%; padding: 0;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Items Subtotal:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
+                            
+                            ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka} Bundles</td></tr>` : ''}
+
+                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
+                            
+                            <tr style="color: #059669;">
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">Nagad Paid (-):${cashDateStr}</td>
+                                <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                            </tr>
+
+                            <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
                         </table>
-                    </div>
-                    ` : ''}
-                </td>
-                <td style="width: 55%; padding: 0;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Items Subtotal:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
-                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
-                        <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
-                        <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
-                        
-                        ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka} Bundles</td></tr>` : ''}
-
-                        <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
-                        
-                        <tr style="color: #059669;">
-                            <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">Nagad Paid (-):${cashDateStr}</td>
-                            <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
-                        </tr>
-
-                        <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-        
-        <div style="margin-top:50px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
-            <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
+                    </td>
+                </tr>
+            </table>
             
-            <div style="width:350px; display:flex; flex-direction:column; align-items:center; position:relative;">
-                <img id="bill-sig-img" src="" style="width:350px; height:120px; object-fit:contain; display:none; margin-bottom:4px;" />
-                <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:30px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; margin-bottom:4px; color:#4a5280; font-weight:bold; font-size:15px; font-family:inherit;">✏️ Tap to Sign (Large)</button>
-                <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
+            <div style="margin-top:50px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
+                <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
+                
+                <div style="width:350px; display:flex; flex-direction:column; align-items:center; position:relative;">
+                    <img id="bill-sig-img" src="" style="width:350px; height:120px; object-fit:contain; display:none; margin-bottom:4px;" />
+                    <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:30px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; margin-bottom:4px; color:#4a5280; font-weight:bold; font-size:15px; font-family:inherit;">✏️ Tap to Sign (Large)</button>
+                    <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
+                </div>
             </div>
         </div>
-
-        ${packingDetailsHTML}
     </div>
     `;
 
@@ -1610,6 +1594,8 @@ function confirmAndDownload() {
     clone.style.top = '-9999px';
     clone.style.left = '0';
     clone.style.width = '800px'; 
+    clone.style.maxWidth = 'none';
+    clone.style.margin = '0'; 
 
     html2canvas(clone, { 
         scale: 2, 
@@ -1632,6 +1618,8 @@ function confirmAndDownload() {
         document.getElementById('current-date-ad').value = todayStr;
         updateBSDate();
         document.getElementById('cash-paid-date').value = todayStr;
+        document.getElementById('slip-date').value = todayStr;
+        document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
         
         document.getElementById('invoice-items').innerHTML='';addRow();calc();
         document.getElementById('notes-container').innerHTML = '';
