@@ -75,11 +75,25 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .inv-meta{text-align:right;position:relative;z-index:1;}
 .inv-label{font-size:1.5rem;font-weight:800;opacity:.2;letter-spacing:4px;text-transform:uppercase;}
 .inv-num{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
-.date-dual{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-end;}
 
-.date-ad{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Space Mono',monospace;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;display:inline-block; border:none; outline:none; cursor:pointer; width:150px; text-align:center;}
-.date-ad::-webkit-calendar-picker-indicator { cursor: pointer; }
-.bs-pill {font-size:.85rem; font-weight:700; color:#1a1f36; font-family:'Tiro Devanagari Hindi',serif; background:rgba(255,255,255,.95); padding:4px 10px; border-radius:7px; display:inline-block; box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+.date-dual{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-end;position:relative;}
+.date-ad{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Space Mono',monospace;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;display:inline-block; border:none; outline:none; cursor:pointer; width:160px; text-align:center; transition:0.2s;}
+.date-ad:hover{background:#fff;}
+.bs-pill {font-size:.9rem; font-weight:700; color:#1a1f36; font-family:'Tiro Devanagari Hindi',serif; background:rgba(255,255,255,.95); padding:6px 10px; border-radius:7px; display:inline-block; box-shadow:0 2px 4px rgba(0,0,0,0.05); width:160px; text-align:center; border:none; outline:none; cursor:pointer; transition:0.2s;}
+.bs-pill:hover{background:#fff;}
+
+/* Custom Nepali Calendar Popup */
+.np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.2); padding:12px; display:none; width:280px; text-align:left; }
+.np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
+.np-cal-header select { flex:1; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:'Tiro Devanagari Hindi', serif; font-weight:700; outline:none; cursor:pointer; }
+.np-cal-header button { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:8px; cursor:pointer; padding:4px 12px; font-weight:bold; transition:all 0.2s; }
+.np-cal-header button:hover { background:var(--hover); color:var(--accent); }
+.np-cal-grid-header { display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-size:0.75rem; font-weight:800; color:var(--text3); margin-bottom:8px; }
+.np-cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+.np-day { padding:8px 0; text-align:center; font-size:0.9rem; cursor:pointer; border-radius:8px; font-family:'Tiro Devanagari Hindi',serif; transition:all 0.15s; border:1px solid transparent;}
+.np-day:hover { background:var(--hover); border-color:var(--border); color:var(--accent); }
+.np-day.active { background:var(--accent); color:#fff; font-weight:bold; box-shadow:0 4px 10px rgba(79,70,229,.3); }
+.np-day.empty { pointer-events:none; }
 
 .inp{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:.875rem;transition:border .2s,box-shadow .2s;outline:none;}
 .inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,70,229,.1);}
@@ -205,7 +219,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .pin-del{font-size:1rem;color:var(--text3);}
 #pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
 
-/* Ensures visual preview is responsive, but image generation stays exactly 800px wide */
 .responsive-preview-container {
     width: 100%;
     overflow-x: auto;
@@ -282,8 +295,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="inv-num">#<span id="invoice-number">...</span></div>
       <div class="date-dual">
         <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
-        <div id="bs-date-pills" style="display:flex; gap:5px; justify-content:flex-end;">
-            </div>
+        <input type="text" id="bs-date-inp" class="bs-pill" readonly onclick="toggleNpCal()" placeholder="नेपाली मिति" title="Click to change Nepali Date">
       </div>
     </div>
   </div>
@@ -416,6 +428,20 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
+</div>
+
+<!-- Native Nepali Calendar Popup (Moved out of hidden containers) -->
+<div id="np-cal-popup" class="np-cal-popup no-print">
+    <div class="np-cal-header">
+        <button onclick="prevNpMonth()">&#8592;</button>
+        <select id="np-cal-m" onchange="renderNpCal()"></select>
+        <select id="np-cal-y" onchange="renderNpCal()"></select>
+        <button onclick="nextNpMonth()">&#8594;</button>
+    </div>
+    <div class="np-cal-grid-header">
+        <span>आ</span><span>सो</span><span>मं</span><span>बु</span><span>बि</span><span>शु</span><span>श</span>
+    </div>
+    <div id="np-cal-grid" class="np-cal-grid"></div>
 </div>
 
 <div class="modal-overlay" id="bill-modal">
@@ -624,7 +650,7 @@ function toggleLang() {
 }
 
 // ============================================================
-// NEPALI DATE SYSTEM (AUTO-SYNC DISPLAY PILLS)
+// NEPALI NATIVE CALENDAR SYSTEM (TWO-WAY SYNC)
 // ============================================================
 const ND = [
 [2000,[30,32,31,32,31,30,30,30,29,30,29,31]], [2001,[31,31,32,31,31,31,30,29,30,29,30,30]], [2002,[31,31,32,32,31,30,30,29,30,29,30,30]], [2003,[31,32,31,32,31,30,30,30,29,29,30,31]], [2004,[30,32,31,32,31,30,30,30,29,30,29,31]],
@@ -650,11 +676,12 @@ const ND = [
 ];
 const NM=['बैशाख','जेठ','असार','श्रावण','भाद्र','आश्विन','कार्तिक','मंसिर','पौष','माघ','फाल्गुन','चैत्र'];
 
+let selCalY = 2080, selCalM = 1, selCalD = 1;
+
 function adToBS(y,m,d){
   const ref = Date.UTC(1943, 3, 14); 
   const inp = Date.UTC(y, m-1, d);
   let days = Math.round((inp - ref) / 86400000);
-  days -= 1; // Calibration to perfectly align timezone / leap year drift
   for(let i=0; i<ND.length; i++){
     const[yr,mo]=ND[i];
     for(let j=0; j<12; j++){
@@ -664,30 +691,153 @@ function adToBS(y,m,d){
   } return null;
 }
 
+function bsToAd(bsY, bsM, bsD) {
+    let days = 0;
+    for(let i=0; i<ND.length; i++) {
+        if(ND[i][0] < bsY) {
+            for(let j=0; j<12; j++) days += ND[i][1][j];
+        } else if(ND[i][0] === bsY) {
+            for(let j=0; j<bsM-1; j++) days += ND[i][1][j];
+            break;
+        }
+    }
+    days += (bsD - 1);
+    const ref = Date.UTC(1943, 3, 14); // 2000 Baisakh 1
+    return new Date(ref + days * 86400000);
+}
+
+function getBsMonthStartDayOfWeek(bsY, bsM) {
+    let days = 0;
+    for(let i=0; i<ND.length; i++) {
+        if(ND[i][0] < bsY) {
+            for(let j=0; j<12; j++) days += ND[i][1][j];
+        } else if(ND[i][0] === bsY) {
+            for(let j=0; j<bsM-1; j++) days += ND[i][1][j];
+            break;
+        }
+    }
+    // Date.UTC(1943, 3, 14) was a Wednesday (3).
+    return (3 + days) % 7; 
+}
+
 function updateBSDate() {
   const adVal = document.getElementById('current-date-ad').value;
-  const container = document.getElementById('bs-date-pills');
-  if(!adVal) { container.innerHTML = ''; return; }
+  if(!adVal) { 
+      document.getElementById('bs-date-inp').value = '';
+      return; 
+  }
   
   const [y,m,d] = adVal.split('-').map(Number);
   const bsData = adToBS(y,m,d);
   if(bsData) {
-      container.innerHTML = `
-          <span class="bs-pill">${bsData.year}</span>
-          <span class="bs-pill">${bsData.monthName}</span>
-          <span class="bs-pill">${bsData.day}</span>
-      `;
-  } else {
-      container.innerHTML = '';
+      selCalY = bsData.year; selCalM = bsData.month; selCalD = bsData.day;
+      document.getElementById('bs-date-inp').value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
+      
+      if(document.getElementById('np-cal-popup').style.display === 'block') {
+          document.getElementById('np-cal-y').value = selCalY;
+          document.getElementById('np-cal-m').value = selCalM;
+          renderNpCal();
+      }
   }
 }
 
+function initNpCal() {
+    const ySel = document.getElementById('np-cal-y');
+    for(let i=0; i<ND.length; i++) ySel.innerHTML += `<option value="${ND[i][0]}">${ND[i][0]}</option>`;
+    const mSel = document.getElementById('np-cal-m');
+    NM.forEach((m, i) => mSel.innerHTML += `<option value="${i+1}">${m}</option>`);
+    
+    // Auto-close when clicking outside
+    document.addEventListener('click', function(e) {
+        const popup = document.getElementById('np-cal-popup');
+        const inp = document.getElementById('bs-date-inp');
+        if(popup && popup.style.display === 'block' && !popup.contains(e.target) && e.target !== inp) {
+            popup.style.display = 'none';
+        }
+    });
+}
+
+function toggleNpCal() {
+    const popup = document.getElementById('np-cal-popup');
+    const inp = document.getElementById('bs-date-inp');
+
+    if(popup.style.display === 'block') {
+        popup.style.display = 'none';
+    } else {
+        document.getElementById('np-cal-y').value = selCalY;
+        document.getElementById('np-cal-m').value = selCalM;
+        renderNpCal();
+
+        // FIX: Move the popup to the body so it completely escapes the "overflow: hidden" header clipping
+        document.body.appendChild(popup);
+
+        // Dynamically calculate where to place it relative to the page
+        const rect = inp.getBoundingClientRect();
+        popup.style.position = 'absolute';
+        popup.style.top = (window.scrollY + rect.bottom + 8) + 'px';
+        
+        let calcLeft = window.scrollX + rect.right - 280; // 280px is the calendar width
+        if (calcLeft < 10) calcLeft = 10; // Safety margin for small phones
+
+        popup.style.left = calcLeft + 'px';
+        popup.style.zIndex = '9999';
+
+        popup.style.display = 'block';
+    }
+}
+
+function prevNpMonth() {
+    let m = parseInt(document.getElementById('np-cal-m').value);
+    let y = parseInt(document.getElementById('np-cal-y').value);
+    if(m === 1) { m = 12; y--; } else { m--; }
+    if(y >= 2000) { document.getElementById('np-cal-m').value = m; document.getElementById('np-cal-y').value = y; renderNpCal(); }
+}
+
+function nextNpMonth() {
+    let m = parseInt(document.getElementById('np-cal-m').value);
+    let y = parseInt(document.getElementById('np-cal-y').value);
+    if(m === 12) { m = 1; y++; } else { m++; }
+    if(y <= 2099) { document.getElementById('np-cal-m').value = m; document.getElementById('np-cal-y').value = y; renderNpCal(); }
+}
+
+function renderNpCal() {
+    const y = parseInt(document.getElementById('np-cal-y').value);
+    const m = parseInt(document.getElementById('np-cal-m').value);
+    const startDow = getBsMonthStartDayOfWeek(y, m);
+    
+    let totalDays = 30;
+    const yData = ND.find(d => d[0] === y);
+    if(yData) totalDays = yData[1][m-1];
+
+    let html = '';
+    for(let i=0; i<startDow; i++) html += `<div class="np-day empty"></div>`;
+    
+    for(let d=1; d<=totalDays; d++) {
+        let isSel = (d === selCalD && y === selCalY && m === selCalM);
+        html += `<div class="np-day ${isSel?'active':''}" onclick="selectNpDate(${y},${m},${d})">${d}</div>`;
+    }
+    document.getElementById('np-cal-grid').innerHTML = html;
+}
+
+function selectNpDate(y, m, d) {
+    selCalY = y; selCalM = m; selCalD = d;
+    document.getElementById('bs-date-inp').value = `📅 ${d} ${NM[m-1]} ${y}`;
+    document.getElementById('np-cal-popup').style.display = 'none';
+    
+    // Sync AD Picker backward
+    const adDate = bsToAd(y, m, d);
+    const mm = String(adDate.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(adDate.getUTCDate()).padStart(2, '0');
+    document.getElementById('current-date-ad').value = `${adDate.getUTCFullYear()}-${mm}-${dd}`;
+}
+
 const todayObj=new Date();
-const mm = String(todayObj.getMonth() + 1).padStart(2, '0');
-const dd = String(todayObj.getDate()).padStart(2, '0');
-const todayStr= `${todayObj.getFullYear()}-${mm}-${dd}`;
+const tMM = String(todayObj.getMonth() + 1).padStart(2, '0');
+const tDD = String(todayObj.getDate()).padStart(2, '0');
+const todayStr= `${todayObj.getFullYear()}-${tMM}-${tDD}`;
 
 window.onload = function() {
+    initNpCal(); // Build Select Menus First
     document.getElementById('current-date-ad').value = todayStr;
     document.getElementById('cash-paid-date').value = todayStr;
     document.getElementById('slip-date').value = todayStr;
@@ -970,7 +1120,6 @@ function removePokaGroup(id) {
     const el = document.getElementById(`poka-wrapper-${id}`);
     if(el) el.remove();
     syncPokaCountValue();
-    // Re-index remaining groups so it never skips a number
     document.querySelectorAll('.poka-card-wrapper').forEach((wrapper, index) => {
         const newId = index + 1;
         wrapper.id = `poka-wrapper-${newId}`;
@@ -986,7 +1135,6 @@ function syncPokaCountValue() {
     document.getElementById('total-poka').value = elements.length > 0 ? elements.length : '';
 }
 
-// SMART APPEND SYNC
 function syncPokasToInvoice() {
     let addedCount = 0;
     
@@ -996,7 +1144,6 @@ function syncPokasToInvoice() {
             const sum = parseInt(row.querySelector('.poka-row-sum-output').innerText.replace(/,/g, '')) || 0;
             
             if (desc && sum > 0) {
-                // Find matching row to append
                 let found = false;
                 document.querySelectorAll('#invoice-items tr').forEach(invRow => {
                     const invDesc = invRow.querySelector('.item-desc').value.trim();
@@ -1027,7 +1174,7 @@ function syncPokasToInvoice() {
     if (addedCount > 0) {
         calc();
         alert(`✅ Successfully appended ${addedCount} Poka entries to the main invoice!`);
-        switchTab('invoice'); // Take them back to the invoice to see it!
+        switchTab('invoice');
     } else {
         alert("⚠️ No valid items to sync. Make sure bundles have descriptions and quantities.");
     }
@@ -1153,8 +1300,8 @@ function shareWA(){
   const biz="Rabi Kapada Pasal";
   const billDate = document.getElementById('current-date-ad').value;
   
-  const bsPills = document.querySelectorAll('#bs-date-pills .bs-pill');
-  const billDateBS = bsPills.length === 3 ? `${bsPills[2].innerText} ${bsPills[1].innerText} ${bsPills[0].innerText} BS` : '';
+  const rawBS = document.getElementById('bs-date-inp').value;
+  const billDateBS = rawBS ? rawBS.replace('📅 ', '') + ' BS' : '';
   
   const invNum = document.getElementById('invoice-number').innerText;
   const custName = document.getElementById('customer-name').value||'Customer';
@@ -1173,8 +1320,8 @@ function extractPendingBillData() {
   const currentBaki=document.getElementById('remaining-balance').innerText.replace(/,/g,'');
   const billDate = document.getElementById('current-date-ad').value;
   
-  const bsPills = document.querySelectorAll('#bs-date-pills .bs-pill');
-  const billDateBS = bsPills.length === 3 ? `${bsPills[2].innerText} ${bsPills[1].innerText} ${bsPills[0].innerText} BS` : '';
+  const rawBS = document.getElementById('bs-date-inp').value;
+  const billDateBS = rawBS ? rawBS.replace('📅 ', '') + ' BS' : '';
   
   const items=[];
   document.querySelectorAll('#invoice-items tr').forEach(row=>{
