@@ -13,7 +13,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -33,7 +32,7 @@
   --shadow:0 4px 24px rgba(0,0,0,.4);--hover:#1e2040;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s; padding-bottom: 60px;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s; padding-bottom: 70px;}
 
 .top-nav{background:var(--grad);padding:0 1.2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(79,70,229,.3);}
 .nav-brand{display:flex;align-items:center;gap:10px;color:#fff;}
@@ -946,12 +945,12 @@ const syncEl=document.getElementById('sync-status');
 
 function initFB(){
   try{
-    firebase.initializeApp(fbConfig);
+    if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
     db.ref('.info/connected').on('value',s=>{
       if(s.val()===true){
         fbReady=true;
-        syncEl.innerText='🟢 Synced';
+        syncEl.innerHTML='🟢 Synced <span style="cursor:pointer; text-decoration:underline; margin-left:5px;" onclick="location.reload()">↻</span>';
         syncEl.className='sync-badge synced';
       }else{
         syncEl.innerText='🟡 Offline';
@@ -960,10 +959,7 @@ function initFB(){
     });
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
       const v=s.val();
-      if(v){ 
-        cloudNextInvoice=v; 
-        if(!editBillKey) document.getElementById('invoice-number').innerText=v; 
-      }
+      if(v){ cloudNextInvoice=v; if(!editBillKey) document.getElementById('invoice-number').innerText=v; }
       else db.ref('nwh/nextInvoiceNumber').set(1001);
     });
     db.ref('nwh/customers').on('value',s=>{
@@ -989,9 +985,9 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ syncEl.innerText='🔴 Error'; }
+  }catch(e){ syncEl.innerText='🔴 Error'; console.error(e); }
 }
-setTimeout(initFB,300);
+setTimeout(initFB, 500);
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
