@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#4f46e5">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Rabi Kapada Pasal - Cloud Billing</title>
 
 <link rel="manifest" href="manifest.json">
@@ -13,7 +13,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -33,7 +32,7 @@
   --shadow:0 4px 24px rgba(0,0,0,.4);--hover:#1e2040;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s; padding-bottom: 70px;}
 
 .top-nav{background:var(--grad);padding:0 1.2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(79,70,229,.3);}
 .nav-brand{display:flex;align-items:center;gap:10px;color:#fff;}
@@ -82,8 +81,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .bs-pill {font-size:.9rem; font-weight:700; color:#1a1f36; font-family:'Tiro Devanagari Hindi',serif; background:rgba(255,255,255,.95); padding:6px 10px; border-radius:7px; display:inline-block; box-shadow:0 2px 4px rgba(0,0,0,0.05); width:160px; text-align:center; border:none; outline:none; cursor:pointer; transition:0.2s;}
 .bs-pill:hover{background:#fff;}
 
-/* Custom Nepali Calendar Popup */
-.np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.2); padding:12px; display:none; width:280px; text-align:left; }
+.np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.3); padding:12px; display:none; width:280px; text-align:left; z-index:9999; }
 .np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
 .np-cal-header select { flex:1; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:'Tiro Devanagari Hindi', serif; font-weight:700; outline:none; cursor:pointer; }
 .np-cal-header button { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:8px; cursor:pointer; padding:4px 12px; font-weight:bold; transition:all 0.2s; }
@@ -181,9 +179,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .lc-baki.due{color:var(--red);}
 .lc-baki.ok{color:var(--green);}
 
-.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 16px;flex:1;min-width:110px;}
-.stat-label{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
-.stat-val{font-size:1.4rem;font-weight:800;font-family:'Space Mono',monospace;color:var(--accent);}
+/* Dynamic Suggestion Bar - FIXED to sit above keyboard */
+.suggestion-bar{ position: fixed; bottom: 0; left: 0; right: 0; background: #1a1f36; padding: 10px; border-top: 1px solid var(--border); display: none; gap: 10px; overflow-x: auto; z-index: 10000; box-shadow: 0 -4px 15px rgba(0,0,0,0.2); flex-wrap: nowrap; -webkit-overflow-scrolling: touch;}
+.s-btn{ white-space: nowrap; padding: 10px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.85rem; cursor: pointer; color: #fff; font-weight: 600; flex-shrink: 0;}
+.s-btn:active{ background: var(--accent); color: white; border-color:var(--accent); transform:scale(0.95);}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:14px;}
 .modal-overlay.open{display:flex;}
@@ -230,6 +229,24 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <body>
 
 <datalist id="inventory-list"></datalist>
+<datalist id="customer-list"></datalist>
+
+<!-- SUGGESTION BAR FIXED AT BOTTOM -->
+<div id="suggestion-bar" class="suggestion-bar no-print"></div>
+
+<!-- NATIVE CALENDAR POPUP PLACED IN BODY TO PREVENT CLIPPING -->
+<div id="np-cal-popup" class="np-cal-popup no-print">
+    <div class="np-cal-header">
+        <button onclick="prevNpMonth()">&#8592;</button>
+        <select id="np-cal-m" onchange="renderNpCal()"></select>
+        <select id="np-cal-y" onchange="renderNpCal()"></select>
+        <button onclick="nextNpMonth()">&#8594;</button>
+    </div>
+    <div class="np-cal-grid-header">
+        <span>आ</span><span>सो</span><span>मं</span><span>बु</span><span>बि</span><span>शु</span><span>श</span>
+    </div>
+    <div id="np-cal-grid" class="np-cal-grid"></div>
+</div>
 
 <div id="pw-screen">
   <div id="pw-box">
@@ -312,7 +329,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <div id="search-results" class="search-results"></div>
       </div>
       <div class="inp-grid">
-        <input type="text" class="inp" id="customer-name" placeholder="Full Name">
+        <input type="text" class="inp" id="customer-name" placeholder="Full Name" autocomplete="off">
         <input type="text" class="inp" id="customer-phone" placeholder="Phone Number">
         <input type="text" class="inp full" id="customer-address" placeholder="Address">
       </div>
@@ -387,6 +404,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
       <div class="card-title">📦 Packing Slips & Bundles</div>
       <div style="display:flex; align-items:center; gap: 10px; flex-wrap:wrap;">
+        <input type="text" class="inp" id="slip-customer" placeholder="Customer / Ref Name" autocomplete="off" style="width:160px; padding:6px 10px; font-size:0.85rem;">
         <input type="text" class="inp" id="slip-ref" placeholder="Slip #" style="width:90px; padding:6px 10px; font-size:0.85rem;">
         <input type="date" class="inp" id="slip-date" style="width:130px; padding:6px 10px; font-size:0.85rem;">
       </div>
@@ -397,10 +415,18 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
     <div style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; background:var(--surface2);">
         <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.85rem; padding:8px 16px; background:var(--surface2); color:var(--accent); border:2px dashed var(--accent);">+ Add Bundle</button>
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-ghost" onclick="previewPackingSlip()" style="border-color:var(--accent); color:var(--accent);">👀 Preview Slip</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="previewPackingSlip()" style="border-color:var(--accent); color:var(--accent);">👀 Preview</button>
+            <button class="btn btn-ghost" onclick="savePokaDraft()">💾 Save Draft</button>
             <button class="btn btn-primary" onclick="syncPokasToInvoice()" style="background:var(--green); box-shadow:0 4px 14px rgba(5,150,105,.3);">📤 Push to Invoice</button>
         </div>
+    </div>
+  </div>
+
+  <div class="card no-print" style="margin-top:14px;">
+    <div class="card-header"><div class="card-title">🕰️ Saved Poka Drafts</div></div>
+    <div class="card-body" id="saved-pokas-container" style="padding:0; overflow-x:auto;">
+        <div class="empty-state"><div class="icon">📁</div><div class="L">No saved drafts</div></div>
     </div>
   </div>
 </div>
@@ -428,20 +454,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-</div>
-
-<!-- Native Nepali Calendar Popup (Moved out of hidden containers) -->
-<div id="np-cal-popup" class="np-cal-popup no-print">
-    <div class="np-cal-header">
-        <button onclick="prevNpMonth()">&#8592;</button>
-        <select id="np-cal-m" onchange="renderNpCal()"></select>
-        <select id="np-cal-y" onchange="renderNpCal()"></select>
-        <button onclick="nextNpMonth()">&#8594;</button>
-    </div>
-    <div class="np-cal-grid-header">
-        <span>आ</span><span>सो</span><span>मं</span><span>बु</span><span>बि</span><span>शु</span><span>श</span>
-    </div>
-    <div id="np-cal-grid" class="np-cal-grid"></div>
 </div>
 
 <div class="modal-overlay" id="bill-modal">
@@ -631,6 +643,67 @@ let editBillKey = null;
 let editInvoiceNum = null;
 let lang = 'en';
 let pokaCounter = 0;
+let allPokas = [];
+let inventoryList = [];
+
+// ============================================================
+// SUGGESTION BAR SYSTEM
+// ============================================================
+function initSuggestionBar() {
+    const bar = document.getElementById('suggestion-bar');
+    
+    // Listen for focus on ANY input
+    document.addEventListener('focusin', (e) => {
+        const target = e.target;
+        if(target.tagName === 'INPUT' && (target.id === 'customer-name' || target.id === 'slip-customer' || target.classList.contains('item-desc') || target.classList.contains('poka-desc-inp'))) {
+            updateSuggestions(target);
+            bar.style.display = 'flex';
+        } else {
+            bar.style.display = 'none';
+        }
+    });
+
+    // Hide bar when keyboard closes or clicking away
+    document.addEventListener('focusout', (e) => {
+        setTimeout(() => { 
+            if(!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+                bar.style.display = 'none'; 
+            }
+        }, 150);
+    });
+}
+
+function updateSuggestions(target) {
+    const bar = document.getElementById('suggestion-bar');
+    bar.innerHTML = '';
+    let opts = [];
+    
+    if (target.id === 'customer-name' || target.id === 'slip-customer') {
+        opts = Object.keys(cloudCustomers);
+    } else {
+        opts = inventoryList;
+    }
+    
+    if (opts.length === 0) { bar.style.display = 'none'; return; }
+    
+    opts.slice(0, 15).forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 's-btn';
+        btn.innerText = opt;
+        
+        // Prevent default so clicking button DOES NOT remove focus from input
+        btn.onmousedown = (e) => e.preventDefault(); 
+        
+        btn.onclick = () => { 
+            target.value = opt; 
+            target.dispatchEvent(new Event('input')); // trigger oninput
+            if(target.oninput) target.oninput(target); 
+            if(target.classList.contains('item-desc')) checkAndAutoFillRate(target);
+            bar.style.display = 'none';
+        };
+        bar.appendChild(btn);
+    });
+}
 
 // ============================================================
 // LANGUAGE SYSTEM
@@ -716,7 +789,6 @@ function getBsMonthStartDayOfWeek(bsY, bsM) {
             break;
         }
     }
-    // Date.UTC(1943, 3, 14) was a Wednesday (3).
     return (3 + days) % 7; 
 }
 
@@ -741,13 +813,22 @@ function updateBSDate() {
   }
 }
 
+function populateCustomerList() {
+    const list = document.getElementById('customer-list');
+    list.innerHTML = '';
+    Object.keys(cloudCustomers).forEach(name => {
+        let option = document.createElement('option');
+        option.value = name;
+        list.appendChild(option);
+    });
+}
+
 function initNpCal() {
     const ySel = document.getElementById('np-cal-y');
     for(let i=0; i<ND.length; i++) ySel.innerHTML += `<option value="${ND[i][0]}">${ND[i][0]}</option>`;
     const mSel = document.getElementById('np-cal-m');
     NM.forEach((m, i) => mSel.innerHTML += `<option value="${i+1}">${m}</option>`);
     
-    // Auto-close when clicking outside
     document.addEventListener('click', function(e) {
         const popup = document.getElementById('np-cal-popup');
         const inp = document.getElementById('bs-date-inp');
@@ -768,16 +849,13 @@ function toggleNpCal() {
         document.getElementById('np-cal-m').value = selCalM;
         renderNpCal();
 
-        // FIX: Move the popup to the body so it completely escapes the "overflow: hidden" header clipping
         document.body.appendChild(popup);
-
-        // Dynamically calculate where to place it relative to the page
         const rect = inp.getBoundingClientRect();
         popup.style.position = 'absolute';
         popup.style.top = (window.scrollY + rect.bottom + 8) + 'px';
         
-        let calcLeft = window.scrollX + rect.right - 280; // 280px is the calendar width
-        if (calcLeft < 10) calcLeft = 10; // Safety margin for small phones
+        let calcLeft = window.scrollX + rect.right - 280; 
+        if (calcLeft < 10) calcLeft = 10; 
 
         popup.style.left = calcLeft + 'px';
         popup.style.zIndex = '9999';
@@ -824,7 +902,6 @@ function selectNpDate(y, m, d) {
     document.getElementById('bs-date-inp').value = `📅 ${d} ${NM[m-1]} ${y}`;
     document.getElementById('np-cal-popup').style.display = 'none';
     
-    // Sync AD Picker backward
     const adDate = bsToAd(y, m, d);
     const mm = String(adDate.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(adDate.getUTCDate()).padStart(2, '0');
@@ -837,7 +914,8 @@ const tDD = String(todayObj.getDate()).padStart(2, '0');
 const todayStr= `${todayObj.getFullYear()}-${tMM}-${tDD}`;
 
 window.onload = function() {
-    initNpCal(); // Build Select Menus First
+    initNpCal();
+    initSuggestionBar();
     document.getElementById('current-date-ad').value = todayStr;
     document.getElementById('cash-paid-date').value = todayStr;
     document.getElementById('slip-date').value = todayStr;
@@ -857,6 +935,7 @@ function switchTab(name){
     document.getElementById('tab-'+name).classList.add('active');
     if(name==='ledger') renderLedger();
     if(name==='history') renderHistory();
+    if(name==='packing') renderPokaHistory();
 }
 
 function filterHistory(){
@@ -872,7 +951,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION
+// FIREBASE CONNECTION (ROBUST & LOADER-PROOF)
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -889,36 +968,57 @@ const syncEl=document.getElementById('sync-status');
 
 function initFB(){
   try{
-    firebase.initializeApp(fbConfig);
+    if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
+    
+    // Aggressive Timeout Check
+    setTimeout(() => {
+        if (!fbReady) {
+            syncEl.innerHTML = '🔴 Timeout <span style="cursor:pointer; margin-left:5px;" onclick="location.reload()">↻</span>';
+        }
+    }, 8000);
+
     db.ref('.info/connected').on('value',s=>{
       if(s.val()===true){
         fbReady=true;
-        syncEl.innerText='🟢 Synced';
+        syncEl.innerHTML='🟢 Synced <span style="cursor:pointer; text-decoration:underline; margin-left:5px;" onclick="location.reload()">↻</span>';
         syncEl.className='sync-badge synced';
       }else{
         syncEl.innerText='🟡 Offline';
         syncEl.className='sync-badge';
       }
     });
+
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
       const v=s.val();
-      if(v){ 
-        cloudNextInvoice=v; 
-        if(!editBillKey) document.getElementById('invoice-number').innerText=v; 
-      }
+      if(v){ cloudNextInvoice=v; if(!editBillKey) document.getElementById('invoice-number').innerText=v; }
       else db.ref('nwh/nextInvoiceNumber').set(1001);
     });
+
+    // Customers Listener with explicit empty-state injection
     db.ref('nwh/customers').on('value',s=>{
         cloudCustomers=s.val()||{};
-        if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        populateCustomerList();
+        renderLedger(); 
+    }, e => { 
+        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Error: ${e.message}</div>`;
     });
+
+    // Bills Listener with explicit empty-state injection
     db.ref('nwh/bills').on('value',s=>{
       const v=s.val();
       allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-      if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
+      renderHistory(); 
+    }, e => { 
+        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Error: ${e.message}</div>`;
     });
-    
+
+    db.ref('nwh/pokas').on('value', s => {
+        const v = s.val();
+        allPokas = v ? Object.entries(v).map(([k, p]) => ({key: k, ...p})).reverse() : [];
+        if(document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
+    });
+
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
       if(Array.isArray(val)) inventoryList = val;
@@ -927,14 +1027,13 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ syncEl.innerText='🔴 Error'; }
+  }catch(e){ syncEl.innerText='🔴 Error'; console.error(e); }
 }
-setTimeout(initFB,300);
+setTimeout(initFB, 300);
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
 // ============================================================
-let inventoryList = [];
 try {
     let saved = safeGetLocal('nwh_inventory');
     if (saved) inventoryList = JSON.parse(saved) || [];
@@ -1031,7 +1130,7 @@ function addNoteRow(dateVal = '', textVal = '') {
 addNoteRow();
 
 // ============================================================
-// DECOUPLED POKA INTERFACE MATRIX GENERATOR 
+// POKA DRAFT HISTORY SYSTEM & MATRIX GENERATOR
 // ============================================================
 function addPokaGroup(items = null) {
     const existing = document.querySelectorAll('.poka-card-wrapper').length;
@@ -1135,6 +1234,96 @@ function syncPokaCountValue() {
     document.getElementById('total-poka').value = elements.length > 0 ? elements.length : '';
 }
 
+function savePokaDraft() {
+    const customer = document.getElementById('slip-customer').value.trim() || 'Walk-in / Unknown';
+    const ref = document.getElementById('slip-ref').value || 'PK-N/A';
+    const date = document.getElementById('slip-date').value || todayStr;
+
+    const structuredPokas = [];
+    document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
+        const pItems = [];
+        group.querySelectorAll('.poka-item-row').forEach(row => {
+            const desc = row.querySelector('.poka-desc-inp').value.trim();
+            const formula = row.querySelector('.poka-formula-inp').value.trim();
+            const mult = row.querySelector('.poka-mult-inp').value.trim();
+            const sum = row.querySelector('.poka-row-sum-output').innerText;
+            
+            if(desc || formula) {
+                let displayFormula = formula;
+                if (mult && mult !== '1') displayFormula = `(${formula}) × ${mult}`;
+                pItems.push({ desc: desc || 'Garment Item', formula: displayFormula, total: sum });
+            }
+        });
+        if(pItems.length > 0) structuredPokas.push({ pokaNum: index + 1, items: pItems });
+    });
+
+    if(structuredPokas.length === 0) {
+        alert("Please add at least one item before saving.");
+        return;
+    }
+
+    if(db && fbReady) {
+        db.ref('nwh/pokas').push({ customer, ref, date, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
+        alert(`✅ Packing Slip Draft saved to cloud!`);
+        
+        document.getElementById('poka-groups-container').innerHTML = '';
+        pokaCounter = 0;
+        document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
+        document.getElementById('slip-customer').value = '';
+        addPokaGroup();
+    } else {
+        alert("You are offline. Cannot save draft.");
+    }
+}
+
+function renderPokaHistory() {
+    const c = document.getElementById('saved-pokas-container');
+    if(!allPokas.length) { 
+        c.innerHTML = `<div class="empty-state"><div class="icon">📁</div><div class="L">No saved drafts</div></div>`; 
+        return; 
+    }
+
+    let html = `<table class="h-table"><thead><tr><th>Date & Ref</th><th>Customer</th><th>Total</th><th>Actions</th></tr></thead><tbody>`;
+    allPokas.forEach(p => {
+        html += `<tr>
+            <td><strong style="color:var(--accent);">${p.ref}</strong><br><span style="font-size:10px">${p.date}</span></td>
+            <td><strong>${p.customer}</strong></td>
+            <td>${p.totalPoka}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--accent); color:var(--accent);" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
+                <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--red); color:var(--red); margin-left:4px;" onclick="deletePokaDraft('${p.key}')">🗑️</button>
+            </td>
+        </tr>`;
+    });
+    c.innerHTML = html + `</tbody></table>`;
+}
+
+function loadPokaDraft(key) {
+    const p = allPokas.find(x => x.key === key);
+    if(!p) return;
+
+    document.getElementById('slip-customer').value = p.customer !== 'Walk-in / Unknown' ? p.customer : '';
+    document.getElementById('slip-ref').value = p.ref;
+    document.getElementById('slip-date').value = p.date;
+
+    document.getElementById('poka-groups-container').innerHTML = '';
+    pokaCounter = 0;
+
+    if(p.pokaDetails && p.pokaDetails.length > 0) {
+        p.pokaDetails.forEach(group => addPokaGroup(group.items));
+    } else {
+        addPokaGroup();
+    }
+    
+    document.getElementById('customer-name').value = p.customer !== 'Walk-in / Unknown' ? p.customer : '';
+}
+
+function deletePokaDraft(key) {
+    if(confirm("Are you sure you want to delete this Poka draft?")) {
+        if(db && fbReady) db.ref('nwh/pokas/' + key).remove();
+    }
+}
+
 function syncPokasToInvoice() {
     let addedCount = 0;
     
@@ -1213,7 +1402,10 @@ function calc(){
 
 function clearForm(){
   if(!confirm('Clear all form data?')) return;
-  ['customer-name','customer-phone','customer-address','transport-expense','total-poka','prev-balance','cash-paid','db-search'].forEach(id=>document.getElementById(id).value='');
+  ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
+      let el = document.getElementById(id);
+      if(el) el.value = '';
+  });
   
   document.getElementById('current-date-ad').value = todayStr;
   updateBSDate();
@@ -1410,7 +1602,7 @@ function previewPackingSlip() {
                     <td style="width: 50%; vertical-align: top; text-align: right;">
                         <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
                         <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
-                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka} Pokas</p>
+                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
             </table>
@@ -1712,7 +1904,6 @@ function confirmAndDownload() {
     const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
 
-    // 1. Push to Cloud Firebase
     saveNewItems(pendingBill.items);
     if(db && fbReady){
         db.ref('nwh/customers/'+pendingBill.customer).set({
@@ -1730,8 +1921,6 @@ function confirmAndDownload() {
     }
 
     const originalElement = document.getElementById('actual-bill-to-render');
-    
-    // CLONE TRICK: Fixes html2canvas cropping bug in scrollable modals
     const clone = originalElement.cloneNode(true);
     const signBtnNode = clone.querySelector('#sign-btn');
     if(signBtnNode) signBtnNode.style.display = 'none';
@@ -1760,7 +1949,10 @@ function confirmAndDownload() {
         btn.innerHTML = oldText;
         closeModal('preview-modal');
         
-        ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search'].forEach(id=>document.getElementById(id).value='');
+        ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
+            let el = document.getElementById(id);
+            if(el) el.value='';
+        });
         
         document.getElementById('current-date-ad').value = todayStr;
         updateBSDate();
@@ -1782,21 +1974,15 @@ function confirmAndDownload() {
         pendingBill = null;
     }).catch(function (error) {
         if(document.body.contains(clone)) document.body.removeChild(clone);
-        
-        console.error("Image Error:", error);
         btn.innerHTML = oldText;
         alert("Error generating image. " + (error.message || "Unknown Error"));
     });
 }
 
-// ============================================================
-// TRUE LEDGER & PRICE BOOK SYSTEM
-// ============================================================
 function showPriceBook(custName) {
     document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
     const list = document.getElementById('price-book-list');
     list.innerHTML = '';
-    
     const historyMap = {};
     for(let i=allBills.length-1; i>=0; i--) { 
         if(allBills[i].customer === custName && allBills[i].items) {
@@ -1806,31 +1992,24 @@ function showPriceBook(custName) {
             });
         }
     }
-    
     const items = Object.entries(historyMap).sort((a,b) => a[0].localeCompare(b[0]));
     if(items.length === 0) {
         list.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:var(--text3);">No item history found.</td></tr>`;
     } else {
         items.forEach(([desc, rate]) => {
-            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:10px 18px; font-weight:500;">${desc}</td>
-                <td style="text-align:right; padding:10px 18px; font-family:'Space Mono',monospace; font-weight:700; color:var(--green);">NRS ${rate}</td>
-            </tr>`;
+            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 18px; font-weight:500;">${desc}</td><td style="text-align:right; padding:10px 18px; font-family:'Space Mono',monospace; font-weight:700; color:var(--green);">NRS ${rate}</td></tr>`;
         });
     }
-    
     document.getElementById('price-book-modal').classList.add('open');
 }
 
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
-    
     const cu = cloudCustomers[custName] || {};
     let subInfo = [];
     if(cu.address) subInfo.push(cu.address);
     if(cu.phone) subInfo.push(cu.phone);
-    const subEl = document.getElementById('ls-cust-sub');
-    if (subEl) subEl.innerText = subInfo.join(' • ');
+    document.getElementById('ls-cust-sub').innerText = subInfo.join(' • ');
     
     const list = document.getElementById('ledger-statement-list');
     list.innerHTML = '';
@@ -1845,88 +2024,21 @@ function showLedgerStatement(custName) {
             Object.values(b.payments).forEach(p => {
                 let amt = parseInt(p.amount) || 0;
                 sumDetailed += amt;
-                events.push({
-                    date: p.date,
-                    time: new Date(p.date).getTime() + 1000, 
-                    invoiceNum: invNumSafe,
-                    desc: `Pay against Inv #${b.invoiceNum}` + (p.note ? ` (${p.note})`:''),
-                    debit: 0, credit: amt,
-                    isInvoice: false
-                });
+                events.push({ date: p.date, time: new Date(p.date).getTime() + 1000, desc: `Pay against Inv #${b.invoiceNum}`, debit: 0, credit: amt });
             });
         }
-
-        events.push({
-            date: b.date, 
-            time: new Date(b.date).getTime(), 
-            invoiceNum: invNumSafe,
-            desc: `Invoice #${b.invoiceNum}`, 
-            debit: billTotal, 
-            credit: 0,
-            declaredPrev: parseInt(b.prevBalance) || 0,
-            isInvoice: true
-        });
-
-        let initialPaid = Math.max(0, (parseInt(b.paid) || 0) - sumDetailed);
-        if(initialPaid > 0) {
-            let pDate = b.cashPaidDate || b.date;
-            events.push({
-                date: pDate,
-                time: new Date(pDate).getTime() + 500, 
-                invoiceNum: invNumSafe,
-                desc: `Cash Paid (Inv #${b.invoiceNum})`,
-                debit: 0, credit: initialPaid,
-                isInvoice: false
-            });
-        }
+        events.push({ date: b.date, time: new Date(b.date).getTime(), desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: 0, declaredPrev: parseInt(b.prevBalance) || 0, isInvoice: true });
     });
     
-    events.sort((a,b) => {
-        if (a.time !== b.time) return a.time - b.time;
-        if (a.invoiceNum !== b.invoiceNum) return a.invoiceNum - b.invoiceNum;
-        return (a.isInvoice === b.isInvoice) ? 0 : (a.isInvoice ? -1 : 1);
-    });
-    
+    events.sort((a,b) => a.time - b.time);
     let listHtml = '';
-    
-    if(events.length === 0) {
-        list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text3);">No records found.</td></tr>`;
-    } else {
-        const firstInvoice = events.find(e => e.isInvoice);
-        let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
-
-        listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
-            <td style="padding:12px; font-size:13px; color:#4a5280;">—</td>
-            <td style="padding:12px; font-size:13px; font-style:italic; color:#4a5280;">Opening Balance</td>
-            <td style="text-align:right; padding:12px;"></td><td style="text-align:right; padding:12px;"></td>
-            <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:#dc2626;">${bal.toLocaleString('en-IN')}</td>
-        </tr>`;
-
-        events.forEach(e => {
-            bal += e.debit;
-            bal -= e.credit;
-            
-            listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:12px; font-size:13px; white-space:nowrap; color:#4a5280;">${e.date}</td>
-                <td style="padding:12px; font-size:13px; color:#1a1f36;">${e.desc}</td>
-                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td>
-                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td>
-                <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:${bal>0?'#dc2626':'#1a1f36'};">${bal.toLocaleString('en-IN')}</td>
-            </tr>`;
-        });
-        
-        const actualDbBalance = parseInt(cu.balance) || 0;
-        if (Math.abs(bal - actualDbBalance) > 1) {
-             let correction = actualDbBalance - bal;
-             listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#fef2f2;">
-                 <td style="padding:12px; font-size:13px; color:#4a5280;">—</td>
-                 <td style="padding:12px; font-size:13px; font-weight:bold; color:#991b1b;">Reconciliation Adjustment</td>
-                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#1a1f36;">${correction > 0 ? correction.toLocaleString('en-IN') : ''}</td>
-                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-size:13px; color:#059669;">${correction < 0 ? Math.abs(correction).toLocaleString('en-IN') : ''}</td>
-                 <td style="text-align:right; padding:12px; font-family:'Space Mono',monospace; font-weight:bold; font-size:13px; color:#dc2626;">${actualDbBalance.toLocaleString('en-IN')}</td>
-             </tr>`;
-        }
-    }
+    const firstInvoice = events.find(e => e.isInvoice);
+    let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
+    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:12px;">—</td><td style="padding:12px; font-style:italic;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+    events.forEach(e => {
+        bal += e.debit; bal -= e.credit;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:12px;">${e.date}</td><td style="padding:12px;">${e.desc}</td><td style="text-align:right; padding:12px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; padding:12px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+    });
     list.innerHTML = listHtml;
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
@@ -1935,9 +2047,7 @@ function downloadLedgerStatement() {
     const btn = document.getElementById('ls-download-btn');
     const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
-
     const originalElement = document.getElementById('ledger-statement-render');
-
     const clone = originalElement.cloneNode(true);
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
@@ -1945,300 +2055,20 @@ function downloadLedgerStatement() {
     clone.style.left = '0';
     clone.style.width = '800px';
 
-    html2canvas(clone, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff'
-    }).then(function (canvas) {
+    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
-
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
         link.href = dataUrl;
         link.click();
-        
         btn.innerHTML = oldText;
     }).catch(function (err) {
         if(document.body.contains(clone)) document.body.removeChild(clone);
-        console.error("Ledger Image Error:", err);
         btn.innerHTML = oldText;
-        alert("Error generating image. " + (err.message || "Unknown error"));
+        alert("Error generating image.");
     });
 }
-
-function renderHistory(){
-  const c=document.getElementById('history-container');
-  if(!allBills.length){c.innerHTML=`<div class="empty-state">No bills yet</div>`;return;}
-  let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  allBills.forEach(b=>{
-    const baki=parseInt(b.remaining)||0;
-    html+=`<tr onclick="showBillDetail('${b.key}')">
-      <td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td>
-      <td><strong>${b.customer}</strong></td>
-      <td>NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</td>
-      <td style="color:var(--green)">${parseInt(b.paid).toLocaleString('en-IN')}</td>
-      <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
-    </tr>`;
-  });
-  c.innerHTML=html+'</tbody></table>';
-}
-
-function renderLedger(){
-  const c=document.getElementById('ledger-container');
-  const custs=Object.entries(cloudCustomers);
-  if(!custs.length){c.innerHTML=`<div class="empty-state">No customers yet</div>`;return;}
-  
-  let html = '';
-  custs.forEach(([name,cu])=>{
-    const baki=parseInt(cu.balance)||0;
-    const safeName = name.replace(/'/g, "\\'"); 
-    
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
-      <div style="flex:1;">
-        <div class="lc-name">${name}</div>
-        <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button>
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
-        <span class="badge ${baki>0?'b-red':'b-green'}" style="margin-bottom:4px;">${baki>0?'Due':'Cleared'}</span>
-      </div>
-    </div>`;
-  });
-  c.innerHTML=html;
-}
-
-// ============================================================
-// EDIT BILL LOGIC
-// ============================================================
-function loadBillForEdit(key) {
-    const b = allBills.find(x => x.key === key);
-    if(!b) return;
-
-    editBillKey = b.key;
-    editInvoiceNum = b.invoiceNum;
-
-    document.getElementById('invoice-number').innerText = b.invoiceNum;
-    document.getElementById('customer-name').value = b.customer || '';
-    document.getElementById('customer-phone').value = b.phone || '';
-    document.getElementById('customer-address').value = b.address || '';
-    document.getElementById('total-poka').value = b.totalPoka || ''; 
-    document.getElementById('transport-expense').value = b.transport || '';
-    document.getElementById('prev-balance').value = b.prevBalance || '';
-    document.getElementById('cash-paid').value = b.paid || '';
-    document.getElementById('cash-paid-date').value = b.cashPaidDate || b.date || todayStr;
-    
-    document.getElementById('current-date-ad').value = b.date || todayStr;
-    updateBSDate();
-
-    document.getElementById('invoice-items').innerHTML = '';
-    if(b.items && b.items.length > 0) {
-        b.items.forEach(it => {
-            addRow(it.desc, it.qty, it.rate, it.code);
-        });
-    } else {
-        addRow();
-    }
-    calc();
-
-    document.getElementById('notes-container').innerHTML = '';
-    if (Array.isArray(b.billNotes) && b.billNotes.length > 0) {
-        b.billNotes.forEach(n => addNoteRow(n.date, n.text));
-    } else if (typeof b.billNotes === 'string' && b.billNotes.trim() !== '') {
-        addNoteRow('', b.billNotes); 
-    } else {
-        addNoteRow();
-    }
-
-    document.getElementById('poka-groups-container').innerHTML = '';
-    pokaCounter = 0;
-    if (b.pokaDetails && b.pokaDetails.length > 0) {
-        b.pokaDetails.forEach(p => {
-            addPokaGroup(p.items);
-        });
-    }
-
-    document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">Editing #${b.invoiceNum}</span>`;
-    
-    closeModal('bill-modal');
-    switchTab('invoice');
-}
-
-function showBillDetail(key){
-  const b=allBills.find(x=>x.key===key);if(!b) return;
-  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
-  
-  let iHtml='';
-  if(b.items&&b.items.length){
-    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;color:var(--text2)">Item</th><th style="padding:7px 10px;text-align:center;color:var(--text2)">Code</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Qty</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Rate</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:center;font-family:'Space Mono',monospace;font-size:.73rem;color:var(--text3)">${it.code||'—'}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
-    iHtml+='</tbody></table></div>';
-  }
-
-  const baki=parseInt(b.remaining)||0;
-  
-  document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">Date (AD/BS)</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
-    ${iHtml}
-    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
-    
-    <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
-        ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
-    </div>
-  `;
-  document.getElementById('bill-modal').classList.add('open');
-}
-
-function showCustDetail(name){
-  const cu=cloudCustomers[name];if(!cu) return;
-  const baki=parseInt(cu.balance)||0;
-  document.getElementById('modal-title').innerText=`👤 ${name}`;
-  document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
-    <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
-    <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
-    
-    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${name.replace(/'/g, "\\'")}')">📜 View Statement of Account</button>
-    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
-  `;
-  document.getElementById('bill-modal').classList.add('open');
-}
-
-function editCustomer(oldName) {
-    const cu = cloudCustomers[oldName];
-    if(!cu) return;
-    document.getElementById('edit-cust-oldname').value = oldName;
-    document.getElementById('edit-cust-name').value = oldName;
-    document.getElementById('edit-cust-phone').value = cu.phone || '';
-    document.getElementById('edit-cust-address').value = cu.address || '';
-    document.getElementById('edit-cust-baki').value = cu.balance || '0';
-    document.getElementById('edit-cust-modal').classList.add('open');
-}
-
-function saveEditedCustomer() {
-    const oldName = document.getElementById('edit-cust-oldname').value;
-    let newName = document.getElementById('edit-cust-name').value.trim();
-    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
-    
-    const phone = document.getElementById('edit-cust-phone').value.trim();
-    const address = document.getElementById('edit-cust-address').value.trim();
-    const balance = document.getElementById('edit-cust-baki').value || "0";
-
-    if(!newName) { alert("Name cannot be empty."); return; }
-
-    if(db && fbReady) {
-        const newData = { phone, address, balance };
-        if(newName !== oldName) {
-            db.ref('nwh/customers/' + newName).set(newData);
-            db.ref('nwh/customers/' + oldName).remove();
-        } else {
-            db.ref('nwh/customers/' + oldName).set(newData);
-        }
-        closeModal('edit-cust-modal');
-    } else {
-        alert("You are currently offline. Cannot save edits.");
-    }
-}
-
-function deleteCustomer(name) {
-    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
-        if(db && fbReady) {
-            db.ref('nwh/customers/' + name).remove();
-        } else {
-            alert("You are currently offline. Cannot delete.");
-        }
-    }
-}
-
-let _payKey='',_payCust='';
-function openPayModal(key,cust,baki){
-  _payKey=key;_payCust=cust;
-  document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
-  document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
-  document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
-  document.getElementById('pay-date-inp').value = todayStr;
-  closeModal('bill-modal');
-  document.getElementById('pay-modal').classList.add('open');
-}
-
-function payFromLedger(name,baki){
-  const bill=allBills.find(b=>b.customer===name&&(parseInt(b.remaining)||0)>0);
-  if(bill){closeModal('bill-modal');openPayModal(bill.key,name,baki);}
-  else alert('No outstanding bills found.');
-}
-
-function confirmPayment(){
-  const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
-  const note=document.getElementById('pay-note-inp').value.trim();
-  const payDate = document.getElementById('pay-date-inp').value || todayStr; 
-  
-  if(amount<=0){alert('Enter a valid amount');return;}
-  const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
-  
-  const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
-  const newPaid=(parseInt(bill.paid)||0)+amount;
-  const entry={amount, date: payDate, note}; 
-  
-  const currentCustBal = parseInt(cloudCustomers[_payCust]?.balance) || 0;
-  const newCustBal = Math.max(0, currentCustBal - amount);
-  
-  if(db&&fbReady){
-    db.ref('nwh/bills/'+_payKey+'/remaining').set(newRem.toString());
-    db.ref('nwh/bills/'+_payKey+'/paid').set(newPaid.toString());
-    db.ref('nwh/bills/'+_payKey+'/payments').push(entry);
-    if(cloudCustomers[_payCust]) db.ref('nwh/customers/'+_payCust+'/balance').set(newCustBal.toString());
-  }
-  
-  closeModal('pay-modal');
-  
-  document.getElementById('rec-date').innerText = payDate;
-  document.getElementById('rec-cust').innerText = _payCust;
-  document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
-  document.getElementById('rec-baki').innerText = newCustBal.toLocaleString('en-IN');
-  document.getElementById('rec-note').innerText = note || '—';
-  
-  document.getElementById('receipt-modal').classList.add('open');
-}
-
-function shareReceiptWA() {
-    const amt = document.getElementById('rec-amt').innerText;
-    const baki = document.getElementById('rec-baki').innerText;
-    const note = document.getElementById('rec-note').innerText;
-    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
-    if(note !== '—') msg += `\n📝 Note: ${note}`;
-    
-    const phone = cloudCustomers[_payCust]?.phone || '';
-    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
-}
-
-function downloadReceiptImage() {
-    const targetElement = document.getElementById('thermal-receipt');
-    
-    html2canvas(targetElement, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff' 
-    }).then(function (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `Receipt-${_payCust}.png`;
-        link.href = dataUrl;
-        link.click();
-    }).catch(function (err) {
-        console.error(err);
-        alert('Error generating receipt image. ' + (err.message || "Unknown error"));
-    });
-}
-
-function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 // ============================================================
 // PIN LOCK
@@ -2270,18 +2100,6 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
   };
   window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
 })();
-</script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(reg => {
-        console.log('ServiceWorker registered!', reg);
-      }).catch(err => {
-        console.log('ServiceWorker failed: ', err);
-      });
-    });
-  }
 </script>
 </body>
 </html>
