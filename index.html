@@ -179,7 +179,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .lc-baki.due{color:var(--red);}
 .lc-baki.ok{color:var(--green);}
 
-/* Dynamic Suggestion Bar - FIXED to sit above keyboard */
+/* Dynamic Suggestion Bar - FIXED */
 .suggestion-bar{ position: fixed; bottom: 0; left: 0; right: 0; background: #1a1f36; padding: 10px; border-top: 1px solid var(--border); display: none; gap: 10px; overflow-x: auto; z-index: 10000; box-shadow: 0 -4px 15px rgba(0,0,0,0.2); flex-wrap: nowrap; -webkit-overflow-scrolling: touch;}
 .s-btn{ white-space: nowrap; padding: 10px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.85rem; cursor: pointer; color: #fff; font-weight: 600; flex-shrink: 0;}
 .s-btn:active{ background: var(--accent); color: white; border-color:var(--accent); transform:scale(0.95);}
@@ -282,7 +282,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v32</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -437,7 +437,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
       <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
     </div>
-    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Loading...</div></div></div>
+    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div></div>
   </div>
 </div>
 
@@ -449,7 +449,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
     <div class="card-body" style="padding:0 18px 18px;">
       <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
-      <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Loading customers...</div></div></div>
+      <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Syncing ledger...</div></div></div>
     </div>
   </div>
 </div>
@@ -652,7 +652,6 @@ let inventoryList = [];
 function initSuggestionBar() {
     const bar = document.getElementById('suggestion-bar');
     
-    // Listen for focus on ANY input
     document.addEventListener('focusin', (e) => {
         const target = e.target;
         if(target.tagName === 'INPUT' && (target.id === 'customer-name' || target.id === 'slip-customer' || target.classList.contains('item-desc') || target.classList.contains('poka-desc-inp'))) {
@@ -663,7 +662,6 @@ function initSuggestionBar() {
         }
     });
 
-    // Hide bar when keyboard closes or clicking away
     document.addEventListener('focusout', (e) => {
         setTimeout(() => { 
             if(!document.activeElement || document.activeElement.tagName !== 'INPUT') {
@@ -691,12 +689,11 @@ function updateSuggestions(target) {
         btn.className = 's-btn';
         btn.innerText = opt;
         
-        // Prevent default so clicking button DOES NOT remove focus from input
         btn.onmousedown = (e) => e.preventDefault(); 
         
         btn.onclick = () => { 
             target.value = opt; 
-            target.dispatchEvent(new Event('input')); // trigger oninput
+            target.dispatchEvent(new Event('input')); 
             if(target.oninput) target.oninput(target); 
             if(target.classList.contains('item-desc')) checkAndAutoFillRate(target);
             bar.style.display = 'none';
@@ -775,7 +772,7 @@ function bsToAd(bsY, bsM, bsD) {
         }
     }
     days += (bsD - 1);
-    const ref = Date.UTC(1943, 3, 14); // 2000 Baisakh 1
+    const ref = Date.UTC(1943, 3, 14); 
     return new Date(ref + days * 86400000);
 }
 
@@ -811,16 +808,6 @@ function updateBSDate() {
           renderNpCal();
       }
   }
-}
-
-function populateCustomerList() {
-    const list = document.getElementById('customer-list');
-    list.innerHTML = '';
-    Object.keys(cloudCustomers).forEach(name => {
-        let option = document.createElement('option');
-        option.value = name;
-        list.appendChild(option);
-    });
 }
 
 function initNpCal() {
@@ -951,7 +938,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION (ROBUST & LOADER-PROOF)
+// FIREBASE CONNECTION
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -973,9 +960,7 @@ function initFB(){
     
     // Aggressive Timeout Check
     setTimeout(() => {
-        if (!fbReady) {
-            syncEl.innerHTML = '🔴 Timeout <span style="cursor:pointer; margin-left:5px;" onclick="location.reload()">↻</span>';
-        }
+        if (!fbReady) syncEl.innerHTML = '🔴 Timeout <span style="cursor:pointer; margin-left:5px;" onclick="location.reload()">↻</span>';
     }, 8000);
 
     db.ref('.info/connected').on('value',s=>{
@@ -995,22 +980,27 @@ function initFB(){
       else db.ref('nwh/nextInvoiceNumber').set(1001);
     });
 
-    // Customers Listener with explicit empty-state injection
     db.ref('nwh/customers').on('value',s=>{
-        cloudCustomers=s.val()||{};
-        populateCustomerList();
-        renderLedger(); 
+        try {
+            cloudCustomers=s.val()||{};
+            if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        } catch(e) {
+            document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
+        }
     }, e => { 
-        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Error: ${e.message}</div>`;
+        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
     });
 
-    // Bills Listener with explicit empty-state injection
     db.ref('nwh/bills').on('value',s=>{
-      const v=s.val();
-      allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-      renderHistory(); 
+        try {
+          const v=s.val();
+          allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+          if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
+        } catch(e) {
+            document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
+        }
     }, e => { 
-        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Error: ${e.message}</div>`;
+        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
     });
 
     db.ref('nwh/pokas').on('value', s => {
@@ -1172,6 +1162,7 @@ function addPokaGroup(items = null) {
         addPokaItemRow(currentId);
     }
     syncPokaCountValue();
+    initSuggestionBar();
 }
 
 function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
@@ -1195,6 +1186,7 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
     `;
     tbody.appendChild(div);
     if(formula) evaluatePokaRowSum(div.querySelector('.poka-formula-inp'));
+    initSuggestionBar();
 }
 
 function evaluatePokaRowSum(inputElement) {
@@ -1382,6 +1374,7 @@ function addRow(desc='',qty='',rate='',code=''){
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   document.getElementById('invoice-items').appendChild(tr);
   if(qty&&rate) calc();
+  initSuggestionBar();
 }
 addRow();
 
@@ -2070,6 +2063,58 @@ function downloadLedgerStatement() {
     });
 }
 
+function renderHistory(){
+  const c=document.getElementById('history-container');
+  if(!allBills || !allBills.length){
+      c.innerHTML=`<div class="empty-state"><div class="icon">📂</div><div class="L">No bills yet</div></div>`;
+      return;
+  }
+  let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
+  allBills.forEach(b=>{
+    const baki=parseInt(b.remaining)||0;
+    html+=`<tr onclick="showBillDetail('${b.key}')">
+      <td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td>
+      <td><strong>${b.customer}</strong></td>
+      <td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td>
+      <td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td>
+      <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
+    </tr>`;
+  });
+  c.innerHTML=html+'</tbody></table>';
+}
+
+function renderLedger(){
+  const c=document.getElementById('ledger-container');
+  const custs=Object.entries(cloudCustomers);
+  if(!custs || !custs.length){
+      c.innerHTML=`<div class="empty-state"><div class="icon">👥</div><div class="L">No customers yet</div></div>`;
+      return;
+  }
+  
+  let html = '';
+  custs.forEach(([name,cu])=>{
+    const baki=parseInt(cu.balance)||0;
+    const safeName = name.replace(/'/g, "\\'"); 
+    
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
+      <div style="flex:1;">
+        <div class="lc-name">${name}</div>
+        <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button>
+          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
+        <span class="badge ${baki>0?'b-red':'b-green'}" style="margin-bottom:4px;">${baki>0?'Due':'Cleared'}</span>
+      </div>
+    </div>`;
+  });
+  c.innerHTML=html;
+}
+
 // ============================================================
 // PIN LOCK
 // ============================================================
@@ -2101,5 +2146,18 @@ function downloadLedgerStatement() {
   window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
 })();
 </script>
+
+<!-- THE CACHE BUSTER: This unregisters the stuck Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+            registration.unregister();
+            console.log("Old Service Worker Removed to force fresh Vercel deployment.");
+        }
+    });
+  }
+</script>
+
 </body>
 </html>
