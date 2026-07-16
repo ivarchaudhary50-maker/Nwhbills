@@ -282,7 +282,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v33</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v38</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -325,7 +325,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="card-body">
       <button class="contact-btn no-print" onclick="pickPhoneContact()">📞 <span class="L" data-k="Import from Phone Contacts">Import from Phone Contacts</span></button>
       <div class="search-wrap no-print" id="search-container">
-        <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="searchDB()" autocomplete="off">
+        <input type="text" class="inp" id="db-search" placeholder="🔍 Search cloud database..." oninput="debouncedSearchDB()" autocomplete="off">
         <div id="search-results" class="search-results"></div>
       </div>
       <div class="inp-grid">
@@ -374,6 +374,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
       <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
       <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+      <div class="t-row"><label><span class="L" data-k="Discount (-)">Discount (-)</span></label><input type="number" class="t-inp" id="discount-amount" placeholder="0" min="0" oninput="calc()" style="color:var(--red);"></div>
       <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
@@ -435,7 +436,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
+      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="debouncedFilterHistory()" style="width:150px;">
     </div>
     <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div></div>
   </div>
@@ -445,7 +446,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="card">
     <div class="card-header">
       <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
+      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:170px;">
     </div>
     <div class="card-body" style="padding:0 18px 18px;">
       <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
@@ -556,9 +557,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         </div>
     </div>
     
-    <div style="padding:15px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; background:var(--surface);">
+    <div style="padding:15px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; background:var(--surface);">
         <button class="btn btn-ghost" onclick="closeModal('ledger-statement-modal')">Cancel</button>
-        <button class="btn btn-primary" onclick="downloadLedgerStatement()" id="ls-download-btn">🖼️ Download Statement</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-wa" onclick="shareStatementWA()">💬 Send via WA</button>
+            <button class="btn btn-primary" onclick="downloadLedgerStatement()" id="ls-download-btn">🖼️ Download Statement</button>
+        </div>
     </div>
   </div>
 </div>
@@ -645,6 +649,73 @@ let lang = 'en';
 let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
+let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+
+// ============================================================
+// DEBOUNCE LOGIC (SPEED OPTIMIZATION)
+// ============================================================
+function debounce(func, delay = 300) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+// ============================================================
+// OFFLINE OUTBOX QUEUE (FOOLPROOF SYNCING)
+// ============================================================
+let isSyncing = false;
+let syncQueue = JSON.parse(safeGetLocal('nwh_sync_queue') || '[]');
+
+function updateSyncBadge() {
+    const syncEl = document.getElementById('sync-status');
+    if (!fbReady) {
+        syncEl.innerHTML = syncQueue.length > 0 ? `🟡 Offline (${syncQueue.length} pending)` : '🟡 Offline';
+        syncEl.className = 'sync-badge';
+    } else if (isSyncing || syncQueue.length > 0) {
+        syncEl.innerHTML = `🔄 Syncing (${syncQueue.length} left)...`;
+        syncEl.className = 'sync-badge';
+    } else {
+        syncEl.innerHTML = '🟢 Synced <span style="cursor:pointer; text-decoration:underline; margin-left:5px;" onclick="location.reload()">↻</span>';
+        syncEl.className = 'sync-badge synced';
+    }
+}
+
+function queueDatabaseWrite(path, method, data) {
+    syncQueue.push({ id: Date.now(), path, method, data });
+    safeSetLocal('nwh_sync_queue', JSON.stringify(syncQueue));
+    updateSyncBadge();
+    processSyncQueue();
+}
+
+async function processSyncQueue() {
+    if (!fbReady || isSyncing || syncQueue.length === 0) {
+        updateSyncBadge();
+        return;
+    }
+    isSyncing = true;
+    updateSyncBadge();
+
+    const item = syncQueue[0];
+    let ref = db.ref(item.path);
+
+    try {
+        if (item.method === 'push') await ref.push(item.data);
+        else if (item.method === 'set') await ref.set(item.data);
+        else if (item.method === 'update') await ref.update(item.data);
+        else if (item.method === 'remove') await ref.remove();
+
+        syncQueue.shift(); 
+        safeSetLocal('nwh_sync_queue', JSON.stringify(syncQueue));
+        isSyncing = false;
+        processSyncQueue(); 
+    } catch(err) {
+        console.error("Sync failed:", err);
+        isSyncing = false;
+        updateSyncBadge();
+    }
+}
 
 // ============================================================
 // SUGGESTION BAR SYSTEM
@@ -695,7 +766,20 @@ function updateSuggestions(target) {
             target.value = opt; 
             target.dispatchEvent(new Event('input')); 
             if(target.oninput) target.oninput(target); 
-            if(target.classList.contains('item-desc')) checkAndAutoFillRate(target);
+            
+            if (target.id === 'customer-name') {
+                const cu = cloudCustomers[opt];
+                if (cu) {
+                    document.getElementById('customer-phone').value = cu.phone || '';
+                    document.getElementById('customer-address').value = cu.address || '';
+                    if (!editBillKey) {
+                        document.getElementById('prev-balance').value = cu.balance || '0';
+                    }
+                    calc();
+                }
+            } else if(target.classList.contains('item-desc')) {
+                checkAndAutoFillRate(target);
+            }
             bar.style.display = 'none';
         };
         bar.appendChild(btn);
@@ -706,8 +790,8 @@ function updateSuggestions(target) {
 // LANGUAGE SYSTEM
 // ============================================================
 const STR = {
-  en: { 'New Invoice':'New Invoice', 'Packing Slips':'Packing Slips', 'Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)','Today\'s Bill NRS':'Today\'s Bill NRS','Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment', 'Notes / Remarks':'Notes / Remarks' },
-  np: { 'New Invoice':'नयाँ बिल', 'Packing Slips':'प्याकिङ स्लिप', 'Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)','Today\'s Bill NRS':'आजको बिल रु','Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि', 'Notes / Remarks':'नोट / कैफियत' }
+  en: { 'New Invoice':'New Invoice', 'Packing Slips':'Packing Slips', 'Bill History':'Bill History','Customer Ledger':'Customer Ledger','Bill To':'Bill To','Items':'Items','Garment Description':'Garment Description','Code':'Code','Qty':'Qty','Rate (NRS)':'Rate (NRS)','Total':'Total','Items Subtotal':'Items Subtotal','Total Poka':'Total Poka','Transport (+)':'Transport (+)','Discount (-)':'Discount (-)','Today\'s Bill NRS':'Today\'s Bill NRS','Purano Baki (+)':'Purano Baki (+)','Jamma Total':'Jamma Total','Nagad Paid (-)':'Nagad Paid (-)','Remaining Baki':'Remaining Baki','Add Row':'Add Row','Clear':'Clear','Preview & Sign':'Preview & Sign','Import from Phone Contacts':'Import from Phone Contacts','Add Item':'Add Item','Loading...':'Loading...','Loading customers...':'Loading customers...','Total Customers':'Total Customers','Total Baki':'Total Baki','Cleared':'Cleared', 'Confirm Payment':'Confirm Payment', 'Notes / Remarks':'Notes / Remarks' },
+  np: { 'New Invoice':'नयाँ बिल', 'Packing Slips':'प्याकिङ स्लिप', 'Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)','Discount (-)':'छुट (-)','Today\'s Bill NRS':'आजको बिल रु','Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि', 'Notes / Remarks':'नोट / कैफियत' }
 };
 
 function applyLang() {
@@ -720,7 +804,7 @@ function toggleLang() {
 }
 
 // ============================================================
-// NEPALI NATIVE CALENDAR SYSTEM (TWO-WAY SYNC)
+// NEPALI NATIVE CALENDAR SYSTEM
 // ============================================================
 const ND = [
 [2000,[30,32,31,32,31,30,30,30,29,30,29,31]], [2001,[31,31,32,31,31,31,30,29,30,29,30,30]], [2002,[31,31,32,32,31,30,30,29,30,29,30,30]], [2003,[31,32,31,32,31,30,30,30,29,29,30,31]], [2004,[30,32,31,32,31,30,30,30,29,30,29,31]],
@@ -921,7 +1005,7 @@ window.onload = function() {
 };
 
 // ============================================================
-// TAB SYSTEM & FILTERS
+// TAB SYSTEM
 // ============================================================
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
 
@@ -930,38 +1014,20 @@ function switchTab(name){
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('panel-'+name).classList.add('active');
     document.getElementById('tab-'+name).classList.add('active');
-    if(name==='ledger') renderLedger();
-    if(name==='history') renderHistory();
+    if(name==='ledger') renderLedger(true);
+    if(name==='history') renderHistory(true);
     if(name==='packing') renderPokaHistory();
 }
 
-function filterHistory(){
-  const q = document.getElementById('history-search').value.toLowerCase();
-  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
-  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
-}
-
-function filterLedger(){
-  const q = document.getElementById('ledger-search').value.toLowerCase();
-  const cards = document.querySelectorAll('#ledger-container .ledger-card');
-  cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
-}
-
 // ============================================================
-// FIREBASE CONNECTION (ROBUST)
+// FIREBASE & OFFLINE SYNC QUEUE
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
   authDomain:"nwh-bills.firebaseapp.com",
   databaseURL:"https://nwh-bills-default-rtdb.firebaseio.com/",
-  projectId:"nwh-bills",
-  storageBucket:"nwh-bills.firebasestorage.app",
-  messagingSenderId:"1000335775839",
-  appId:"1:1000335775839:web:c5eeebf5e908edd17563ea"
+  projectId:"nwh-bills"
 };
-
-let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
-const syncEl=document.getElementById('sync-status');
 
 function initFB(){
   try{
@@ -971,42 +1037,29 @@ function initFB(){
     db.ref('.info/connected').on('value',s=>{
       if(s.val()===true){
         fbReady=true;
-        syncEl.innerHTML='🟢 Synced <span style="cursor:pointer; text-decoration:underline; margin-left:5px;" onclick="location.reload()">↻</span>';
-        syncEl.className='sync-badge synced';
+        processSyncQueue();
       }else{
-        syncEl.innerText='🟡 Offline';
-        syncEl.className='sync-badge';
+        fbReady=false;
+        updateSyncBadge();
       }
     });
 
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
       const v=s.val();
       if(v){ cloudNextInvoice=v; if(!editBillKey) document.getElementById('invoice-number').innerText=v; }
-      else db.ref('nwh/nextInvoiceNumber').set(1001);
+      else queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', 1001);
     });
 
     db.ref('nwh/customers').on('value',s=>{
-        try {
-            cloudCustomers=s.val()||{};
-            populateCustomerList();
-            if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
-        } catch(e) {
-            document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
-        }
-    }, e => { 
-        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
+        cloudCustomers=s.val()||{};
+        populateCustomerList();
+        if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
     });
 
     db.ref('nwh/bills').on('value',s=>{
-        try {
-          const v=s.val();
-          allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-          if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
-        } catch(e) {
-            document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
-        }
-    }, e => { 
-        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
+        const v=s.val();
+        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+        if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
     });
 
     db.ref('nwh/pokas').on('value', s => {
@@ -1023,7 +1076,7 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ syncEl.innerText='🔴 Error'; console.error(e); }
+  }catch(e){ console.error(e); }
 }
 setTimeout(initFB, 300);
 
@@ -1044,7 +1097,6 @@ function renderInventory() {
         list.appendChild(option);
     });
 }
-renderInventory();
 
 function saveNewItems(itemsArray) {
     let changed = false;
@@ -1057,7 +1109,7 @@ function saveNewItems(itemsArray) {
     });
     if (changed) {
         safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
-        if(db && fbReady) db.ref('nwh/inventory').set(inventoryList);
+        queueDatabaseWrite('nwh/inventory', 'set', inventoryList);
         renderInventory();
     }
 }
@@ -1168,6 +1220,7 @@ function addPokaGroup(items = null) {
         addPokaItemRow(currentId);
     }
     syncPokaCountValue();
+    initSuggestionBar();
 }
 
 function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
@@ -1190,7 +1243,26 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
         </div>
     `;
     tbody.appendChild(div);
+    
+    // CASHIER FLOW - Poka
+    const inputs = div.querySelectorAll('input');
+    inputs.forEach((inp, index) => {
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                } else {
+                    addPokaItemRow(pokaId);
+                    const newRows = document.querySelectorAll(`#poka-items-tbody-${pokaId} .poka-item-row`);
+                    newRows[newRows.length - 1].querySelector('.poka-desc-inp').focus();
+                }
+            }
+        });
+    });
+
     if(formula) evaluatePokaRowSum(div.querySelector('.poka-formula-inp'));
+    initSuggestionBar();
 }
 
 function evaluatePokaRowSum(inputElement) {
@@ -1258,18 +1330,14 @@ function savePokaDraft() {
         return;
     }
 
-    if(db && fbReady) {
-        db.ref('nwh/pokas').push({ customer, ref, date, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
-        alert(`✅ Packing Slip Draft saved to cloud!`);
-        
-        document.getElementById('poka-groups-container').innerHTML = '';
-        pokaCounter = 0;
-        document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
-        document.getElementById('slip-customer').value = '';
-        addPokaGroup();
-    } else {
-        alert("You are offline. Cannot save draft.");
-    }
+    queueDatabaseWrite('nwh/pokas', 'push', { customer, ref, date, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
+    alert(`✅ Packing Slip Draft saved!`);
+    
+    document.getElementById('poka-groups-container').innerHTML = '';
+    pokaCounter = 0;
+    document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
+    document.getElementById('slip-customer').value = '';
+    addPokaGroup();
 }
 
 function renderPokaHistory() {
@@ -1316,7 +1384,7 @@ function loadPokaDraft(key) {
 
 function deletePokaDraft(key) {
     if(confirm("Are you sure you want to delete this Poka draft?")) {
-        if(db && fbReady) db.ref('nwh/pokas/' + key).remove();
+        queueDatabaseWrite('nwh/pokas/' + key, 'remove', null);
     }
 }
 
@@ -1377,7 +1445,26 @@ function addRow(desc='',qty='',rate='',code=''){
     <td class="amount" style="text-align:right; font-weight:bold; padding-right:12px;">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   document.getElementById('invoice-items').appendChild(tr);
+
+  // CASHIER FLOW - Enter Key Navigation
+  const inputs = tr.querySelectorAll('input');
+  inputs.forEach((inp, index) => {
+      inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+              e.preventDefault();
+              if (index < inputs.length - 1) {
+                  inputs[index + 1].focus();
+              } else {
+                  addRow();
+                  const newRows = document.querySelectorAll('#invoice-items tr');
+                  newRows[newRows.length - 1].querySelector('.item-desc').focus();
+              }
+          }
+      });
+  });
+
   if(qty&&rate) calc();
+  initSuggestionBar();
 }
 addRow();
 
@@ -1388,7 +1475,9 @@ function calc(){
     r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');sub+=a;
   });
   document.getElementById('items-total').innerText=Math.round(sub).toLocaleString('en-IN');
-  const tr=parseFloat(document.getElementById('transport-expense').value)||0,cb=sub+tr;
+  const tr=parseFloat(document.getElementById('transport-expense').value)||0;
+  const disc=parseFloat(document.getElementById('discount-amount').value)||0;
+  const cb=(sub+tr)-disc;
   document.getElementById('current-bill').innerText=Math.round(cb).toLocaleString('en-IN');
   const pb=parseFloat(document.getElementById('prev-balance').value)||0,gt=cb+pb;
   document.getElementById('grand-total').innerText=Math.round(gt).toLocaleString('en-IN');
@@ -1398,7 +1487,7 @@ function calc(){
 
 function clearForm(){
   if(!confirm('Clear all form data?')) return;
-  ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
+  ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
       let el = document.getElementById(id);
       if(el) el.value = '';
   });
@@ -1447,21 +1536,19 @@ function searchDB(){
   }
   box.style.display=n?'block':'none';
 }
+const debouncedSearchDB = debounce(searchDB);
 
 function saveCustomerOnly() {
     const rawName = document.getElementById('customer-name').value.trim();
     if(!rawName) { alert('Please enter a Customer Name first.'); return; }
     const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
-    if(db && fbReady) {
-        db.ref('nwh/customers/' + safeName).set({
-            phone: document.getElementById('customer-phone').value || "",
-            address: document.getElementById('customer-address').value || "",
-            balance: document.getElementById('prev-balance').value || "0"
-        });
-        alert(`✅ Customer "${safeName}" saved to ledger!`);
-    } else {
-        alert("Cannot save customer while offline.");
-    }
+    
+    queueDatabaseWrite('nwh/customers/' + safeName, 'set', {
+        phone: document.getElementById('customer-phone').value || "",
+        address: document.getElementById('customer-address').value || "",
+        balance: document.getElementById('prev-balance').value || "0"
+    });
+    alert(`✅ Customer "${safeName}" saved to ledger!`);
 }
 
 async function pickPhoneContact(){
@@ -1554,6 +1641,7 @@ function extractPendingBillData() {
       pokaDetails: structuredPokas,
       totalPoka: document.getElementById('total-poka').value || '0',
       transport:document.getElementById('transport-expense').value||'0',
+      discount: document.getElementById('discount-amount').value || '0',
       prevBalance:document.getElementById('prev-balance').value||'0',
       billAmount:document.getElementById('current-bill').innerText.replace(/,/g,''),
       grandTotal:document.getElementById('grand-total').innerText.replace(/,/g,''),
@@ -1680,10 +1768,6 @@ function downloadSlipOnly() {
 // ============================================================
 // MAIN INVOICE PREVIEW & SIGNATURE LOGIC
 // ============================================================
-let isDrawing = false;
-let sigCtx = null;
-let canvasListenersAdded = false;
-
 function previewBill(){
   pendingBill = extractPendingBillData();
   generatePreviewHTML(pendingBill);
@@ -1775,6 +1859,9 @@ function generatePreviewHTML(bill) {
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                             <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Items Subtotal:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
                             <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
+                            
+                            ${bill.discount && bill.discount !== '0' ? `<tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">Discount (-):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">NRS ${parseInt(bill.discount).toLocaleString('en-IN')}</td></tr>` : ''}
+
                             <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
                             <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
                             
@@ -1809,6 +1896,10 @@ function generatePreviewHTML(bill) {
     document.getElementById('preview-body').innerHTML = htmlString;
     document.getElementById('preview-modal').classList.add('open');
 }
+
+let isDrawing = false;
+let sigCtx = null;
+let canvasListenersAdded = false;
 
 function openSignaturePad() {
     document.getElementById('sig-pad-modal').classList.add('open');
@@ -1901,19 +1992,17 @@ function confirmAndDownload() {
     btn.innerHTML = '⏳ Processing...';
 
     saveNewItems(pendingBill.items);
-    if(db && fbReady){
-        db.ref('nwh/customers/'+pendingBill.customer).set({
+    
+    if(editBillKey) {
+        queueDatabaseWrite('nwh/bills/' + editBillKey, 'update', pendingBill);
+    } else {
+        queueDatabaseWrite('nwh/customers/'+pendingBill.customer, 'set', {
             phone: pendingBill.phone,
             address: pendingBill.address,
             balance: pendingBill.remaining
         });
-
-        if(editBillKey) {
-            db.ref('nwh/bills/' + editBillKey).update(pendingBill);
-        } else {
-            db.ref('nwh/bills').push(pendingBill);
-            db.ref('nwh/nextInvoiceNumber').set(cloudNextInvoice+1);
-        }
+        queueDatabaseWrite('nwh/bills', 'push', pendingBill);
+        queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', cloudNextInvoice+1);
     }
 
     const originalElement = document.getElementById('actual-bill-to-render');
@@ -1945,7 +2034,7 @@ function confirmAndDownload() {
         btn.innerHTML = oldText;
         closeModal('preview-modal');
         
-        ['customer-name','customer-phone','customer-address','total-poka','transport-expense','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
+        ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
             let el = document.getElementById(id);
             if(el) el.value='';
         });
@@ -2039,6 +2128,18 @@ function showLedgerStatement(custName) {
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
+function shareStatementWA() {
+    const custName = document.getElementById('ls-cust-name').innerText;
+    const cu = cloudCustomers[custName];
+    if(!cu || !cu.phone) {
+        alert("No phone number found for this customer.");
+        return;
+    }
+    const baki = parseInt(cu.balance || 0);
+    const msg = `🏪 *Rabi Kapada Pasal*\n\nNamaste *${custName}*,\n\nHere is your updated account summary:\n🔴 *Total Remaining Due: NRS ${baki.toLocaleString('en-IN')}*\n\n*(Please find your detailed ledger statement image attached separately)*.\n\nThank you for your business!`;
+    window.open('https://wa.me/'+cu.phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
 function downloadLedgerStatement() {
     const btn = document.getElementById('ls-download-btn');
     const oldText = btn.innerHTML;
@@ -2066,14 +2167,21 @@ function downloadLedgerStatement() {
     });
 }
 
-function renderHistory(){
+// ============================================================
+// LAZY LOADING (RENDERING SPEED)
+// ============================================================
+let historyLimit = 30;
+function renderHistory(resetLimit = false){
+  if(resetLimit) historyLimit = 30;
   const c=document.getElementById('history-container');
-  if(!allBills || !allBills.length){
-      c.innerHTML=`<div class="empty-state"><div class="icon">📂</div><div class="L">No bills yet</div></div>`;
-      return;
-  }
+  if(!allBills || !allBills.length){ c.innerHTML=`<div class="empty-state"><div class="icon">📂</div><div class="L">No bills yet</div></div>`; return; }
+  
+  const q = document.getElementById('history-search').value.toLowerCase();
+  let filtered = q ? allBills.filter(b => b.customer.toLowerCase().includes(q) || b.invoiceNum.toString().includes(q)) : allBills;
+  if(!filtered.length){ c.innerHTML=`<div class="empty-state">No matching bills.</div>`; return; }
+
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  allBills.forEach(b=>{
+  filtered.slice(0, historyLimit).forEach(b=>{
     const baki=parseInt(b.remaining)||0;
     html+=`<tr onclick="showBillDetail('${b.key}')">
       <td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td>
@@ -2083,19 +2191,27 @@ function renderHistory(){
       <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
     </tr>`;
   });
-  c.innerHTML=html+'</tbody></table>';
+  html += `</tbody></table>`;
+  if(filtered.length > historyLimit) {
+      html += `<div style="padding:10px;text-align:center;"><button class="btn btn-ghost" style="width:100%;" onclick="historyLimit += 30; renderHistory();">⬇️ Load More</button></div>`;
+  }
+  c.innerHTML = html;
 }
+const debouncedFilterHistory = debounce(() => renderHistory(true));
 
-function renderLedger(){
+let ledgerLimit = 30;
+function renderLedger(resetLimit = false){
+  if(resetLimit) ledgerLimit = 30;
   const c=document.getElementById('ledger-container');
   const custs=Object.entries(cloudCustomers);
-  if(!custs || !custs.length){
-      c.innerHTML=`<div class="empty-state"><div class="icon">👥</div><div class="L">No customers yet</div></div>`;
-      return;
-  }
+  if(!custs || !custs.length){ c.innerHTML=`<div class="empty-state"><div class="icon">👥</div><div class="L">No customers yet</div></div>`; return; }
   
+  const q = document.getElementById('ledger-search').value.toLowerCase();
+  let filtered = q ? custs.filter(([n, cu]) => n.toLowerCase().includes(q) || (cu.phone && cu.phone.includes(q))) : custs;
+  if(!filtered.length){ c.innerHTML=`<div class="empty-state">No matching customers.</div>`; return; }
+
   let html = '';
-  custs.forEach(([name,cu])=>{
+  filtered.slice(0, ledgerLimit).forEach(([name,cu])=>{
     const baki=parseInt(cu.balance)||0;
     const safeName = name.replace(/'/g, "\\'"); 
     
@@ -2115,235 +2231,12 @@ function renderLedger(){
       </div>
     </div>`;
   });
-  c.innerHTML=html;
-}
-
-// ============================================================
-// EDIT BILL LOGIC & MODALS (RESTORED MISSING BLOCK)
-// ============================================================
-function loadBillForEdit(key) {
-    const b = allBills.find(x => x.key === key);
-    if(!b) return;
-
-    editBillKey = b.key;
-    editInvoiceNum = b.invoiceNum;
-
-    document.getElementById('invoice-number').innerText = b.invoiceNum;
-    document.getElementById('customer-name').value = b.customer || '';
-    document.getElementById('customer-phone').value = b.phone || '';
-    document.getElementById('customer-address').value = b.address || '';
-    document.getElementById('total-poka').value = b.totalPoka || ''; 
-    document.getElementById('transport-expense').value = b.transport || '';
-    document.getElementById('prev-balance').value = b.prevBalance || '';
-    document.getElementById('cash-paid').value = b.paid || '';
-    document.getElementById('cash-paid-date').value = b.cashPaidDate || b.date || todayStr;
-    
-    document.getElementById('current-date-ad').value = b.date || todayStr;
-    updateBSDate();
-
-    document.getElementById('invoice-items').innerHTML = '';
-    if(b.items && b.items.length > 0) {
-        b.items.forEach(it => {
-            addRow(it.desc, it.qty, it.rate, it.code);
-        });
-    } else {
-        addRow();
-    }
-    calc();
-
-    document.getElementById('notes-container').innerHTML = '';
-    if (Array.isArray(b.billNotes) && b.billNotes.length > 0) {
-        b.billNotes.forEach(n => addNoteRow(n.date, n.text));
-    } else if (typeof b.billNotes === 'string' && b.billNotes.trim() !== '') {
-        addNoteRow('', b.billNotes); 
-    } else {
-        addNoteRow();
-    }
-
-    document.getElementById('poka-groups-container').innerHTML = '';
-    pokaCounter = 0;
-    if (b.pokaDetails && b.pokaDetails.length > 0) {
-        b.pokaDetails.forEach(p => {
-            addPokaGroup(p.items);
-        });
-    }
-
-    document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">Editing #${b.invoiceNum}</span>`;
-    
-    closeModal('bill-modal');
-    switchTab('invoice');
-}
-
-function showBillDetail(key){
-  const b=allBills.find(x=>x.key===key);if(!b) return;
-  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
-  
-  let iHtml='';
-  if(b.items&&b.items.length){
-    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;color:var(--text2)">Item</th><th style="padding:7px 10px;text-align:center;color:var(--text2)">Code</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Qty</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Rate</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:center;font-family:'Space Mono',monospace;font-size:.73rem;color:var(--text3)">${it.code||'—'}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
-    iHtml+='</tbody></table></div>';
+  if(filtered.length > ledgerLimit) {
+      html += `<div style="padding:10px;text-align:center;"><button class="btn btn-ghost" style="width:100%;" onclick="ledgerLimit += 30; renderLedger();">⬇️ Load More</button></div>`;
   }
-
-  const baki=parseInt(b.remaining)||0;
-  
-  document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">Date (AD/BS)</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
-    ${iHtml}
-    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
-    
-    <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
-        ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
-    </div>
-  `;
-  document.getElementById('bill-modal').classList.add('open');
+  c.innerHTML = html;
 }
-
-function showCustDetail(name){
-  const cu=cloudCustomers[name];if(!cu) return;
-  const baki=parseInt(cu.balance)||0;
-  document.getElementById('modal-title').innerText=`👤 ${name}`;
-  document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
-    <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
-    <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
-    
-    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${name.replace(/'/g, "\\'")}')">📜 View Statement of Account</button>
-    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
-  `;
-  document.getElementById('bill-modal').classList.add('open');
-}
-
-function editCustomer(oldName) {
-    const cu = cloudCustomers[oldName];
-    if(!cu) return;
-    document.getElementById('edit-cust-oldname').value = oldName;
-    document.getElementById('edit-cust-name').value = oldName;
-    document.getElementById('edit-cust-phone').value = cu.phone || '';
-    document.getElementById('edit-cust-address').value = cu.address || '';
-    document.getElementById('edit-cust-baki').value = cu.balance || '0';
-    document.getElementById('edit-cust-modal').classList.add('open');
-}
-
-function saveEditedCustomer() {
-    const oldName = document.getElementById('edit-cust-oldname').value;
-    let newName = document.getElementById('edit-cust-name').value.trim();
-    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
-    
-    const phone = document.getElementById('edit-cust-phone').value.trim();
-    const address = document.getElementById('edit-cust-address').value.trim();
-    const balance = document.getElementById('edit-cust-baki').value || "0";
-
-    if(!newName) { alert("Name cannot be empty."); return; }
-
-    if(db && fbReady) {
-        const newData = { phone, address, balance };
-        if(newName !== oldName) {
-            db.ref('nwh/customers/' + newName).set(newData);
-            db.ref('nwh/customers/' + oldName).remove();
-        } else {
-            db.ref('nwh/customers/' + oldName).set(newData);
-        }
-        closeModal('edit-cust-modal');
-    } else {
-        alert("You are currently offline. Cannot save edits.");
-    }
-}
-
-function deleteCustomer(name) {
-    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
-        if(db && fbReady) {
-            db.ref('nwh/customers/' + name).remove();
-        } else {
-            alert("You are currently offline. Cannot delete.");
-        }
-    }
-}
-
-let _payKey='',_payCust='';
-function openPayModal(key,cust,baki){
-  _payKey=key;_payCust=cust;
-  document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
-  document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
-  document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
-  document.getElementById('pay-date-inp').value = todayStr;
-  closeModal('bill-modal');
-  document.getElementById('pay-modal').classList.add('open');
-}
-
-function payFromLedger(name,baki){
-  const bill=allBills.find(b=>b.customer===name&&(parseInt(b.remaining)||0)>0);
-  if(bill){closeModal('bill-modal');openPayModal(bill.key,name,baki);}
-  else alert('No outstanding bills found.');
-}
-
-function confirmPayment(){
-  const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
-  const note=document.getElementById('pay-note-inp').value.trim();
-  const payDate = document.getElementById('pay-date-inp').value || todayStr; 
-  
-  if(amount<=0){alert('Enter a valid amount');return;}
-  const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
-  
-  const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
-  const newPaid=(parseInt(bill.paid)||0)+amount;
-  const entry={amount, date: payDate, note}; 
-  
-  const currentCustBal = parseInt(cloudCustomers[_payCust]?.balance) || 0;
-  const newCustBal = Math.max(0, currentCustBal - amount);
-  
-  if(db&&fbReady){
-    db.ref('nwh/bills/'+_payKey+'/remaining').set(newRem.toString());
-    db.ref('nwh/bills/'+_payKey+'/paid').set(newPaid.toString());
-    db.ref('nwh/bills/'+_payKey+'/payments').push(entry);
-    if(cloudCustomers[_payCust]) db.ref('nwh/customers/'+_payCust+'/balance').set(newCustBal.toString());
-  }
-  
-  closeModal('pay-modal');
-  
-  document.getElementById('rec-date').innerText = payDate;
-  document.getElementById('rec-cust').innerText = _payCust;
-  document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
-  document.getElementById('rec-baki').innerText = newCustBal.toLocaleString('en-IN');
-  document.getElementById('rec-note').innerText = note || '—';
-  
-  document.getElementById('receipt-modal').classList.add('open');
-}
-
-function shareReceiptWA() {
-    const amt = document.getElementById('rec-amt').innerText;
-    const baki = document.getElementById('rec-baki').innerText;
-    const note = document.getElementById('rec-note').innerText;
-    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
-    if(note !== '—') msg += `\n📝 Note: ${note}`;
-    
-    const phone = cloudCustomers[_payCust]?.phone || '';
-    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
-}
-
-function downloadReceiptImage() {
-    const targetElement = document.getElementById('thermal-receipt');
-    
-    html2canvas(targetElement, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff' 
-    }).then(function (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `Receipt-${_payCust}.png`;
-        link.href = dataUrl;
-        link.click();
-    }).catch(function (err) {
-        console.error(err);
-        alert('Error generating receipt image. ' + (err.message || "Unknown error"));
-    });
-}
-
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+const debouncedFilterLedger = debounce(() => renderLedger(true));
 
 // ============================================================
 // PIN LOCK
@@ -2377,7 +2270,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 })();
 </script>
 
-<!-- THE CACHE BUSTER: This unregisters the stuck Service Worker -->
+<!-- THE CACHE BUSTER -->
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(registrations) {
