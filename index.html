@@ -282,7 +282,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v38</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v39</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -456,6 +456,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </div>
 
 </div>
+
+<!-- ALL MODALS INCLUDED BELOW TO PREVENT THEM BEING CUT OFF -->
 
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
@@ -767,11 +769,13 @@ function updateSuggestions(target) {
             target.dispatchEvent(new Event('input')); 
             if(target.oninput) target.oninput(target); 
             
+            // SMART LEDGER SYNC - FIXES THE PURANO BAKI BLUNDER
             if (target.id === 'customer-name') {
                 const cu = cloudCustomers[opt];
                 if (cu) {
                     document.getElementById('customer-phone').value = cu.phone || '';
                     document.getElementById('customer-address').value = cu.address || '';
+                    // Only auto-fill Baki if it's a NEW bill. Do not overwrite if they are editing an old bill.
                     if (!editBillKey) {
                         document.getElementById('prev-balance').value = cu.balance || '0';
                     }
@@ -1005,7 +1009,7 @@ window.onload = function() {
 };
 
 // ============================================================
-// TAB SYSTEM
+// TAB SYSTEM & FILTERS
 // ============================================================
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
 
@@ -1019,8 +1023,20 @@ function switchTab(name){
     if(name==='packing') renderPokaHistory();
 }
 
+function filterHistory(){
+  const q = document.getElementById('history-search').value.toLowerCase();
+  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
+  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+}
+
+function filterLedger(){
+  const q = document.getElementById('ledger-search').value.toLowerCase();
+  const cards = document.querySelectorAll('#ledger-container .ledger-card');
+  cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+}
+
 // ============================================================
-// FIREBASE & OFFLINE SYNC QUEUE
+// FIREBASE CONNECTION (ROBUST)
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -1244,7 +1260,6 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
     `;
     tbody.appendChild(div);
     
-    // CASHIER FLOW - Poka
     const inputs = div.querySelectorAll('input');
     inputs.forEach((inp, index) => {
         inp.addEventListener('keydown', (e) => {
@@ -1446,7 +1461,6 @@ function addRow(desc='',qty='',rate='',code=''){
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   document.getElementById('invoice-items').appendChild(tr);
 
-  // CASHIER FLOW - Enter Key Navigation
   const inputs = tr.querySelectorAll('input');
   inputs.forEach((inp, index) => {
       inp.addEventListener('keydown', (e) => {
@@ -2064,6 +2078,10 @@ function confirmAndDownload() {
     });
 }
 
+// ============================================================
+// MODALS AND LEDGER VIEWS
+// ============================================================
+
 function showPriceBook(custName) {
     document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
     const list = document.getElementById('price-book-list');
@@ -2167,34 +2185,179 @@ function downloadLedgerStatement() {
     });
 }
 
-// ============================================================
-// LAZY LOADING (RENDERING SPEED)
-// ============================================================
+function showBillDetail(key){
+  const b=allBills.find(x=>x.key===key);if(!b) return;
+  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
+  
+  let iHtml='';
+  if(b.items&&b.items.length){
+    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;color:var(--text2)">Item</th><th style="padding:7px 10px;text-align:center;color:var(--text2)">Code</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Qty</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Rate</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Total</th></tr></thead><tbody>`;
+    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:center;font-family:'Space Mono',monospace;font-size:.73rem;color:var(--text3)">${it.code||'—'}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    iHtml+='</tbody></table></div>';
+  }
+
+  const baki=parseInt(b.remaining)||0;
+  
+  document.getElementById('modal-body').innerHTML=`
+    <div class="d-row"><span class="d-label">Date (AD/BS)</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
+    ${iHtml}
+    ${b.discount && b.discount !== '0' ? `<div class="d-row"><span class="d-label">Discount</span><span class="d-val" style="color:var(--red)">- NRS ${parseInt(b.discount).toLocaleString('en-IN')}</span></div>` : ''}
+    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Purano Baki</span><span class="d-val">NRS ${parseInt(b.prevBalance || 0).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Jamma Total</span><span class="d-val">NRS ${parseInt(b.grandTotal || 0).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
+    
+    <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
+        ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
+    </div>
+  `;
+  document.getElementById('bill-modal').classList.add('open');
+}
+
+function showCustDetail(name){
+  const cu=cloudCustomers[name];if(!cu) return;
+  const baki=parseInt(cu.balance)||0;
+  document.getElementById('modal-title').innerText=`👤 ${name}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
+    <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
+    <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
+    
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${name.replace(/'/g, "\\'")}')">📜 View Statement of Account</button>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
+  `;
+  document.getElementById('bill-modal').classList.add('open');
+}
+
+function editCustomer(oldName) {
+    const cu = cloudCustomers[oldName];
+    if(!cu) return;
+    document.getElementById('edit-cust-oldname').value = oldName;
+    document.getElementById('edit-cust-name').value = oldName;
+    document.getElementById('edit-cust-phone').value = cu.phone || '';
+    document.getElementById('edit-cust-address').value = cu.address || '';
+    document.getElementById('edit-cust-baki').value = cu.balance || '0';
+    document.getElementById('edit-cust-modal').classList.add('open');
+}
+
+function saveEditedCustomer() {
+    const oldName = document.getElementById('edit-cust-oldname').value;
+    let newName = document.getElementById('edit-cust-name').value.trim();
+    newName = newName.replace(/[.#$\[\]]/g, ' ').trim(); 
+    
+    const phone = document.getElementById('edit-cust-phone').value.trim();
+    const address = document.getElementById('edit-cust-address').value.trim();
+    const balance = document.getElementById('edit-cust-baki').value || "0";
+
+    if(!newName) { alert("Name cannot be empty."); return; }
+
+    queueDatabaseWrite('nwh/customers/' + newName, 'set', { phone, address, balance });
+    if(newName !== oldName) {
+        queueDatabaseWrite('nwh/customers/' + oldName, 'remove', null);
+    }
+    closeModal('edit-cust-modal');
+}
+
+function deleteCustomer(name) {
+    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
+        queueDatabaseWrite('nwh/customers/' + name, 'remove', null);
+    }
+}
+
+let _payKey='',_payCust='';
+function openPayModal(key,cust,baki){
+  _payKey=key;_payCust=cust;
+  document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
+  document.getElementById('pay-baki-display').innerText=`NRS ${baki.toLocaleString('en-IN')}`;
+  document.getElementById('pay-amount-inp').value='';document.getElementById('pay-note-inp').value='';
+  document.getElementById('pay-date-inp').value = todayStr;
+  closeModal('bill-modal');
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+function payFromLedger(name,baki){
+  const bill=allBills.find(b=>b.customer===name&&(parseInt(b.remaining)||0)>0);
+  if(bill){closeModal('bill-modal');openPayModal(bill.key,name,baki);}
+  else alert('No outstanding bills found.');
+}
+
+function confirmPayment(){
+  const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
+  const note=document.getElementById('pay-note-inp').value.trim();
+  const payDate = document.getElementById('pay-date-inp').value || todayStr; 
+  
+  if(amount<=0){alert('Enter a valid amount');return;}
+  const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
+  
+  const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
+  const newPaid=(parseInt(bill.paid)||0)+amount;
+  const entry={amount, date: payDate, note}; 
+  
+  const currentCustBal = parseInt(cloudCustomers[_payCust]?.balance) || 0;
+  const newCustBal = Math.max(0, currentCustBal - amount);
+  
+  queueDatabaseWrite('nwh/bills/'+_payKey+'/remaining', 'set', newRem.toString());
+  queueDatabaseWrite('nwh/bills/'+_payKey+'/paid', 'set', newPaid.toString());
+  queueDatabaseWrite('nwh/bills/'+_payKey+'/payments', 'push', entry);
+  if(cloudCustomers[_payCust]) queueDatabaseWrite('nwh/customers/'+_payCust+'/balance', 'set', newCustBal.toString());
+  
+  closeModal('pay-modal');
+  
+  document.getElementById('rec-date').innerText = payDate;
+  document.getElementById('rec-cust').innerText = _payCust;
+  document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
+  document.getElementById('rec-baki').innerText = newCustBal.toLocaleString('en-IN');
+  document.getElementById('rec-note').innerText = note || '—';
+  
+  document.getElementById('receipt-modal').classList.add('open');
+}
+
+function shareReceiptWA() {
+    const amt = document.getElementById('rec-amt').innerText;
+    const baki = document.getElementById('rec-baki').innerText;
+    const note = document.getElementById('rec-note').innerText;
+    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
+    if(note !== '—') msg += `\n📝 Note: ${note}`;
+    
+    const phone = cloudCustomers[_payCust]?.phone || '';
+    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function downloadReceiptImage() {
+    const targetElement = document.getElementById('thermal-receipt');
+    html2canvas(targetElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Receipt-${_payCust}.png`;
+        link.href = dataUrl;
+        link.click();
+    }).catch(function (err) {
+        console.error(err);
+        alert('Error generating receipt image.');
+    });
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
 let historyLimit = 30;
 function renderHistory(resetLimit = false){
   if(resetLimit) historyLimit = 30;
   const c=document.getElementById('history-container');
-  if(!allBills || !allBills.length){ c.innerHTML=`<div class="empty-state"><div class="icon">📂</div><div class="L">No bills yet</div></div>`; return; }
-  
+  if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
+
   const q = document.getElementById('history-search').value.toLowerCase();
   let filtered = q ? allBills.filter(b => b.customer.toLowerCase().includes(q) || b.invoiceNum.toString().includes(q)) : allBills;
-  if(!filtered.length){ c.innerHTML=`<div class="empty-state">No matching bills.</div>`; return; }
+  if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching bills.</div>`;
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
   filtered.slice(0, historyLimit).forEach(b=>{
     const baki=parseInt(b.remaining)||0;
-    html+=`<tr onclick="showBillDetail('${b.key}')">
-      <td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td>
-      <td><strong>${b.customer}</strong></td>
-      <td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td>
-      <td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td>
-      <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
-    </tr>`;
+    html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${b.customer}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
   html += `</tbody></table>`;
-  if(filtered.length > historyLimit) {
-      html += `<div style="padding:10px;text-align:center;"><button class="btn btn-ghost" style="width:100%;" onclick="historyLimit += 30; renderHistory();">⬇️ Load More</button></div>`;
-  }
+  if(filtered.length > historyLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="historyLimit += 30; renderHistory();">Load More</button>`;
   c.innerHTML = html;
 }
 const debouncedFilterHistory = debounce(() => renderHistory(true));
@@ -2204,80 +2367,29 @@ function renderLedger(resetLimit = false){
   if(resetLimit) ledgerLimit = 30;
   const c=document.getElementById('ledger-container');
   const custs=Object.entries(cloudCustomers);
-  if(!custs || !custs.length){ c.innerHTML=`<div class="empty-state"><div class="icon">👥</div><div class="L">No customers yet</div></div>`; return; }
-  
+  if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
+
   const q = document.getElementById('ledger-search').value.toLowerCase();
   let filtered = q ? custs.filter(([n, cu]) => n.toLowerCase().includes(q) || (cu.phone && cu.phone.includes(q))) : custs;
-  if(!filtered.length){ c.innerHTML=`<div class="empty-state">No matching customers.</div>`; return; }
+  if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching customers.</div>`;
 
   let html = '';
   filtered.slice(0, ledgerLimit).forEach(([name,cu])=>{
     const baki=parseInt(cu.balance)||0;
     const safeName = name.replace(/'/g, "\\'"); 
-    
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
-      <div style="flex:1;">
-        <div class="lc-name">${name}</div>
-        <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button>
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
-        <span class="badge ${baki>0?'b-red':'b-green'}" style="margin-bottom:4px;">${baki>0?'Due':'Cleared'}</span>
-      </div>
-    </div>`;
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1;"><div class="lc-name">${name}</div><div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button></div></div><div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
-  if(filtered.length > ledgerLimit) {
-      html += `<div style="padding:10px;text-align:center;"><button class="btn btn-ghost" style="width:100%;" onclick="ledgerLimit += 30; renderLedger();">⬇️ Load More</button></div>`;
-  }
+  if(filtered.length > ledgerLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="ledgerLimit += 30; renderLedger();">Load More</button>`;
   c.innerHTML = html;
 }
 const debouncedFilterLedger = debounce(() => renderLedger(true));
 
-// ============================================================
-// PIN LOCK
-// ============================================================
-(function(){
-  const DEFAULT = '8860';
-  let entered = '';
-  
-  let isAuth = false;
-  try { isAuth = safeGetSession('nwh_auth') === '1'; } catch(e) {}
-  
-  if(isAuth){ document.getElementById('pw-screen').style.display='none'; return; }
-  
-  function updateDots(){ for(let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i<entered.length); }
-  
-  window.pinPress=function(digit){
-    if(entered.length>=4) return;
-    entered+=digit; updateDots();
-    document.getElementById('pw-err').innerText='';
-    if(entered.length===4){
-      setTimeout(()=>{
-        if(entered===DEFAULT){ 
-            try { safeSetSession('nwh_auth','1'); } catch(e) {}
-            document.getElementById('pw-screen').style.display='none'; 
-        } 
-        else { document.getElementById('pw-err').innerText='❌ Wrong PIN. Try again.'; entered=''; updateDots(); }
-      },150);
-    }
-  };
-  window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
-})();
 </script>
 
-<!-- THE CACHE BUSTER -->
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-            registration.unregister();
-            console.log("Old Service Worker Removed to force fresh Vercel deployment.");
-        }
+        for(let registration of registrations) { registration.unregister(); }
     });
   }
 </script>
