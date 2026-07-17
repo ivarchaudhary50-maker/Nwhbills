@@ -282,7 +282,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v40</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v39</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -442,11 +442,19 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
+<!-- LEDGER PANEL WITH NEW FILTERS -->
 <div class="panel" id="panel-ledger">
   <div class="card">
-    <div class="card-header">
+    <div class="card-header" style="flex-wrap:wrap; gap:10px;">
       <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:170px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <select class="inp no-print" id="ledger-sort" onchange="renderLedger(true)" style="width:130px; padding:6px; font-size:0.8rem;">
+              <option value="az">A-Z</option>
+              <option value="dues">Highest Dues</option>
+              <option value="recent">Recently Active</option>
+          </select>
+          <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:140px; padding:6px; font-size:0.8rem;">
+      </div>
     </div>
     <div class="card-body" style="padding:0 18px 18px;">
       <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
@@ -457,7 +465,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 </div>
 
-<!-- MODALS -->
+<!-- ALL MODALS INCLUDED BELOW TO PREVENT THEM BEING CUT OFF -->
+
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="modal-title">Invoice Detail</div><button class="close-btn" onclick="closeModal('bill-modal')">✕</button></div>
@@ -543,6 +552,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
                     <p style="margin:2px 0 0 0; font-size:14px; color:#4a5280;" id="ls-cust-sub"></p>
                 </div>
             </div>
+            
+            <!-- NEW STATEMENT SUMMARY BOX -->
+            <div id="ls-summary-box" style="display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;"></div>
+
             <table class="items-table" style="width:100%; border-collapse:collapse;">
                 <thead style="background:var(--grad); color:#fff;">
                     <tr>
@@ -646,11 +659,44 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 
 let editBillKey = null;
 let editInvoiceNum = null;
+let pendingBill = null;
 let lang = 'en';
 let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+
+// ============================================================
+// PIN LOCK LOGIC
+// ============================================================
+let pinCode = '';
+const CORRECT_PIN = '8860'; // Change this to whatever 4-digit code you want
+
+function pinPress(num) {
+  if(pinCode.length < 4) {
+    pinCode += num;
+    document.getElementById('d' + (pinCode.length - 1)).classList.add('filled');
+  }
+  if(pinCode.length === 4) {
+    if(pinCode === CORRECT_PIN) {
+      document.getElementById('pw-screen').style.display = 'none';
+    } else {
+      document.getElementById('pw-err').innerText = 'Incorrect PIN';
+      setTimeout(() => {
+        pinCode = '';
+        document.getElementById('pw-err').innerText = '';
+        document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
+      }, 1000);
+    }
+  }
+}
+
+function pinDel() {
+  if(pinCode.length > 0) {
+    document.getElementById('d' + (pinCode.length - 1)).classList.remove('filled');
+    pinCode = pinCode.slice(0, -1);
+  }
+}
 
 // ============================================================
 // DEBOUNCE LOGIC (SPEED OPTIMIZATION)
@@ -1064,27 +1110,15 @@ function initFB(){
     });
 
     db.ref('nwh/customers').on('value',s=>{
-        try {
-            cloudCustomers=s.val()||{};
-            populateCustomerList();
-            if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
-        } catch(e) {
-            document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
-        }
-    }, e => { 
-        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
+        cloudCustomers=s.val()||{};
+        populateCustomerList();
+        if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
     });
 
     db.ref('nwh/bills').on('value',s=>{
-        try {
-          const v=s.val();
-          allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-          if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
-        } catch(e) {
-            document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
-        }
-    }, e => { 
-        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
+        const v=s.val();
+        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+        if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
     });
 
     db.ref('nwh/pokas').on('value', s => {
@@ -1101,7 +1135,7 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ syncEl.innerText='🔴 Error'; console.error(e); }
+  }catch(e){ console.error(e); }
 }
 setTimeout(initFB, 300);
 
@@ -2087,6 +2121,10 @@ function confirmAndDownload() {
     });
 }
 
+// ============================================================
+// MODALS AND LEDGER VIEWS
+// ============================================================
+
 function showPriceBook(custName) {
     document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
     const list = document.getElementById('price-book-list');
@@ -2123,18 +2161,29 @@ function showLedgerStatement(custName) {
     list.innerHTML = '';
     
     let events = [];
+    let totalBilled = 0;
+    let totalPaid = 0;
+
     allBills.filter(b => b.customer === custName).forEach(b => {
         let billTotal = parseInt(b.billAmount) || 0;
-        let sumDetailed = 0;
-        let invNumSafe = parseInt(b.invoiceNum) || 0;
+        totalBilled += billTotal;
 
+        // Add Partial Payments
         if(b.payments) {
             Object.values(b.payments).forEach(p => {
                 let amt = parseInt(p.amount) || 0;
-                sumDetailed += amt;
+                totalPaid += amt;
                 events.push({ date: p.date, time: new Date(p.date).getTime() + 1000, desc: `Pay against Inv #${b.invoiceNum}`, debit: 0, credit: amt });
             });
         }
+        
+        // Add Initial Payment made on the invoice
+        let initialPaid = parseInt(b.paid) || 0;
+        if(initialPaid > 0) {
+            totalPaid += initialPaid;
+            events.push({ date: b.cashPaidDate || b.date, time: new Date(b.cashPaidDate || b.date).getTime() + 500, desc: `Initial Pay Inv #${b.invoiceNum}`, debit: 0, credit: initialPaid });
+        }
+
         events.push({ date: b.date, time: new Date(b.date).getTime(), desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: 0, declaredPrev: parseInt(b.prevBalance) || 0, isInvoice: true });
     });
     
@@ -2142,12 +2191,38 @@ function showLedgerStatement(custName) {
     let listHtml = '';
     const firstInvoice = events.find(e => e.isInvoice);
     let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
+    
+    // Add opening balance to total billed math
+    totalBilled += bal;
+
     listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:12px;">—</td><td style="padding:12px; font-style:italic;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
     events.forEach(e => {
         bal += e.debit; bal -= e.credit;
-        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:12px;">${e.date}</td><td style="padding:12px;">${e.desc}</td><td style="text-align:right; padding:12px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; padding:12px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:12px; font-size:12px;">${e.date}</td>
+            <td style="padding:12px; font-size:13px;">${e.desc}</td>
+            <td style="text-align:right; padding:12px; font-size:13px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; padding:12px; color:#059669; font-size:13px;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; font-weight:bold; font-size:13px;">${bal.toLocaleString('en-IN')}</td>
+        </tr>`;
     });
     list.innerHTML = listHtml;
+
+    // Inject Summary Box
+    const summaryDiv = document.getElementById('ls-summary-box') || document.createElement('div');
+    summaryDiv.id = 'ls-summary-box';
+    summaryDiv.style = "display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;";
+    summaryDiv.innerHTML = `
+        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">TOTAL BILLED</div><div style="font-size:15px; font-weight:bold; color:#1e293b;">NRS ${totalBilled.toLocaleString('en-IN')}</div></div>
+        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">TOTAL PAID</div><div style="font-size:15px; font-weight:bold; color:#059669;">NRS ${totalPaid.toLocaleString('en-IN')}</div></div>
+        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">CURRENT DUE</div><div style="font-size:16px; font-weight:900; color:#dc2626;">NRS ${bal.toLocaleString('en-IN')}</div></div>
+    `;
+    
+    const renderBox = document.getElementById('ledger-statement-render');
+    const existingSummary = renderBox.querySelector('#ls-summary-box');
+    if(existingSummary) existingSummary.remove();
+    renderBox.insertBefore(summaryDiv, renderBox.querySelector('table'));
+
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
@@ -2220,6 +2295,59 @@ function showBillDetail(key){
   `;
   document.getElementById('bill-modal').classList.add('open');
 }
+
+function loadBillForEdit(key) {
+    const bill = allBills.find(b => b.key === key);
+    if (!bill) return;
+
+    editBillKey = bill.key;
+    editInvoiceNum = bill.invoiceNum;
+
+    document.getElementById('customer-name').value = bill.customer || '';
+    document.getElementById('customer-phone').value = bill.phone || '';
+    document.getElementById('customer-address').value = bill.address || '';
+    
+    document.getElementById('current-date-ad').value = bill.date || todayStr;
+    updateBSDate();
+    if (bill.cashPaidDate) document.getElementById('cash-paid-date').value = bill.cashPaidDate;
+
+    const itemsTbody = document.getElementById('invoice-items');
+    itemsTbody.innerHTML = '';
+    if (bill.items && bill.items.length > 0) {
+        bill.items.forEach(it => addRow(it.desc, it.qty, it.rate, it.code));
+    } else {
+        addRow();
+    }
+
+    const notesContainer = document.getElementById('notes-container');
+    notesContainer.innerHTML = '';
+    if (bill.billNotes && bill.billNotes.length > 0) {
+        bill.billNotes.forEach(n => addNoteRow(n.date, n.text));
+    } else {
+        addNoteRow();
+    }
+
+    const pokaContainer = document.getElementById('poka-groups-container');
+    pokaContainer.innerHTML = '';
+    pokaCounter = 0;
+    if (bill.pokaDetails && bill.pokaDetails.length > 0) {
+        bill.pokaDetails.forEach(group => addPokaGroup(group.items));
+    }
+
+    document.getElementById('total-poka').value = bill.totalPoka || '';
+    document.getElementById('transport-expense').value = bill.transport || '';
+    document.getElementById('discount-amount').value = bill.discount || '';
+    document.getElementById('prev-balance').value = bill.prevBalance || '';
+    document.getElementById('cash-paid').value = bill.paid || '';
+
+    document.getElementById('invoice-number').innerText = bill.invoiceNum;
+    document.getElementById('tab-invoice').innerHTML = `🧾 <span style="color:var(--red);">Editing #${bill.invoiceNum}</span>`;
+    
+    calc();
+    closeModal('bill-modal');
+    switchTab('invoice');
+}
+
 
 function showCustDetail(name){
   const cu=cloudCustomers[name];if(!cu) return;
@@ -2370,55 +2498,58 @@ const debouncedFilterHistory = debounce(() => renderHistory(true));
 let ledgerLimit = 30;
 function renderLedger(resetLimit = false){
   if(resetLimit) ledgerLimit = 30;
-  const c=document.getElementById('ledger-container');
-  const custs=Object.entries(cloudCustomers);
+  const c = document.getElementById('ledger-container');
+  const custs = Object.entries(cloudCustomers);
   if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
 
   const q = document.getElementById('ledger-search').value.toLowerCase();
+  const sortMode = document.getElementById('ledger-sort').value;
+
   let filtered = q ? custs.filter(([n, cu]) => n.toLowerCase().includes(q) || (cu.phone && cu.phone.includes(q))) : custs;
+  
+  if(sortMode === 'dues') {
+      filtered.sort((a,b) => (parseInt(b[1].balance)||0) - (parseInt(a[1].balance)||0));
+  } else if (sortMode === 'recent') {
+      const lastActive = {};
+      allBills.forEach(b => {
+         const t = new Date(b.date).getTime();
+         if(!lastActive[b.customer] || t > lastActive[b.customer]) lastActive[b.customer] = t;
+      });
+      filtered.sort((a,b) => (lastActive[b[0]]||0) - (lastActive[a[0]]||0));
+  } else {
+      filtered.sort((a,b) => a[0].localeCompare(b[0]));
+  }
+
   if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching customers.</div>`;
 
   let html = '';
   filtered.slice(0, ledgerLimit).forEach(([name,cu])=>{
-    const baki=parseInt(cu.balance)||0;
+    const baki = parseInt(cu.balance)||0;
     const safeName = name.replace(/'/g, "\\'"); 
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1;"><div class="lc-name">${name}</div><div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button></div></div><div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
+    const phoneClean = cu.phone ? cu.phone.replace(/\D/g,'') : '';
+    
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
+        <div style="flex:1;">
+            <div class="lc-name">${name}</div>
+            <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price</button>
+                ${phoneClean ? `<button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#059669;" onclick="event.stopPropagation(); window.open('https://wa.me/${phoneClean}', '_blank')">💬 WA</button>
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#2563eb;" onclick="event.stopPropagation(); window.open('tel:${phoneClean}', '_self')">📞 Call</button>` : ''}
+            </div>
+        </div>
+        <div style="text-align:right">
+            <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
+            <span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span>
+        </div>
+    </div>`;
   });
+  
   if(filtered.length > ledgerLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="ledgerLimit += 30; renderLedger();">Load More</button>`;
   c.innerHTML = html;
 }
 const debouncedFilterLedger = debounce(() => renderLedger(true));
-
-// ============================================================
-// PIN LOCK
-// ============================================================
-(function(){
-  const DEFAULT = '8860';
-  let entered = '';
-  
-  let isAuth = false;
-  try { isAuth = safeGetSession('nwh_auth') === '1'; } catch(e) {}
-  
-  if(isAuth){ document.getElementById('pw-screen').style.display='none'; return; }
-  
-  function updateDots(){ for(let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i<entered.length); }
-  
-  window.pinPress=function(digit){
-    if(entered.length>=4) return;
-    entered+=digit; updateDots();
-    document.getElementById('pw-err').innerText='';
-    if(entered.length===4){
-      setTimeout(()=>{
-        if(entered===DEFAULT){ 
-            try { safeSetSession('nwh_auth','1'); } catch(e) {}
-            document.getElementById('pw-screen').style.display='none'; 
-        } 
-        else { document.getElementById('pw-err').innerText='❌ Wrong PIN. Try again.'; entered=''; updateDots(); }
-      },150);
-    }
-  };
-  window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
-})();
 
 </script>
 
