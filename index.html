@@ -282,7 +282,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v39</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v40</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -457,8 +457,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 </div>
 
-<!-- ALL MODALS INCLUDED BELOW TO PREVENT THEM BEING CUT OFF -->
-
+<!-- MODALS -->
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="modal-title">Invoice Detail</div><button class="close-btn" onclick="closeModal('bill-modal')">✕</button></div>
@@ -769,13 +768,11 @@ function updateSuggestions(target) {
             target.dispatchEvent(new Event('input')); 
             if(target.oninput) target.oninput(target); 
             
-            // SMART LEDGER SYNC - FIXES THE PURANO BAKI BLUNDER
             if (target.id === 'customer-name') {
                 const cu = cloudCustomers[opt];
                 if (cu) {
                     document.getElementById('customer-phone').value = cu.phone || '';
                     document.getElementById('customer-address').value = cu.address || '';
-                    // Only auto-fill Baki if it's a NEW bill. Do not overwrite if they are editing an old bill.
                     if (!editBillKey) {
                         document.getElementById('prev-balance').value = cu.balance || '0';
                     }
@@ -1067,15 +1064,27 @@ function initFB(){
     });
 
     db.ref('nwh/customers').on('value',s=>{
-        cloudCustomers=s.val()||{};
-        populateCustomerList();
-        if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        try {
+            cloudCustomers=s.val()||{};
+            populateCustomerList();
+            if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        } catch(e) {
+            document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
+        }
+    }, e => { 
+        document.getElementById('ledger-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
     });
 
     db.ref('nwh/bills').on('value',s=>{
-        const v=s.val();
-        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-        if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
+        try {
+          const v=s.val();
+          allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+          if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
+        } catch(e) {
+            document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">Render Error: ${e.message}</div>`;
+        }
+    }, e => { 
+        document.getElementById('history-container').innerHTML = `<div class="empty-state" style="color:red">DB Error: ${e.message}</div>`;
     });
 
     db.ref('nwh/pokas').on('value', s => {
@@ -1092,7 +1101,7 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ console.error(e); }
+  }catch(e){ syncEl.innerText='🔴 Error'; console.error(e); }
 }
 setTimeout(initFB, 300);
 
@@ -2078,10 +2087,6 @@ function confirmAndDownload() {
     });
 }
 
-// ============================================================
-// MODALS AND LEDGER VIEWS
-// ============================================================
-
 function showPriceBook(custName) {
     document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
     const list = document.getElementById('price-book-list');
@@ -2383,6 +2388,37 @@ function renderLedger(resetLimit = false){
   c.innerHTML = html;
 }
 const debouncedFilterLedger = debounce(() => renderLedger(true));
+
+// ============================================================
+// PIN LOCK
+// ============================================================
+(function(){
+  const DEFAULT = '8860';
+  let entered = '';
+  
+  let isAuth = false;
+  try { isAuth = safeGetSession('nwh_auth') === '1'; } catch(e) {}
+  
+  if(isAuth){ document.getElementById('pw-screen').style.display='none'; return; }
+  
+  function updateDots(){ for(let i=0;i<4;i++) document.getElementById('d'+i).classList.toggle('filled', i<entered.length); }
+  
+  window.pinPress=function(digit){
+    if(entered.length>=4) return;
+    entered+=digit; updateDots();
+    document.getElementById('pw-err').innerText='';
+    if(entered.length===4){
+      setTimeout(()=>{
+        if(entered===DEFAULT){ 
+            try { safeSetSession('nwh_auth','1'); } catch(e) {}
+            document.getElementById('pw-screen').style.display='none'; 
+        } 
+        else { document.getElementById('pw-err').innerText='❌ Wrong PIN. Try again.'; entered=''; updateDots(); }
+      },150);
+    }
+  };
+  window.pinDel=function(){ if(entered.length>0){entered=entered.slice(0,-1);updateDots();} document.getElementById('pw-err').innerText=''; };
+})();
 
 </script>
 
