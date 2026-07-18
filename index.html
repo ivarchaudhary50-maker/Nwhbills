@@ -667,10 +667,15 @@ let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
 
 // ============================================================
+// OFFLINE CACHE (FOR PERFECT DATES)
+// ============================================================
+let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
+
+// ============================================================
 // PIN LOCK LOGIC
 // ============================================================
 let pinCode = '';
-const CORRECT_PIN = '8860'; // Change this to whatever 4-digit code you want
+const CORRECT_PIN = '1234'; // Change this to whatever 4-digit code you want
 
 function pinPress(num) {
   if(pinCode.length < 4) {
@@ -880,7 +885,7 @@ const NM=['बैशाख','जेठ','असार','श्रावण','भ
 let selCalY = 2080, selCalM = 1, selCalD = 1;
 
 function adToBS(y,m,d){
-  const ref = Date.UTC(1943, 3, 14); 
+  const ref = Date.UTC(1943, 3, 15); 
   const inp = Date.UTC(y, m-1, d);
   let days = Math.round((inp - ref) / 86400000);
   for(let i=0; i<ND.length; i++){
@@ -903,7 +908,7 @@ function bsToAd(bsY, bsM, bsD) {
         }
     }
     days += (bsD - 1);
-    const ref = Date.UTC(1943, 3, 14); 
+    const ref = Date.UTC(1943, 3, 15); 
     return new Date(ref + days * 86400000);
 }
 
@@ -917,7 +922,7 @@ function getBsMonthStartDayOfWeek(bsY, bsM) {
             break;
         }
     }
-    return (3 + days) % 7; 
+    return (4 + days) % 7; 
 }
 
 function updateBSDate() {
@@ -927,8 +932,23 @@ function updateBSDate() {
       return; 
   }
   
+  if (calendarCorrections[adVal]) {
+      const correctBS = calendarCorrections[adVal]; 
+      const [cy, cm, cd] = correctBS.split(',').map(Number);
+      selCalY = cy; selCalM = cm; selCalD = cd;
+      document.getElementById('bs-date-inp').value = `📅 ${cd} ${NM[cm-1]} ${cy}`;
+      
+      if(document.getElementById('np-cal-popup').style.display === 'block') {
+          document.getElementById('np-cal-y').value = selCalY;
+          document.getElementById('np-cal-m').value = selCalM;
+          renderNpCal();
+      }
+      return;
+  }
+
   const [y,m,d] = adVal.split('-').map(Number);
   const bsData = adToBS(y,m,d);
+  
   if(bsData) {
       selCalY = bsData.year; selCalM = bsData.month; selCalD = bsData.day;
       document.getElementById('bs-date-inp').value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
@@ -1101,6 +1121,15 @@ function initFB(){
         fbReady=false;
         updateSyncBadge();
       }
+    });
+    
+    // NEW: Download fixes silently
+    db.ref('nwh/calendar_corrections').on('value', s => {
+        if (s.val()) {
+            calendarCorrections = s.val();
+            safeSetLocal('nwh_cal_corrections', JSON.stringify(calendarCorrections));
+            updateBSDate();
+        }
     });
 
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
@@ -2168,7 +2197,6 @@ function showLedgerStatement(custName) {
         let billTotal = parseInt(b.billAmount) || 0;
         totalBilled += billTotal;
 
-        // Add Partial Payments
         if(b.payments) {
             Object.values(b.payments).forEach(p => {
                 let amt = parseInt(p.amount) || 0;
@@ -2177,7 +2205,6 @@ function showLedgerStatement(custName) {
             });
         }
         
-        // Add Initial Payment made on the invoice
         let initialPaid = parseInt(b.paid) || 0;
         if(initialPaid > 0) {
             totalPaid += initialPaid;
@@ -2192,7 +2219,6 @@ function showLedgerStatement(custName) {
     const firstInvoice = events.find(e => e.isInvoice);
     let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
     
-    // Add opening balance to total billed math
     totalBilled += bal;
 
     listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:12px;">—</td><td style="padding:12px; font-style:italic;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
@@ -2208,7 +2234,6 @@ function showLedgerStatement(custName) {
     });
     list.innerHTML = listHtml;
 
-    // Inject Summary Box
     const summaryDiv = document.getElementById('ls-summary-box') || document.createElement('div');
     summaryDiv.id = 'ls-summary-box';
     summaryDiv.style = "display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;";
