@@ -45,13 +45,31 @@
   <div id="pw-box">
     <div id="pw-logo">🏪</div>
     <div id="pw-title">Rabi Kapada Pasal</div>
-    <div id="pw-sub" style="margin-bottom:15px;">Secure Admin Login</div>
-    <input type="email" id="auth-email" class="inp" placeholder="Admin Email" style="margin-bottom:10px; text-align:center;">
-    <input type="password" id="auth-pass" class="inp" placeholder="Password" style="margin-bottom:15px; text-align:center;">
-    <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:1rem;" onclick="loginAdmin()">Login to Dashboard</button>
-    <div id="pw-err" style="color:var(--red); font-size:0.8rem; margin-top:10px; min-height:18px;"></div>
+    <div id="pw-sub">Enter your 4-digit PIN</div>
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:230px;margin:0 auto;">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <div></div>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn pin-del" onclick="pinDel()">⌫</button>
+    </div>
+    <div id="pw-err"></div>
   </div>
 </div>
+
 
 <nav class="top-nav no-print">
   <div class="nav-brand">
