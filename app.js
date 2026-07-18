@@ -16,40 +16,41 @@ let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
 
 // ============================================================
+// PAGINATION LIMITS (RAM OPTIMIZATION)
+// ============================================================
+let dbBillsLimit = 50; 
+let dbPokasLimit = 50;
+let billsListenerRef = null;
+let pokasListenerRef = null;
+
+// ============================================================
 // OFFLINE CACHE (FOR PERFECT DATES)
 // ============================================================
 let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
 
 // ============================================================
-// PIN LOCK LOGIC
+// FIREBASE AUTHENTICATION LOGIC (TRUE SECURITY)
 // ============================================================
-let pinCode = '';
-const CORRECT_PIN = '1234'; 
+function loginAdmin() {
+    const email = document.getElementById('auth-email').value;
+    const pass = document.getElementById('auth-pass').value;
+    const errBox = document.getElementById('pw-err');
+    errBox.innerText = 'Authenticating...';
 
-function pinPress(num) {
-  if(pinCode.length < 4) {
-    pinCode += num;
-    document.getElementById('d' + (pinCode.length - 1)).classList.add('filled');
-  }
-  if(pinCode.length === 4) {
-    if(pinCode === CORRECT_PIN) {
-      document.getElementById('pw-screen').style.display = 'none';
-    } else {
-      document.getElementById('pw-err').innerText = 'Incorrect PIN';
-      setTimeout(() => {
-        pinCode = '';
-        document.getElementById('pw-err').innerText = '';
-        document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
-      }, 1000);
+    if (!email || !pass) {
+        errBox.innerText = 'Please enter both email and password.';
+        return;
     }
-  }
+
+    firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then(() => { errBox.innerText = ''; })
+        .catch(err => { errBox.innerText = err.message; });
 }
 
-function pinDel() {
-  if(pinCode.length > 0) {
-    document.getElementById('d' + (pinCode.length - 1)).classList.remove('filled');
-    pinCode = pinCode.slice(0, -1);
-  }
+function logoutAdmin() {
+    firebase.auth().signOut().then(() => {
+        alert("Logged out successfully.");
+    });
 }
 
 // ============================================================
@@ -91,7 +92,8 @@ function queueDatabaseWrite(path, method, data) {
 }
 
 async function processSyncQueue() {
-    if (!fbReady || isSyncing || syncQueue.length === 0) {
+    // Only attempt to sync if online AND logged in
+    if (!fbReady || isSyncing || syncQueue.length === 0 || !firebase.auth().currentUser) {
         updateSyncBadge();
         return;
     }
@@ -112,7 +114,7 @@ async function processSyncQueue() {
         isSyncing = false;
         processSyncQueue(); 
     } catch(err) {
-        console.error("Sync failed:", err);
+        console.error("Sync failed (possibly missing permissions):", err);
         isSyncing = false;
         updateSyncBadge();
     }
@@ -431,7 +433,7 @@ function switchTab(name){
     document.getElementById('panel-'+name).classList.add('active');
     document.getElementById('tab-'+name).classList.add('active');
     if(name==='ledger') renderLedger(true);
-    if(name==='history') renderHistory(true);
+    if(name==='history') renderHistory();
     if(name==='packing') renderPokaHistory();
 }
 
@@ -448,7 +450,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION (ROBUST)
+// FIREBASE CONNECTION & DATA FETCHING
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -462,6 +464,24 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
+    // The app only boots if an admin logs in successfully
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('pw-screen').style.display = 'none';
+            startDatabaseListeners();
+        } else {
+            document.getElementById('pw-screen').style.display = 'flex';
+            allBills = [];
+            allPokas = [];
+            cloudCustomers = {};
+        }
+    });
+
+  }catch(e){ console.error(e); }
+}
+setTimeout(initFB, 300);
+
+function startDatabaseListeners() {
     db.ref('.info/connected').on('value',s=>{
       if(s.val()===true){
         fbReady=true;
@@ -492,18 +512,6 @@ function initFB(){
         if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
     });
 
-    db.ref('nwh/bills').on('value',s=>{
-        const v=s.val();
-        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
-        if(document.getElementById('panel-history').classList.contains('active')) renderHistory();
-    });
-
-    db.ref('nwh/pokas').on('value', s => {
-        const v = s.val();
-        allPokas = v ? Object.entries(v).map(([k, p]) => ({key: k, ...p})).reverse() : [];
-        if(document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
-    });
-
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
       if(Array.isArray(val)) inventoryList = val;
@@ -512,9 +520,39 @@ function initFB(){
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-  }catch(e){ console.error(e); }
+    // Start memory-safe paginated listeners
+    loadBills();
+    loadPokas();
 }
-setTimeout(initFB, 300);
+
+function loadBills() {
+    if(billsListenerRef) db.ref('nwh/bills').off('value', billsListenerRef);
+    billsListenerRef = db.ref('nwh/bills').orderByKey().limitToLast(dbBillsLimit).on('value', s => {
+        const v = s.val();
+        allBills = v ? Object.entries(v).map(([k, b]) => ({ key: k, ...b })).reverse() : [];
+        if (document.getElementById('panel-history').classList.contains('active')) renderHistory();
+    });
+}
+
+function loadPokas() {
+    if(pokasListenerRef) db.ref('nwh/pokas').off('value', pokasListenerRef);
+    pokasListenerRef = db.ref('nwh/pokas').orderByKey().limitToLast(dbPokasLimit).on('value', s => {
+        const v = s.val();
+        allPokas = v ? Object.entries(v).map(([k, p]) => ({ key: k, ...p })).reverse() : [];
+        if (document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
+    });
+}
+
+function loadMoreBills() {
+    dbBillsLimit += 50;
+    loadBills();
+}
+
+function loadMorePokas() {
+    dbPokasLimit += 50;
+    loadPokas();
+}
+
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
@@ -795,6 +833,11 @@ function renderPokaHistory() {
         </tr>`;
     });
     c.innerHTML = html + `</tbody></table>`;
+    
+    // RAM Optimization: Only show the "Load More" button if there are actually 50 loaded items.
+    if(allPokas.length >= dbPokasLimit) {
+        c.innerHTML += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="loadMorePokas()">Load More Server Data</button>`;
+    }
 }
 
 function loadPokaDraft(key) {
@@ -1847,9 +1890,7 @@ function downloadReceiptImage() {
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-let historyLimit = 30;
-function renderHistory(resetLimit = false){
-  if(resetLimit) historyLimit = 30;
+function renderHistory(){
   const c=document.getElementById('history-container');
   if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
 
@@ -1858,15 +1899,16 @@ function renderHistory(resetLimit = false){
   if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching bills.</div>`;
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  filtered.slice(0, historyLimit).forEach(b=>{
+  filtered.forEach(b=>{
     const baki=parseInt(b.remaining)||0;
     html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${b.customer}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
   html += `</tbody></table>`;
-  if(filtered.length > historyLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="historyLimit += 30; renderHistory();">Load More</button>`;
+  
+  if(allBills.length >= dbBillsLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="loadMoreBills()">Load More Server Data</button>`;
   c.innerHTML = html;
 }
-const debouncedFilterHistory = debounce(() => renderHistory(true));
+const debouncedFilterHistory = debounce(() => renderHistory());
 
 let ledgerLimit = 30;
 function renderLedger(resetLimit = false){
