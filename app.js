@@ -29,7 +29,7 @@ let pokasListenerRef = null;
 let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
 
 // ============================================================
-// PIN LOCK LOGIC
+// SECURE PIN LOCK LOGIC
 // ============================================================
 let pinCode = '';
 const CORRECT_PIN = '8860'; 
@@ -41,16 +41,29 @@ function pinPress(num) {
   }
   if(pinCode.length === 4) {
     if(pinCode === CORRECT_PIN) {
-      document.getElementById('pw-screen').style.display = 'none';
+      document.getElementById('pw-err').innerText = 'Unlocking database...';
+      
+      // REPLACE THESE WITH YOUR FIREBASE EMAIL AND PASSWORD
+      firebase.auth().signInWithEmailAndPassword('youradmin@email.com', 'your_secure_password')
+        .then(() => {
+            document.getElementById('pw-err').innerText = '';
+            document.getElementById('pw-screen').style.display = 'none';
+        })
+        .catch(err => {
+            document.getElementById('pw-err').innerText = 'Database Error: ' + err.message;
+            setTimeout(resetPinPad, 2000);
+        });
     } else {
       document.getElementById('pw-err').innerText = 'Incorrect PIN';
-      setTimeout(() => {
-        pinCode = '';
-        document.getElementById('pw-err').innerText = '';
-        document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
-      }, 1000);
+      setTimeout(resetPinPad, 1000);
     }
   }
+}
+
+function resetPinPad() {
+  pinCode = '';
+  document.getElementById('pw-err').innerText = '';
+  document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
 }
 
 function pinDel() {
@@ -427,7 +440,7 @@ window.onload = function() {
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
 
-    // NEW: Global listener to instantly auto-fill phone numbers no matter how the name is typed
+    // Auto-fill phone numbers no matter how the name is typed
     document.getElementById('customer-name').addEventListener('input', function() {
         const cu = cloudCustomers[this.value.trim()];
         if(cu) {
@@ -481,10 +494,12 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // Silently authenticate in the background to satisfy Firebase Security Rules
-    firebase.auth().signInAnonymously().then(() => {
-        startDatabaseListeners();
-    }).catch(e => console.error("Auth error:", e));
+    // Listen for the secure login triggered by the PIN pad
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            startDatabaseListeners();
+        }
+    });
 
   }catch(e){ console.error(e); }
 }
@@ -843,7 +858,6 @@ function renderPokaHistory() {
     });
     c.innerHTML = html + `</tbody></table>`;
     
-    // RAM Optimization: Only show the "Load More" button if there are actually 50 loaded items.
     if(allPokas.length >= dbPokasLimit) {
         c.innerHTML += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="loadMorePokas()">Load More Server Data</button>`;
     }
