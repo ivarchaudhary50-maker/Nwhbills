@@ -31,27 +31,38 @@ let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}'
 // ============================================================
 // FIREBASE AUTHENTICATION LOGIC (TRUE SECURITY)
 // ============================================================
-function loginAdmin() {
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-pass').value;
-    const errBox = document.getElementById('pw-err');
-    errBox.innerText = 'Authenticating...';
+// ============================================================
+// PIN LOCK LOGIC
+// ============================================================
+let pinCode = '';
+const CORRECT_PIN = '8860'; 
 
-    if (!email || !pass) {
-        errBox.innerText = 'Please enter both email and password.';
-        return;
+function pinPress(num) {
+  if(pinCode.length < 4) {
+    pinCode += num;
+    document.getElementById('d' + (pinCode.length - 1)).classList.add('filled');
+  }
+  if(pinCode.length === 4) {
+    if(pinCode === CORRECT_PIN) {
+      document.getElementById('pw-screen').style.display = 'none';
+    } else {
+      document.getElementById('pw-err').innerText = 'Incorrect PIN';
+      setTimeout(() => {
+        pinCode = '';
+        document.getElementById('pw-err').innerText = '';
+        document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
+      }, 1000);
     }
-
-    firebase.auth().signInWithEmailAndPassword(email, pass)
-        .then(() => { errBox.innerText = ''; })
-        .catch(err => { errBox.innerText = err.message; });
+  }
 }
 
-function logoutAdmin() {
-    firebase.auth().signOut().then(() => {
-        alert("Logged out successfully.");
-    });
+function pinDel() {
+  if(pinCode.length > 0) {
+    document.getElementById('d' + (pinCode.length - 1)).classList.remove('filled');
+    pinCode = pinCode.slice(0, -1);
+  }
 }
+
 
 // ============================================================
 // DEBOUNCE LOGIC (SPEED OPTIMIZATION)
