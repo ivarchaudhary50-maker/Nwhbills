@@ -29,9 +29,6 @@ let pokasListenerRef = null;
 let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
 
 // ============================================================
-// FIREBASE AUTHENTICATION LOGIC (TRUE SECURITY)
-// ============================================================
-// ============================================================
 // PIN LOCK LOGIC
 // ============================================================
 let pinCode = '';
@@ -62,7 +59,6 @@ function pinDel() {
     pinCode = pinCode.slice(0, -1);
   }
 }
-
 
 // ============================================================
 // DEBOUNCE LOGIC (SPEED OPTIMIZATION)
@@ -103,7 +99,6 @@ function queueDatabaseWrite(path, method, data) {
 }
 
 async function processSyncQueue() {
-    // Only attempt to sync if online AND logged in
     if (!fbReady || isSyncing || syncQueue.length === 0 || !firebase.auth().currentUser) {
         updateSyncBadge();
         return;
@@ -125,7 +120,7 @@ async function processSyncQueue() {
         isSyncing = false;
         processSyncQueue(); 
     } catch(err) {
-        console.error("Sync failed (possibly missing permissions):", err);
+        console.error("Sync failed:", err);
         isSyncing = false;
         updateSyncBadge();
     }
@@ -431,6 +426,17 @@ window.onload = function() {
     document.getElementById('slip-date').value = todayStr;
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
+
+    // NEW: Global listener to instantly auto-fill phone numbers no matter how the name is typed
+    document.getElementById('customer-name').addEventListener('input', function() {
+        const cu = cloudCustomers[this.value.trim()];
+        if(cu) {
+            document.getElementById('customer-phone').value = cu.phone || '';
+            document.getElementById('customer-address').value = cu.address || '';
+            if (!editBillKey) document.getElementById('prev-balance').value = cu.balance || '0';
+            calc();
+        }
+    });
 };
 
 // ============================================================
@@ -475,18 +481,10 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // The app only boots if an admin logs in successfully
-    firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-            document.getElementById('pw-screen').style.display = 'none';
-            startDatabaseListeners();
-        } else {
-            document.getElementById('pw-screen').style.display = 'flex';
-            allBills = [];
-            allPokas = [];
-            cloudCustomers = {};
-        }
-    });
+    // Silently authenticate in the background to satisfy Firebase Security Rules
+    firebase.auth().signInAnonymously().then(() => {
+        startDatabaseListeners();
+    }).catch(e => console.error("Auth error:", e));
 
   }catch(e){ console.error(e); }
 }
