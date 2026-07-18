@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 
-<!-- Added Firebase Auth SDK -->
+<!-- Required Firebase Scripts (Including Auth) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
@@ -40,7 +40,7 @@
     <div id="np-cal-grid" class="np-cal-grid"></div>
 </div>
 
-<!-- SECURE AUTHENTICATION SCREEN -->
+<!-- SECURE 8860 PIN PAD -->
 <div id="pw-screen">
   <div id="pw-box">
     <div id="pw-logo">🏪</div>
@@ -70,13 +70,12 @@
   </div>
 </div>
 
-
 <nav class="top-nav no-print">
   <div class="nav-brand">
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v40</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v41</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -95,6 +94,7 @@
 
 <div class="main">
 
+<!-- INVOICE PANEL -->
 <div class="panel active" id="panel-invoice">
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
@@ -194,6 +194,7 @@
   </div>
 </div>
 
+<!-- PACKING SLIPS PANEL -->
 <div class="panel" id="panel-packing">
   <div class="card no-print">
     <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
@@ -226,6 +227,7 @@
   </div>
 </div>
 
+<!-- HISTORY PANEL -->
 <div class="panel" id="panel-history">
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
@@ -236,6 +238,7 @@
   </div>
 </div>
 
+<!-- LEDGER PANEL -->
 <div class="panel" id="panel-ledger">
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap; gap:10px;">
@@ -346,7 +349,6 @@
                 </div>
             </div>
             
-            <!-- NEW STATEMENT SUMMARY BOX -->
             <div id="ls-summary-box" style="display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;"></div>
 
             <table class="items-table" style="width:100%; border-collapse:collapse;">
