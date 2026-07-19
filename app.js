@@ -139,7 +139,6 @@ function triggerCustomerAutoFill() {
     const searchName = rawName.toLowerCase();
     let cu = null;
 
-    // 1. Case-insensitive search in the main Ledger
     for(let key in cloudCustomers) {
         if(key.toLowerCase() === searchName) {
             cu = cloudCustomers[key];
@@ -153,10 +152,8 @@ function triggerCustomerAutoFill() {
     }
 
     if (!editBillKey) {
-        // Attempt to clean ledger balance, removing commas that crash the input box
         let bal = cu ? parseFloat((cu.balance || '0').toString().replace(/,/g, '')) : 0;
         
-        // 2. FAILSAFE: If Ledger is 0 or corrupted, scan the absolute newest History Bill
         if (!bal || isNaN(bal) || bal === 0) {
             for(let i = 0; i < allBills.length; i++) {
                 if(allBills[i].customer && allBills[i].customer.toLowerCase() === searchName) {
@@ -464,15 +461,11 @@ window.onload = function() {
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
 
-    // Trigger the powerful new autofill engine whenever the customer name box is typed in or clicked off
     const cNameInput = document.getElementById('customer-name');
     cNameInput.addEventListener('input', triggerCustomerAutoFill);
     cNameInput.addEventListener('blur', triggerCustomerAutoFill);
 };
 
-// ============================================================
-// TAB SYSTEM & FILTERS
-// ============================================================
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
 
 function switchTab(name){
@@ -512,13 +505,10 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // Silently authenticates your exact admin credentials in the background
-    firebase.auth().signInWithEmailAndPassword('ivarchaudh...@gmail.com', 'YourRealPassword')
-      .then(() => {
-          startDatabaseListeners();
-      }).catch(e => {
-          console.error("Auth error:", e);
-      });
+    // PERFECT FIX: Automatically use the anonymous login that is already working
+    firebase.auth().signInAnonymously().then(() => {
+        startDatabaseListeners();
+    }).catch(e => console.error("Auth error:", e));
 
   }catch(e){ console.error(e); }
 }
