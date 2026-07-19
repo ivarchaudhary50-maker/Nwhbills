@@ -1248,7 +1248,7 @@ function downloadSlipOnly() {
     clone.style.maxWidth = 'none';
     clone.style.margin = '0'; 
 
-    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -1521,7 +1521,7 @@ function confirmAndDownload() {
     clone.style.margin = '0'; 
 
     html2canvas(clone, { 
-        scale: 2, 
+        scale: 4, 
         useCORS: true,
         backgroundColor: '#ffffff'
     }).then(function (canvas) {
@@ -1691,7 +1691,7 @@ function downloadLedgerStatement() {
     clone.style.left = '0';
     clone.style.width = '800px';
 
-    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -1901,7 +1901,7 @@ function shareReceiptWA() {
 
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
-    html2canvas(targetElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(targetElement, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = `Receipt-${_payCust}.png`;
