@@ -127,6 +127,51 @@ async function processSyncQueue() {
 }
 
 // ============================================================
+// BULLETPROOF CUSTOMER DATA AUTO-FILL ENGINE
+// ============================================================
+function triggerCustomerAutoFill() {
+    const rawName = document.getElementById('customer-name').value.trim();
+    if(!rawName) {
+        if (!editBillKey) document.getElementById('prev-balance').value = '';
+        return;
+    }
+    
+    const searchName = rawName.toLowerCase();
+    let cu = null;
+
+    // 1. Case-insensitive search in the main Ledger
+    for(let key in cloudCustomers) {
+        if(key.toLowerCase() === searchName) {
+            cu = cloudCustomers[key];
+            break;
+        }
+    }
+    
+    if(cu) {
+        document.getElementById('customer-phone').value = cu.phone || '';
+        document.getElementById('customer-address').value = cu.address || '';
+    }
+
+    if (!editBillKey) {
+        // Attempt to clean ledger balance, removing commas that crash the input box
+        let bal = cu ? parseFloat((cu.balance || '0').toString().replace(/,/g, '')) : 0;
+        
+        // 2. FAILSAFE: If Ledger is 0 or corrupted, scan the absolute newest History Bill
+        if (!bal || isNaN(bal) || bal === 0) {
+            for(let i = 0; i < allBills.length; i++) {
+                if(allBills[i].customer && allBills[i].customer.toLowerCase() === searchName) {
+                    bal = parseFloat((allBills[i].remaining || '0').toString().replace(/,/g, ''));
+                    break;
+                }
+            }
+        }
+        
+        document.getElementById('prev-balance').value = (isNaN(bal) || bal === 0) ? '' : bal;
+        calc();
+    }
+}
+
+// ============================================================
 // SUGGESTION BAR SYSTEM
 // ============================================================
 function initSuggestionBar() {
@@ -177,15 +222,7 @@ function updateSuggestions(target) {
             if(target.oninput) target.oninput(target); 
             
             if (target.id === 'customer-name') {
-                const cu = cloudCustomers[opt];
-                if (cu) {
-                    document.getElementById('customer-phone').value = cu.phone || '';
-                    document.getElementById('customer-address').value = cu.address || '';
-                    if (!editBillKey) {
-                        document.getElementById('prev-balance').value = cu.balance || '0';
-                    }
-                    calc();
-                }
+                triggerCustomerAutoFill();
             } else if(target.classList.contains('item-desc')) {
                 checkAndAutoFillRate(target);
             }
@@ -427,16 +464,10 @@ window.onload = function() {
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
 
-    // The Auto-Fill Fix: Watches exactly what you type to pull in phone numbers instantly
-    document.getElementById('customer-name').addEventListener('input', function() {
-        const cu = cloudCustomers[this.value.trim()];
-        if(cu) {
-            document.getElementById('customer-phone').value = cu.phone || '';
-            document.getElementById('customer-address').value = cu.address || '';
-            if (!editBillKey) document.getElementById('prev-balance').value = cu.balance || '0';
-            calc();
-        }
-    });
+    // Trigger the powerful new autofill engine whenever the customer name box is typed in or clicked off
+    const cNameInput = document.getElementById('customer-name');
+    cNameInput.addEventListener('input', triggerCustomerAutoFill);
+    cNameInput.addEventListener('blur', triggerCustomerAutoFill);
 };
 
 // ============================================================
@@ -481,10 +512,13 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // Silently authenticates in the background so your locked DB allows data through
-    firebase.auth().signInAnonymously().then(() => {
-        startDatabaseListeners();
-    }).catch(e => console.error("Auth error:", e));
+    // Silently authenticates your exact admin credentials in the background
+    firebase.auth().signInWithEmailAndPassword('ivarchaudh...@gmail.com', 'YourRealPassword')
+      .then(() => {
+          startDatabaseListeners();
+      }).catch(e => {
+          console.error("Auth error:", e);
+      });
 
   }catch(e){ console.error(e); }
 }
@@ -1008,10 +1042,8 @@ function searchDB(){
       d.innerHTML=`<span><strong>${name}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
       d.onclick=()=>{
           document.getElementById('customer-name').value=name;
-          document.getElementById('customer-phone').value=cloudCustomers[name].phone||'';
-          document.getElementById('customer-address').value=cloudCustomers[name].address||'';
-          document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
-          document.getElementById('db-search').value='';box.style.display='none';calc();
+          triggerCustomerAutoFill();
+          document.getElementById('db-search').value='';box.style.display='none';
           document.querySelectorAll('.item-desc').forEach(el => checkAndAutoFillRate(el));
       };
       box.appendChild(d);n++;
@@ -1041,12 +1073,9 @@ async function pickPhoneContact(){
         let name=c[0].name[0]||'';
         name = name.replace(/[.#$\[\]]/g, ' ').trim(); 
         document.getElementById('customer-name').value=name;
-        document.getElementById('customer-phone').value=c[0].tel[0]||'';
-        if(name&&cloudCustomers[name]){
-            document.getElementById('customer-address').value=cloudCustomers[name].address||'';
-            document.getElementById('prev-balance').value=cloudCustomers[name].balance||'0';
+        if(name){
+            triggerCustomerAutoFill();
         }
-        calc();
       }
     }catch(e){}
   }else{alert('Open in Google Chrome to use Contacts.');}
