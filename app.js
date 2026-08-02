@@ -49,7 +49,6 @@ function updatePinDots() {
 }
 
 function checkPin() {
-  // Unlocks pin screen
   const pwScreen = document.getElementById('pw-screen');
   if (pwScreen) pwScreen.style.display = 'none';
   enteredPin = '';
@@ -57,16 +56,18 @@ function checkPin() {
 }
 
 // ============================================================
-// FEATURE: DYNAMIC TRUE CUSTOMER BALANCE
+// FEATURE: DYNAMIC TRUE CUSTOMER BALANCE (FAULT-TOLERANT)
 // ============================================================
 function getCustomerTrueBalance(custName) {
     if (!custName) return 0;
     let totalBaki = 0;
-    allBills.forEach(b => {
-        if (b.customer === custName) {
-            totalBaki += parseFloat(b.remaining) || 0;
-        }
-    });
+    if (Array.isArray(allBills)) {
+        allBills.forEach(b => {
+            if (b && typeof b === 'object' && b.customer === custName) {
+                totalBaki += parseFloat(b.remaining) || 0;
+            }
+        });
+    }
     return totalBaki;
 }
 
@@ -84,24 +85,25 @@ function renderDashboardSummary() {
     let todayCollected = 0;
     let totalMarketBaki = 0;
 
-    allBills.forEach(b => {
-        if (b.date === todayStr) {
-            todaySales += parseFloat(b.billAmount) || 0;
-            if (b.cashPaidDate === todayStr) {
-                todayCollected += parseFloat(b.paid) || 0;
-            }
-        }
-        
-        if (b.payments) {
-            Object.values(b.payments).forEach(p => {
-                if (p.date === todayStr) {
-                    todayCollected += parseFloat(p.amount) || 0;
+    if (Array.isArray(allBills)) {
+        allBills.forEach(b => {
+            if (!b || typeof b !== 'object') return;
+            if (b.date === todayStr) {
+                todaySales += parseFloat(b.billAmount) || 0;
+                if (b.cashPaidDate === todayStr) {
+                    todayCollected += parseFloat(b.paid) || 0;
                 }
-            });
-        }
-
-        totalMarketBaki += parseFloat(b.remaining) || 0;
-    });
+            }
+            if (b.payments && typeof b.payments === 'object') {
+                Object.values(b.payments).forEach(p => {
+                    if (p && p.date === todayStr) {
+                        todayCollected += parseFloat(p.amount) || 0;
+                    }
+                });
+            }
+            totalMarketBaki += parseFloat(b.remaining) || 0;
+        });
+    }
 
     salesEl.innerText = `NRS ${Math.round(todaySales).toLocaleString('en-IN')}`;
     collectedEl.innerText = `NRS ${Math.round(todayCollected).toLocaleString('en-IN')}`;
@@ -158,7 +160,7 @@ function printCurrentInvoice() {
 }
 
 // ============================================================
-// DEBOUNCE LOGIC (SPEED OPTIMIZATION)
+// DEBOUNCE LOGIC
 // ============================================================
 function debounce(func, delay = 300) {
   let timeout;
@@ -257,9 +259,9 @@ function updateSuggestions(target) {
     let opts = [];
     
     if (target.id === 'customer-name' || target.id === 'slip-customer') {
-        opts = Object.keys(cloudCustomers);
+        opts = Object.keys(cloudCustomers || {});
     } else {
-        opts = inventoryList;
+        opts = inventoryList || [];
     }
     
     if (opts.length === 0) { bar.style.display = 'none'; return; }
@@ -412,7 +414,7 @@ function populateCustomerList() {
     const list = document.getElementById('customer-list');
     if(!list) return;
     list.innerHTML = '';
-    Object.keys(cloudCustomers).forEach(name => {
+    Object.keys(cloudCustomers || {}).forEach(name => {
         let option = document.createElement('option');
         option.value = name;
         list.appendChild(option);
@@ -554,7 +556,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION & AUTO-RE-RENDER FIX
+// FIREBASE CONNECTION (SAFE DATA PARSING)
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -585,28 +587,36 @@ function initFB(){
     });
 
     db.ref('nwh/customers').on('value',s=>{
-        cloudCustomers=s.val()||{};
+        const val = s.val();
+        cloudCustomers = (val && typeof val === 'object') ? val : {};
         populateCustomerList();
-        renderLedger(); // ALWAYS RE-RENDER CUSTOMERS WHEN DATA ARRIVES
+        renderLedger();
     });
 
     db.ref('nwh/bills').on('value',s=>{
-        const v=s.val();
-        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+        const v = s.val();
+        if (v && typeof v === 'object') {
+            allBills = Object.entries(v)
+                .filter(([k, b]) => b && typeof b === 'object')
+                .map(([k, b]) => ({ key: k, ...b }))
+                .reverse();
+        } else {
+            allBills = [];
+        }
         renderDashboardSummary();
-        renderHistory(); // ALWAYS RE-RENDER BILLS WHEN DATA ARRIVES
+        renderHistory();
     });
 
     db.ref('nwh/pokas').on('value', s => {
         const v = s.val();
-        allPokas = v ? Object.entries(v).map(([k, p]) => ({key: k, ...p})).reverse() : [];
+        allPokas = (v && typeof v === 'object') ? Object.entries(v).filter(([k, p]) => p && typeof p === 'object').map(([k, p]) => ({key: k, ...p})).reverse() : [];
         renderPokaHistory();
     });
 
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
       if(Array.isArray(val)) inventoryList = val;
-      else if(val) inventoryList = Object.values(val);
+      else if(val && typeof val === 'object') inventoryList = Object.values(val);
       renderInventory();
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
@@ -627,7 +637,7 @@ function renderInventory() {
     const list = document.getElementById('inventory-list');
     if(!list) return;
     list.innerHTML = '';
-    inventoryList.forEach(item => {
+    (inventoryList || []).forEach(item => {
         let option = document.createElement('option');
         option.value = item;
         list.appendChild(option);
@@ -636,7 +646,8 @@ function renderInventory() {
 
 function saveNewItems(itemsArray) {
     let changed = false;
-    itemsArray.forEach(it => {
+    (itemsArray || []).forEach(it => {
+        if (!it || !it.desc) return;
         const d = it.desc.trim();
         if (d && d !== 'Item' && !inventoryList.includes(d)) {
             inventoryList.push(d);
@@ -656,6 +667,7 @@ function checkAndAutoFillRate(inputElement) {
     const custName = document.getElementById('customer-name').value.trim().replace(/[.#$\[\]]/g, ' ');
     const descInput = row.querySelector('.item-desc');
     const rateInput = row.querySelector('.rate');
+    if (!descInput || !rateInput) return;
     
     let hintSpan = row.querySelector('.rate-hint');
     if(!hintSpan) {
@@ -671,8 +683,8 @@ function checkAndAutoFillRate(inputElement) {
     
     let lastRate = null;
     for(let i=0; i<allBills.length; i++) {
-        if(allBills[i].customer === custName && allBills[i].items) {
-            const match = allBills[i].items.find(it => it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
+        if(allBills[i] && allBills[i].customer === custName && allBills[i].items) {
+            const match = allBills[i].items.find(it => it && it.desc && it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
             if(match && match.rate) {
                 lastRate = match.rate;
                 break; 
@@ -745,14 +757,14 @@ function addPokaGroup(items = null) {
     
     if (items && items.length > 0) {
         items.forEach(it => {
-            let form = it.formula;
+            let form = it.formula || '';
             let mult = '10'; 
             if (form.includes('×')) {
                const parts = form.split('×');
                form = parts[0].replace(/[() ]/g, '');
                mult = parts[1].trim();
             }
-            addPokaItemRow(currentId, it.desc, form, mult);
+            addPokaItemRow(currentId, it.desc || '', form, mult);
         });
     } else {
         addPokaItemRow(currentId);
@@ -894,10 +906,11 @@ function renderPokaHistory() {
 
     let html = `<table class="h-table"><thead><tr><th>Date & Ref</th><th>Customer</th><th>Total</th><th>Actions</th></tr></thead><tbody>`;
     allPokas.forEach(p => {
+        if(!p) return;
         html += `<tr>
-            <td><strong style="color:var(--accent);">${p.ref}</strong><br><span style="font-size:10px">${p.date}</span></td>
-            <td><strong>${p.customer}</strong></td>
-            <td>${p.totalPoka}</td>
+            <td><strong style="color:var(--accent);">${p.ref || 'N/A'}</strong><br><span style="font-size:10px">${p.date || ''}</span></td>
+            <td><strong>${p.customer || 'Unknown'}</strong></td>
+            <td>${p.totalPoka || 0}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--accent); color:var(--accent);" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
                 <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--red); color:var(--red); margin-left:4px;" onclick="deletePokaDraft('${p.key}')">🗑️</button>
@@ -908,12 +921,12 @@ function renderPokaHistory() {
 }
 
 function loadPokaDraft(key) {
-    const p = allPokas.find(x => x.key === key);
+    const p = allPokas.find(x => x && x.key === key);
     if(!p) return;
 
     document.getElementById('slip-customer').value = p.customer !== 'Walk-in / Unknown' ? p.customer : '';
-    document.getElementById('slip-ref').value = p.ref;
-    document.getElementById('slip-date').value = p.date;
+    document.getElementById('slip-ref').value = p.ref || '';
+    document.getElementById('slip-date').value = p.date || todayStr;
 
     document.getElementById('poka-groups-container').innerHTML = '';
     pokaCounter = 0;
@@ -1541,8 +1554,9 @@ function showPriceBook(custName) {
     list.innerHTML = '';
     const historyMap = {};
     for(let i=allBills.length-1; i>=0; i--) { 
-        if(allBills[i].customer === custName && allBills[i].items) {
+        if(allBills[i] && allBills[i].customer === custName && allBills[i].items) {
             allBills[i].items.forEach(it => {
+                if(!it || !it.desc) return;
                 const desc = it.desc.trim();
                 if(desc && desc !== 'Item') historyMap[desc] = it.rate;
             });
@@ -1572,15 +1586,16 @@ function showLedgerStatement(custName) {
     list.innerHTML = '';
     
     let events = [];
-    allBills.filter(b => b.customer === custName).forEach(b => {
+    allBills.filter(b => b && b.customer === custName).forEach(b => {
         let billTotal = parseInt(b.billAmount) || 0;
         if(b.payments) {
             Object.values(b.payments).forEach(p => {
+                if(!p) return;
                 let amt = parseInt(p.amount) || 0;
-                events.push({ date: p.date, time: new Date(p.date).getTime() + 1000, desc: `Payment (${p.mode || 'Cash'})`, debit: 0, credit: amt });
+                events.push({ date: p.date || '', time: new Date(p.date || 0).getTime() + 1000, desc: `Payment (${p.mode || 'Cash'})`, debit: 0, credit: amt });
             });
         }
-        events.push({ date: b.date, time: new Date(b.date).getTime(), desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: 0 });
+        events.push({ date: b.date || '', time: new Date(b.date || 0).getTime(), desc: `Invoice #${b.invoiceNum || ''}`, debit: billTotal, credit: 0 });
     });
     
     events.sort((a,b) => a.time - b.time);
@@ -1624,24 +1639,27 @@ function downloadLedgerStatement() {
 }
 
 function showBillDetail(key){
-  const b=allBills.find(x=>x.key===key);if(!b) return;
-  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
+  const b=allBills.find(x=>x && x.key===key);if(!b) return;
+  document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum || ''} — ${b.customer || 'Unknown'}`;
   
   let iHtml='';
   if(b.items&&b.items.length){
     iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;">Item</th><th style="padding:7px 10px;text-align:right;">Qty</th><th style="padding:7px 10px;text-align:right;">Rate</th><th style="padding:7px 10px;text-align:right;">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    b.items.forEach(it=>{
+      if(!it) return;
+      iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc || ''}</td><td style="padding:6px 10px;text-align:right">${it.qty || 0}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;
+    });
     iHtml+='</tbody></table></div>';
   }
 
   const baki=parseInt(b.remaining)||0;
   
   document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">Date</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
+    <div class="d-row"><span class="d-label">Date</span><span class="d-val">${b.date || ''} / ${b.dateBS||''}</span></div>
     ${iHtml}
-    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label">Purano Baki</span><span class="d-val">NRS ${parseInt(b.prevBalance || 0).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
+    <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid || 0).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
     <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
@@ -1655,7 +1673,7 @@ function showBillDetail(key){
 function showCustDetail(name){
   const cu=cloudCustomers[name];if(!cu) return;
   const baki=getCustomerTrueBalance(name);
-  const safeName = name.replace(/'/g, "\\'");
+  const safeName = (name || '').replace(/'/g, "\\'");
   document.getElementById('modal-title').innerText=`👤 ${name}`;
   document.getElementById('modal-body').innerHTML=`
     <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
@@ -1714,7 +1732,7 @@ function openPayModal(key,cust,baki){
 }
 
 function payFromLedger(name,baki){
-  const bill=allBills.find(b=>b.customer===name&&(parseInt(b.remaining)||0)>0);
+  const bill=allBills.find(b=>b && b.customer===name && (parseInt(b.remaining)||0)>0);
   if(bill){closeModal('bill-modal');openPayModal(bill.key,name,baki);}
   else alert('No outstanding bills found.');
 }
@@ -1726,7 +1744,7 @@ function confirmPayment(){
   const payMode = document.getElementById('pay-mode-inp') ? document.getElementById('pay-mode-inp').value : 'Cash 💵';
   
   if(amount<=0){alert('Enter a valid amount');return;}
-  const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
+  const bill=allBills.find(b=>b && b.key===_payKey);if(!bill) return;
   
   const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
   const newPaid=(parseInt(bill.paid)||0)+amount;
@@ -1773,10 +1791,10 @@ function downloadReceiptImage() {
 }
 
 function deleteBill(key) {
-  const b = allBills.find(x => x.key === key);
+  const b = allBills.find(x => x && x.key === key);
   if (!b) return;
 
-  if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum} for ${b.customer}?`)) {
+  if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum || ''} for ${b.customer || 'Unknown'}?`)) {
     queueDatabaseWrite('nwh/bills/' + key, 'remove', null);
     closeModal('bill-modal');
 
@@ -1784,7 +1802,7 @@ function deleteBill(key) {
     renderLedger();
     renderDashboardSummary();
 
-    alert(`✅ Invoice #${b.invoiceNum} deleted successfully!`);
+    alert(`✅ Invoice #${b.invoiceNum || ''} deleted successfully!`);
   }
 }
 
@@ -1798,17 +1816,41 @@ function renderHistory(resetLimit = false){
   if(resetLimit) historyLimit = 30;
   const c=document.getElementById('history-container');
   if(!c) return;
-  if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
+  if(!allBills || !allBills.length) {
+      c.innerHTML=`<div class="empty-state">No bills yet</div>`;
+      return;
+  }
 
   const qEl = document.getElementById('history-search');
-  const q = qEl ? qEl.value.toLowerCase() : '';
-  let filtered = q ? allBills.filter(b => b.customer.toLowerCase().includes(q) || b.invoiceNum.toString().includes(q)) : allBills;
-  if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching bills.</div>`;
+  const q = qEl ? qEl.value.toLowerCase().trim() : '';
+  let filtered = allBills.filter(b => {
+      if (!b || typeof b !== 'object') return false;
+      const cust = (b.customer || '').toString().toLowerCase();
+      const inv = (b.invoiceNum || '').toString().toLowerCase();
+      return !q || cust.includes(q) || inv.includes(q);
+  });
+
+  if(!filtered.length) {
+      c.innerHTML=`<div class="empty-state">No matching bills.</div>`;
+      return;
+  }
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
   filtered.slice(0, historyLimit).forEach(b=>{
-    const baki=parseInt(b.remaining)||0;
-    html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${b.customer}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
+    const baki = parseFloat(b.remaining) || 0;
+    const invNum = b.invoiceNum || 'N/A';
+    const custName = b.customer || 'Unknown';
+    const dateStr = b.date || '';
+    const billAmt = parseFloat(b.billAmount) || 0;
+    const paidAmt = parseFloat(b.paid) || 0;
+
+    html+=`<tr onclick="showBillDetail('${b.key}')">
+        <td><span style="font-weight:700;color:var(--accent)">#${invNum}</span><br><span style="font-size:10px">${dateStr}</span></td>
+        <td><strong>${custName}</strong></td>
+        <td>NRS ${Math.round(billAmt).toLocaleString('en-IN')}</td>
+        <td style="color:var(--green)">${Math.round(paidAmt).toLocaleString('en-IN')}</td>
+        <td><span class="badge ${baki>0?'b-red':'b-green'}">${Math.round(baki).toLocaleString('en-IN')}</span></td>
+    </tr>`;
   });
   html += `</tbody></table>`;
   if(filtered.length > historyLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="historyLimit += 30; renderHistory();">Load More</button>`;
@@ -1821,19 +1863,46 @@ function renderLedger(resetLimit = false){
   if(resetLimit) ledgerLimit = 30;
   const c=document.getElementById('ledger-container');
   if(!c) return;
-  const custs=Object.entries(cloudCustomers);
-  if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
+  const custs=Object.entries(cloudCustomers || {});
+  if(!custs.length) {
+      c.innerHTML=`<div class="empty-state">No customers yet</div>`;
+      return;
+  }
 
   const qEl = document.getElementById('ledger-search');
-  const q = qEl ? qEl.value.toLowerCase() : '';
-  let filtered = q ? custs.filter(([n, cu]) => n.toLowerCase().includes(q) || (cu.phone && cu.phone.includes(q))) : custs;
-  if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching customers.</div>`;
+  const q = qEl ? qEl.value.toLowerCase().trim() : '';
+  let filtered = custs.filter(([n, cu]) => {
+      const name = (n || '').toLowerCase();
+      const phone = (cu && cu.phone || '').toString().toLowerCase();
+      return !q || name.includes(q) || phone.includes(q);
+  });
+
+  if(!filtered.length) {
+      c.innerHTML=`<div class="empty-state">No matching customers.</div>`;
+      return;
+  }
 
   let html = '';
   filtered.slice(0, ledgerLimit).forEach(([name,cu])=>{
     const baki = getCustomerTrueBalance(name);
-    const safeName = name.replace(/'/g, "\\'"); 
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1;"><div class="lc-name">${name}</div><div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button></div></div><div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
+    const safeName = (name || '').replace(/'/g, "\\'"); 
+    const phone = (cu && cu.phone) || '—';
+
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
+        <div style="flex:1;">
+            <div class="lc-name">${name}</div>
+            <div class="lc-phone" style="margin-bottom:8px;">${phone}</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button>
+                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button>
+            </div>
+        </div>
+        <div style="text-align:right">
+            <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div>
+            <span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span>
+        </div>
+    </div>`;
   });
   if(filtered.length > ledgerLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="ledgerLimit += 30; renderLedger();">Load More</button>`;
   c.innerHTML = html;
