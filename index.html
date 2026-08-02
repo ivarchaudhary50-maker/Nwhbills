@@ -91,13 +91,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:50;max-height:160px;overflow-y:auto;display:none;}
 .sr-item{padding:9px 12px;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 
-.btn{padding:8px 15px;border-radius:9px;border:none;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
-.btn-primary{background:var(--grad);color:#fff;}
-.btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
-.btn-green{background:#d1fae5;color:#065f46;border:1.5px solid #a7f3d0;}
-.btn-wa{background:#25d366;color:#fff;}
-
-/* FORM ITEMS TABLE FORMING & ALIGNMENT FIX */
 .items-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .items-table thead tr{background:var(--grad);color:#fff;}
 .items-table th{padding:10px 6px;font-size:.73rem;font-weight:700;text-transform:uppercase;}
@@ -130,7 +123,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .h-table th{padding:10px 13px;font-size:.72rem;font-weight:700;text-transform:uppercase;}
 .h-table td{padding:10px 13px;font-size:.82rem;}
 
-/* LEDGER CARD TAP & SELECTION FIX */
 .ledger-card{
     background:var(--surface);
     border-radius:12px;
@@ -191,7 +183,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     width: 100%;
     overflow-x: auto;
     background: #e2e8f0;
-    padding: 10px;
+    padding: 15px;
     -webkit-overflow-scrolling: touch;
 }
 #actual-bill-to-render {
@@ -200,10 +192,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     background: #ffffff;
     color: #000000;
     font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-    padding: 30px;
+    padding: 35px;
     margin: 0 auto;
-    border-radius: 6px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 </style>
 </head>
@@ -287,7 +279,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
       <div contenteditable="true" class="biz-name" id="biz-name">Rabi Kapada Pasal</div>
-      <span contenteditable="true" class="biz-sub" id="biz-sub">Address & Contact</span>
+      <span contenteditable="true" class="biz-sub" id="biz-sub">Garment Wholesaler & Screen Printing</span>
     </div>
     <div class="inv-meta">
       <div class="inv-label">INVOICE</div>
