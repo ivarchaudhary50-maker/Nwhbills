@@ -43,15 +43,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .nav-actions{display:flex;align-items:center;gap:7px;}
 .sync-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
 .sync-badge.synced{background:rgba(52,211,153,.25);border-color:rgba(52,211,153,.5);}
-.btn-icon{width:33px;height:33px;border-radius:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .2s;}
-.btn-icon:hover{background:rgba(255,255,255,.28);}
+.btn-icon{width:33px;height:33px;border-radius:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;}
 .lang-btn{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;font-family:inherit;}
-.lang-btn:hover{background:rgba(255,255,255,.3);}
 
 .tab-bar{background:var(--surface);border-bottom:2px solid var(--border);display:flex;padding:0 1rem;overflow-x:auto;scrollbar-width:none;}
 .tab-bar::-webkit-scrollbar{display:none;}
-.tab{padding:12px 16px;font-size:.82rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;}
-.tab:hover{color:var(--accent);}
+.tab{padding:12px 16px;font-size:.82rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;display:flex;align-items:center;gap:5px;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 
 .main{padding:1.2rem;max-width:960px;margin:0 auto;}
@@ -64,7 +61,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .card-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:6px;}
 .card-body{padding:16px 18px;}
 
-.inv-head{background:var(--grad);border-radius:14px;padding:20px;color:#fff;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;position:relative;overflow:hidden;}
+.inv-head{background:var(--grad);border-radius:14px;padding:20px;color:#fff;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;}
 .biz-name{font-size:1.5rem;font-weight:800;outline:none;color:#fff;background:transparent;border-bottom:2px dashed rgba(255,255,255,.3);min-width:160px;}
 .biz-sub{font-size:.82rem;opacity:.8;outline:none;background:transparent;border-bottom:1px dashed rgba(255,255,255,.2);min-width:130px;display:block;margin-top:4px;color:#fff;}
 .inv-meta{text-align:right;}
@@ -159,6 +156,19 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
+/* PIN LOCK SCREEN */
+#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+#pw-logo{font-size:44px;margin-bottom:10px;}
+#pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
+#pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
+.pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
+.pin-del{font-size:1rem;color:var(--text3);}
+#pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
+
 .responsive-preview-container { width: 100%; overflow-x: auto; background: #e2e8f0; }
 </style>
 </head>
@@ -167,7 +177,37 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 <datalist id="inventory-list"></datalist>
 <datalist id="customer-list"></datalist>
 
-<!-- SUGGESTION BAR FIXED AT BOTTOM -->
+<!-- PIN LOCK SCREEN RE-INSERTED -->
+<div id="pw-screen">
+  <div id="pw-box">
+    <div id="pw-logo">🏪</div>
+    <div id="pw-title">Rabi Kapada Pasal</div>
+    <div id="pw-sub">Enter your 4-digit PIN</div>
+    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:230px;margin:0 auto;">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <div></div>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn pin-del" onclick="pinDel()">⌫</button>
+    </div>
+    <div id="pw-err"></div>
+  </div>
+</div>
+
+<!-- SUGGESTION BAR -->
 <div id="suggestion-bar" class="suggestion-bar no-print"></div>
 
 <!-- NATIVE CALENDAR POPUP -->
@@ -337,7 +377,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </div>
 
 <div class="panel" id="panel-history">
-  <!-- FINANCIAL DASHBOARD SUMMARY -->
   <div class="dash-grid no-print" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:14px;">
     <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
       <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">TODAY'S SALES</div>
@@ -377,7 +416,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
 </div>
 
-<!-- ALL MODALS BELOW -->
+<!-- MODALS -->
 
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
