@@ -8,56 +8,116 @@ function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {
 
 let editBillKey = null;
 let editInvoiceNum = null;
-let pendingBill = null;
 let lang = 'en';
 let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+let pendingBill = null;
+let isDrawing = false;
+let sigCtx = null;
+let canvasListenersAdded = false;
+let _payKey='', _payCust='';
 
 // ============================================================
-// PAGINATION LIMITS (RAM OPTIMIZATION)
+// FEATURE: DYNAMIC TRUE CUSTOMER BALANCE
 // ============================================================
-let dbBillsLimit = 50; 
-let dbPokasLimit = 50;
-let billsListenerRef = null;
-let pokasListenerRef = null;
-
-// ============================================================
-// OFFLINE CACHE (FOR PERFECT DATES)
-// ============================================================
-let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
-
-// ============================================================
-// PIN LOCK LOGIC
-// ============================================================
-let pinCode = '';
-const CORRECT_PIN = '8860'; 
-
-function pinPress(num) {
-  if(pinCode.length < 4) {
-    pinCode += num;
-    document.getElementById('d' + (pinCode.length - 1)).classList.add('filled');
-  }
-  if(pinCode.length === 4) {
-    if(pinCode === CORRECT_PIN) {
-      document.getElementById('pw-screen').style.display = 'none';
-    } else {
-      document.getElementById('pw-err').innerText = 'Incorrect PIN';
-      setTimeout(() => {
-        pinCode = '';
-        document.getElementById('pw-err').innerText = '';
-        document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
-      }, 1000);
-    }
-  }
+function getCustomerTrueBalance(custName) {
+    if (!custName) return 0;
+    let totalBaki = 0;
+    allBills.forEach(b => {
+        if (b.customer === custName) {
+            totalBaki += parseFloat(b.remaining) || 0;
+        }
+    });
+    return totalBaki;
 }
 
-function pinDel() {
-  if(pinCode.length > 0) {
-    document.getElementById('d' + (pinCode.length - 1)).classList.remove('filled');
-    pinCode = pinCode.slice(0, -1);
-  }
+// ============================================================
+// FEATURE: FINANCIAL DASHBOARD & DAILY SUMMARY
+// ============================================================
+function renderDashboardSummary() {
+    const salesEl = document.getElementById('dash-today-sales');
+    const collectedEl = document.getElementById('dash-today-collected');
+    const bakiEl = document.getElementById('dash-market-baki');
+
+    if (!salesEl || !collectedEl || !bakiEl) return;
+
+    let todaySales = 0;
+    let todayCollected = 0;
+    let totalMarketBaki = 0;
+
+    allBills.forEach(b => {
+        if (b.date === todayStr) {
+            todaySales += parseFloat(b.billAmount) || 0;
+            if (b.cashPaidDate === todayStr) {
+                todayCollected += parseFloat(b.paid) || 0;
+            }
+        }
+        
+        if (b.payments) {
+            Object.values(b.payments).forEach(p => {
+                if (p.date === todayStr) {
+                    todayCollected += parseFloat(p.amount) || 0;
+                }
+            });
+        }
+
+        totalMarketBaki += parseFloat(b.remaining) || 0;
+    });
+
+    salesEl.innerText = `NRS ${Math.round(todaySales).toLocaleString('en-IN')}`;
+    collectedEl.innerText = `NRS ${Math.round(todayCollected).toLocaleString('en-IN')}`;
+    bakiEl.innerText = `NRS ${Math.round(totalMarketBaki).toLocaleString('en-IN')}`;
+}
+
+// ============================================================
+// FEATURE: ONE-TOUCH LOCAL DATABASE BACKUP (.JSON)
+// ============================================================
+function exportDatabaseBackup() {
+    const backupData = {
+        exportDate: new Date().toISOString(),
+        nextInvoiceNumber: cloudNextInvoice,
+        customers: cloudCustomers,
+        bills: allBills,
+        inventory: inventoryList,
+        pokas: allPokas
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Rabi_Kapada_Pasal_Backup_${todayStr}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+// ============================================================
+// FEATURE: NATIVE CRISP PRINTING
+// ============================================================
+function printCurrentInvoice() {
+    const previewContent = document.getElementById('actual-bill-to-render');
+    if (!previewContent) return;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Print Invoice</title>
+                <style>
+                    body { font-family: sans-serif; padding: 20px; color: #000; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                    @page { margin: 1cm; }
+                </style>
+            </head>
+            <body>${previewContent.innerHTML}</body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
 }
 
 // ============================================================
@@ -79,6 +139,7 @@ let syncQueue = JSON.parse(safeGetLocal('nwh_sync_queue') || '[]');
 
 function updateSyncBadge() {
     const syncEl = document.getElementById('sync-status');
+    if (!syncEl) return;
     if (!fbReady) {
         syncEl.innerHTML = syncQueue.length > 0 ? `🟡 Offline (${syncQueue.length} pending)` : '🟡 Offline';
         syncEl.className = 'sync-badge';
@@ -99,7 +160,7 @@ function queueDatabaseWrite(path, method, data) {
 }
 
 async function processSyncQueue() {
-    if (!fbReady || isSyncing || syncQueue.length === 0 || !firebase.auth().currentUser) {
+    if (!fbReady || isSyncing || syncQueue.length === 0) {
         updateSyncBadge();
         return;
     }
@@ -127,52 +188,11 @@ async function processSyncQueue() {
 }
 
 // ============================================================
-// BULLETPROOF CUSTOMER DATA AUTO-FILL ENGINE
-// ============================================================
-function triggerCustomerAutoFill() {
-    const rawName = document.getElementById('customer-name').value.trim();
-    if(!rawName) {
-        if (!editBillKey) document.getElementById('prev-balance').value = '';
-        return;
-    }
-    
-    const searchName = rawName.toLowerCase();
-    let cu = null;
-
-    for(let key in cloudCustomers) {
-        if(key.toLowerCase() === searchName) {
-            cu = cloudCustomers[key];
-            break;
-        }
-    }
-    
-    if(cu) {
-        document.getElementById('customer-phone').value = cu.phone || '';
-        document.getElementById('customer-address').value = cu.address || '';
-    }
-
-    if (!editBillKey) {
-        let bal = cu ? parseFloat((cu.balance || '0').toString().replace(/,/g, '')) : 0;
-        
-        if (!bal || isNaN(bal) || bal === 0) {
-            for(let i = 0; i < allBills.length; i++) {
-                if(allBills[i].customer && allBills[i].customer.toLowerCase() === searchName) {
-                    bal = parseFloat((allBills[i].remaining || '0').toString().replace(/,/g, ''));
-                    break;
-                }
-            }
-        }
-        
-        document.getElementById('prev-balance').value = (isNaN(bal) || bal === 0) ? '' : bal;
-        calc();
-    }
-}
-
-// ============================================================
 // SUGGESTION BAR SYSTEM
 // ============================================================
 function initSuggestionBar() {
     const bar = document.getElementById('suggestion-bar');
+    if (!bar) return;
     
     document.addEventListener('focusin', (e) => {
         const target = e.target;
@@ -184,7 +204,7 @@ function initSuggestionBar() {
         }
     });
 
-    document.addEventListener('focusout', (e) => {
+    document.addEventListener('focusout', () => {
         setTimeout(() => { 
             if(!document.activeElement || document.activeElement.tagName !== 'INPUT') {
                 bar.style.display = 'none'; 
@@ -195,6 +215,7 @@ function initSuggestionBar() {
 
 function updateSuggestions(target) {
     const bar = document.getElementById('suggestion-bar');
+    if(!bar) return;
     bar.innerHTML = '';
     let opts = [];
     
@@ -219,7 +240,15 @@ function updateSuggestions(target) {
             if(target.oninput) target.oninput(target); 
             
             if (target.id === 'customer-name') {
-                triggerCustomerAutoFill();
+                const cu = cloudCustomers[opt];
+                if (cu) {
+                    document.getElementById('customer-phone').value = cu.phone || '';
+                    document.getElementById('customer-address').value = cu.address || '';
+                    if (!editBillKey) {
+                        document.getElementById('prev-balance').value = getCustomerTrueBalance(opt);
+                    }
+                    calc();
+                }
             } else if(target.classList.contains('item-desc')) {
                 checkAndAutoFillRate(target);
             }
@@ -276,7 +305,7 @@ const NM=['बैशाख','जेठ','असार','श्रावण','भ
 let selCalY = 2080, selCalM = 1, selCalD = 1;
 
 function adToBS(y,m,d){
-  const ref = Date.UTC(1943, 3, 15); 
+  const ref = Date.UTC(1943, 3, 14); 
   const inp = Date.UTC(y, m-1, d);
   let days = Math.round((inp - ref) / 86400000);
   for(let i=0; i<ND.length; i++){
@@ -299,7 +328,7 @@ function bsToAd(bsY, bsM, bsD) {
         }
     }
     days += (bsD - 1);
-    const ref = Date.UTC(1943, 3, 15); 
+    const ref = Date.UTC(1943, 3, 14); 
     return new Date(ref + days * 86400000);
 }
 
@@ -313,38 +342,28 @@ function getBsMonthStartDayOfWeek(bsY, bsM) {
             break;
         }
     }
-    return (4 + days) % 7; 
+    return (3 + days) % 7; 
 }
 
 function updateBSDate() {
-  const adVal = document.getElementById('current-date-ad').value;
+  const adValInput = document.getElementById('current-date-ad');
+  if(!adValInput) return;
+  const adVal = adValInput.value;
   if(!adVal) { 
-      document.getElementById('bs-date-inp').value = '';
+      const bsInp = document.getElementById('bs-date-inp');
+      if(bsInp) bsInp.value = '';
       return; 
   }
   
-  if (calendarCorrections[adVal]) {
-      const correctBS = calendarCorrections[adVal]; 
-      const [cy, cm, cd] = correctBS.split(',').map(Number);
-      selCalY = cy; selCalM = cm; selCalD = cd;
-      document.getElementById('bs-date-inp').value = `📅 ${cd} ${NM[cm-1]} ${cy}`;
-      
-      if(document.getElementById('np-cal-popup').style.display === 'block') {
-          document.getElementById('np-cal-y').value = selCalY;
-          document.getElementById('np-cal-m').value = selCalM;
-          renderNpCal();
-      }
-      return;
-  }
-
   const [y,m,d] = adVal.split('-').map(Number);
   const bsData = adToBS(y,m,d);
-  
   if(bsData) {
       selCalY = bsData.year; selCalM = bsData.month; selCalD = bsData.day;
-      document.getElementById('bs-date-inp').value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
+      const bsInp = document.getElementById('bs-date-inp');
+      if(bsInp) bsInp.value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
       
-      if(document.getElementById('np-cal-popup').style.display === 'block') {
+      const popup = document.getElementById('np-cal-popup');
+      if(popup && popup.style.display === 'block') {
           document.getElementById('np-cal-y').value = selCalY;
           document.getElementById('np-cal-m').value = selCalM;
           renderNpCal();
@@ -354,6 +373,7 @@ function updateBSDate() {
 
 function populateCustomerList() {
     const list = document.getElementById('customer-list');
+    if(!list) return;
     list.innerHTML = '';
     Object.keys(cloudCustomers).forEach(name => {
         let option = document.createElement('option');
@@ -364,6 +384,7 @@ function populateCustomerList() {
 
 function initNpCal() {
     const ySel = document.getElementById('np-cal-y');
+    if(!ySel) return;
     for(let i=0; i<ND.length; i++) ySel.innerHTML += `<option value="${ND[i][0]}">${ND[i][0]}</option>`;
     const mSel = document.getElementById('np-cal-m');
     NM.forEach((m, i) => mSel.innerHTML += `<option value="${i+1}">${m}</option>`);
@@ -380,6 +401,7 @@ function initNpCal() {
 function toggleNpCal() {
     const popup = document.getElementById('np-cal-popup');
     const inp = document.getElementById('bs-date-inp');
+    if(!popup || !inp) return;
 
     if(popup.style.display === 'block') {
         popup.style.display = 'none';
@@ -433,7 +455,8 @@ function renderNpCal() {
         let isSel = (d === selCalD && y === selCalY && m === selCalM);
         html += `<div class="np-day ${isSel?'active':''}" onclick="selectNpDate(${y},${m},${d})">${d}</div>`;
     }
-    document.getElementById('np-cal-grid').innerHTML = html;
+    const grid = document.getElementById('np-cal-grid');
+    if(grid) grid.innerHTML = html;
 }
 
 function selectNpDate(y, m, d) {
@@ -455,17 +478,16 @@ const todayStr= `${todayObj.getFullYear()}-${tMM}-${tDD}`;
 window.onload = function() {
     initNpCal();
     initSuggestionBar();
-    document.getElementById('current-date-ad').value = todayStr;
-    document.getElementById('cash-paid-date').value = todayStr;
-    document.getElementById('slip-date').value = todayStr;
-    document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
+    if(document.getElementById('current-date-ad')) document.getElementById('current-date-ad').value = todayStr;
+    if(document.getElementById('cash-paid-date')) document.getElementById('cash-paid-date').value = todayStr;
+    if(document.getElementById('slip-date')) document.getElementById('slip-date').value = todayStr;
+    if(document.getElementById('slip-ref')) document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
-
-    const cNameInput = document.getElementById('customer-name');
-    cNameInput.addEventListener('input', triggerCustomerAutoFill);
-    cNameInput.addEventListener('blur', triggerCustomerAutoFill);
 };
 
+// ============================================================
+// TAB SYSTEM & FILTERS
+// ============================================================
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
 
 function switchTab(name){
@@ -474,24 +496,28 @@ function switchTab(name){
     document.getElementById('panel-'+name).classList.add('active');
     document.getElementById('tab-'+name).classList.add('active');
     if(name==='ledger') renderLedger(true);
-    if(name==='history') renderHistory();
+    if(name==='history') { renderHistory(true); renderDashboardSummary(); }
     if(name==='packing') renderPokaHistory();
 }
 
 function filterHistory(){
-  const q = document.getElementById('history-search').value.toLowerCase();
+  const qEl = document.getElementById('history-search');
+  if(!qEl) return;
+  const q = qEl.value.toLowerCase();
   const rows = document.querySelectorAll('#history-container .h-table tbody tr');
   rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 function filterLedger(){
-  const q = document.getElementById('ledger-search').value.toLowerCase();
+  const qEl = document.getElementById('ledger-search');
+  if(!qEl) return;
+  const q = qEl.value.toLowerCase();
   const cards = document.querySelectorAll('#ledger-container .ledger-card');
   cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 // ============================================================
-// FIREBASE CONNECTION & DATA FETCHING
+// FIREBASE CONNECTION
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -505,16 +531,6 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // PERFECT FIX: Automatically use the anonymous login that is already working
-    firebase.auth().signInAnonymously().then(() => {
-        startDatabaseListeners();
-    }).catch(e => console.error("Auth error:", e));
-
-  }catch(e){ console.error(e); }
-}
-setTimeout(initFB, 300);
-
-function startDatabaseListeners() {
     db.ref('.info/connected').on('value',s=>{
       if(s.val()===true){
         fbReady=true;
@@ -523,14 +539,6 @@ function startDatabaseListeners() {
         fbReady=false;
         updateSyncBadge();
       }
-    });
-    
-    db.ref('nwh/calendar_corrections').on('value', s => {
-        if (s.val()) {
-            calendarCorrections = s.val();
-            safeSetLocal('nwh_cal_corrections', JSON.stringify(calendarCorrections));
-            updateBSDate();
-        }
     });
 
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
@@ -542,7 +550,20 @@ function startDatabaseListeners() {
     db.ref('nwh/customers').on('value',s=>{
         cloudCustomers=s.val()||{};
         populateCustomerList();
-        if(document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        if(document.getElementById('panel-ledger') && document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+    });
+
+    db.ref('nwh/bills').on('value',s=>{
+        const v=s.val();
+        allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
+        renderDashboardSummary();
+        if(document.getElementById('panel-history') && document.getElementById('panel-history').classList.contains('active')) renderHistory();
+    });
+
+    db.ref('nwh/pokas').on('value', s => {
+        const v = s.val();
+        allPokas = v ? Object.entries(v).map(([k, p]) => ({key: k, ...p})).reverse() : [];
+        if(document.getElementById('panel-packing') && document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
     });
 
     db.ref('nwh/inventory').on('value',s=>{
@@ -553,37 +574,9 @@ function startDatabaseListeners() {
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 
-    loadBills();
-    loadPokas();
+  }catch(e){ console.error(e); }
 }
-
-function loadBills() {
-    if(billsListenerRef) db.ref('nwh/bills').off('value', billsListenerRef);
-    billsListenerRef = db.ref('nwh/bills').orderByKey().limitToLast(dbBillsLimit).on('value', s => {
-        const v = s.val();
-        allBills = v ? Object.entries(v).map(([k, b]) => ({ key: k, ...b })).reverse() : [];
-        if (document.getElementById('panel-history').classList.contains('active')) renderHistory();
-    });
-}
-
-function loadPokas() {
-    if(pokasListenerRef) db.ref('nwh/pokas').off('value', pokasListenerRef);
-    pokasListenerRef = db.ref('nwh/pokas').orderByKey().limitToLast(dbPokasLimit).on('value', s => {
-        const v = s.val();
-        allPokas = v ? Object.entries(v).map(([k, p]) => ({ key: k, ...p })).reverse() : [];
-        if (document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
-    });
-}
-
-function loadMoreBills() {
-    dbBillsLimit += 50;
-    loadBills();
-}
-
-function loadMorePokas() {
-    dbPokasLimit += 50;
-    loadPokas();
-}
+setTimeout(initFB, 300);
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
@@ -595,6 +588,7 @@ try {
 
 function renderInventory() {
     const list = document.getElementById('inventory-list');
+    if(!list) return;
     list.innerHTML = '';
     inventoryList.forEach(item => {
         let option = document.createElement('option');
@@ -621,6 +615,7 @@ function saveNewItems(itemsArray) {
 
 function checkAndAutoFillRate(inputElement) {
     const row = inputElement.closest('tr');
+    if(!row) return;
     const custName = document.getElementById('customer-name').value.trim().replace(/[.#$\[\]]/g, ' ');
     const descInput = row.querySelector('.item-desc');
     const rateInput = row.querySelector('.rate');
@@ -670,6 +665,7 @@ function manualRateOverride(inputElement) {
 // ============================================================
 function addNoteRow(dateVal = '', textVal = '') {
     const container = document.getElementById('notes-container');
+    if(!container) return;
     const div = document.createElement('div');
     div.className = 'note-row';
     div.style = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
@@ -680,7 +676,6 @@ function addNoteRow(dateVal = '', textVal = '') {
     `;
     container.appendChild(div);
 }
-addNoteRow();
 
 // ============================================================
 // POKA DRAFT HISTORY SYSTEM & MATRIX GENERATOR
@@ -691,6 +686,7 @@ function addPokaGroup(items = null) {
     
     const currentId = pokaCounter;
     const container = document.getElementById('poka-groups-container');
+    if(!container) return;
     
     const div = document.createElement('div');
     div.className = 'poka-card-wrapper';
@@ -703,7 +699,7 @@ function addPokaGroup(items = null) {
             <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
         </div>
         <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
-            </div>
+        </div>
         <div style="padding:0 12px 12px 12px;">
             <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
         </div>
@@ -730,6 +726,7 @@ function addPokaGroup(items = null) {
 
 function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
     const tbody = document.getElementById(`poka-items-tbody-${pokaId}`);
+    if(!tbody) return;
     const div = document.createElement('div');
     div.className = 'poka-item-row';
     div.style = "background:var(--surface2); padding:12px; border-radius:10px; border:1px solid var(--border);";
@@ -748,7 +745,7 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
         </div>
     `;
     tbody.appendChild(div);
-    
+
     const inputs = div.querySelectorAll('input');
     inputs.forEach((inp, index) => {
         inp.addEventListener('keydown', (e) => {
@@ -759,18 +756,19 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
                 } else {
                     addPokaItemRow(pokaId);
                     const newRows = document.querySelectorAll(`#poka-items-tbody-${pokaId} .poka-item-row`);
-                    newRows[newRows.length - 1].querySelector('.poka-desc-inp').focus();
+                    if(newRows.length > 0) newRows[newRows.length - 1].querySelector('.poka-desc-inp').focus();
                 }
             }
         });
     });
-
+    
     if(formula) evaluatePokaRowSum(div.querySelector('.poka-formula-inp'));
     initSuggestionBar();
 }
 
 function evaluatePokaRowSum(inputElement) {
     const row = inputElement.closest('.poka-item-row');
+    if(!row) return;
     const formulaVal = row.querySelector('.poka-formula-inp').value;
     const multVal = parseFloat(row.querySelector('.poka-mult-inp').value) || 1;
     const outputSpan = row.querySelector('.poka-row-sum-output');
@@ -794,16 +792,21 @@ function removePokaGroup(id) {
     document.querySelectorAll('.poka-card-wrapper').forEach((wrapper, index) => {
         const newId = index + 1;
         wrapper.id = `poka-wrapper-${newId}`;
-        wrapper.querySelector('span').innerText = `📦 Poka #${newId}`;
-        wrapper.querySelector('button.del-row').setAttribute('onclick', `removePokaGroup(${newId})`);
-        wrapper.querySelector('.poka-items-tbody').id = `poka-items-tbody-${newId}`;
-        wrapper.querySelector('.btn-ghost').setAttribute('onclick', `addPokaItemRow(${newId})`);
+        const span = wrapper.querySelector('span');
+        if(span) span.innerText = `📦 Poka #${newId}`;
+        const delBtn = wrapper.querySelector('button.del-row');
+        if(delBtn) delBtn.setAttribute('onclick', `removePokaGroup(${newId})`);
+        const tbody = wrapper.querySelector('[id^="poka-items-tbody-"]');
+        if(tbody) tbody.id = `poka-items-tbody-${newId}`;
+        const addBtn = wrapper.querySelector('.btn-ghost');
+        if(addBtn) addBtn.setAttribute('onclick', `addPokaItemRow(${newId})`);
     });
 }
 
 function syncPokaCountValue() {
     const elements = document.querySelectorAll('.poka-card-wrapper');
-    document.getElementById('total-poka').value = elements.length > 0 ? elements.length : '';
+    const input = document.getElementById('total-poka');
+    if(input) input.value = elements.length > 0 ? elements.length : '';
 }
 
 function savePokaDraft() {
@@ -846,6 +849,7 @@ function savePokaDraft() {
 
 function renderPokaHistory() {
     const c = document.getElementById('saved-pokas-container');
+    if(!c) return;
     if(!allPokas.length) { 
         c.innerHTML = `<div class="empty-state"><div class="icon">📁</div><div class="L">No saved drafts</div></div>`; 
         return; 
@@ -864,10 +868,6 @@ function renderPokaHistory() {
         </tr>`;
     });
     c.innerHTML = html + `</tbody></table>`;
-    
-    if(allPokas.length >= dbPokasLimit) {
-        c.innerHTML += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="loadMorePokas()">Load More Server Data</button>`;
-    }
 }
 
 function loadPokaDraft(key) {
@@ -964,7 +964,7 @@ function addRow(desc='',qty='',rate='',code=''){
               } else {
                   addRow();
                   const newRows = document.querySelectorAll('#invoice-items tr');
-                  newRows[newRows.length - 1].querySelector('.item-desc').focus();
+                  if(newRows.length > 0) newRows[newRows.length - 1].querySelector('.item-desc').focus();
               }
           }
       });
@@ -973,20 +973,23 @@ function addRow(desc='',qty='',rate='',code=''){
   if(qty&&rate) calc();
   initSuggestionBar();
 }
-addRow();
 
 function calc(){
   let sub=0;
   document.querySelectorAll('#invoice-items tr').forEach(r=>{
-    const q=parseFloat(r.querySelector('.qty').value)||0,rt=parseFloat(r.querySelector('.rate').value)||0,a=q*rt;
-    r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');sub+=a;
+    const q=parseFloat(r.querySelector('.qty').value)||0;
+    const rt=parseFloat(r.querySelector('.rate').value)||0;
+    const a=q*rt;
+    r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');
+    sub+=a;
   });
   document.getElementById('items-total').innerText=Math.round(sub).toLocaleString('en-IN');
   const tr=parseFloat(document.getElementById('transport-expense').value)||0;
   const disc=parseFloat(document.getElementById('discount-amount').value)||0;
   const cb=(sub+tr)-disc;
   document.getElementById('current-bill').innerText=Math.round(cb).toLocaleString('en-IN');
-  const pb=parseFloat(document.getElementById('prev-balance').value)||0,gt=cb+pb;
+  const pb=parseFloat(document.getElementById('prev-balance').value)||0;
+  const gt=cb+pb;
   document.getElementById('grand-total').innerText=Math.round(gt).toLocaleString('en-IN');
   const cp=parseFloat(document.getElementById('cash-paid').value)||0;
   document.getElementById('remaining-balance').innerText=Math.round(gt-cp).toLocaleString('en-IN');
@@ -1018,7 +1021,7 @@ function clearForm(){
 }
 
 // ============================================================
-// CUSTOMER SEARCH & SAVE
+// CUSTOMER SEARCH, SAVE & IMPORT CONTACTS
 // ============================================================
 function searchDB(){
   const q=document.getElementById('db-search').value.toLowerCase(),box=document.getElementById('search-results');
@@ -1032,8 +1035,10 @@ function searchDB(){
       d.innerHTML=`<span><strong>${name}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
       d.onclick=()=>{
           document.getElementById('customer-name').value=name;
-          triggerCustomerAutoFill();
-          document.getElementById('db-search').value='';box.style.display='none';
+          document.getElementById('customer-phone').value=cloudCustomers[name].phone||'';
+          document.getElementById('customer-address').value=cloudCustomers[name].address||'';
+          document.getElementById('prev-balance').value=getCustomerTrueBalance(name);
+          document.getElementById('db-search').value='';box.style.display='none';calc();
           document.querySelectorAll('.item-desc').forEach(el => checkAndAutoFillRate(el));
       };
       box.appendChild(d);n++;
@@ -1051,24 +1056,42 @@ function saveCustomerOnly() {
     queueDatabaseWrite('nwh/customers/' + safeName, 'set', {
         phone: document.getElementById('customer-phone').value || "",
         address: document.getElementById('customer-address').value || "",
-        balance: document.getElementById('prev-balance').value || "0"
+        balance: getCustomerTrueBalance(safeName)
     });
     alert(`✅ Customer "${safeName}" saved to ledger!`);
 }
 
 async function pickPhoneContact(){
-  if('contacts' in navigator&&'ContactsManager' in window){
-    try{const c=await navigator.contacts.select(['name','tel'],{multiple:false});
-      if(c.length>0){
-        let name=c[0].name[0]||'';
+  if('contacts' in navigator && 'ContactsManager' in window){
+    try {
+      const c = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if(c && c.length > 0){
+        let name = (c[0].name && c[0].name.length > 0) ? c[0].name[0] : '';
         name = name.replace(/[.#$\[\]]/g, ' ').trim(); 
-        document.getElementById('customer-name').value=name;
-        if(name){
-            triggerCustomerAutoFill();
+        document.getElementById('customer-name').value = name;
+
+        let phone = '';
+        if (c[0].tel && Array.isArray(c[0].tel) && c[0].tel.length > 0) {
+          phone = c[0].tel[0];
+        } else if (typeof c[0].tel === 'string') {
+          phone = c[0].tel;
         }
+
+        phone = phone.replace(/[\s\-\(\)]/g, '');
+        document.getElementById('customer-phone').value = phone;
+
+        if(name && cloudCustomers[name]){
+            document.getElementById('customer-address').value = cloudCustomers[name].address || '';
+            document.getElementById('prev-balance').value = getCustomerTrueBalance(name);
+        }
+        calc();
       }
-    }catch(e){}
-  }else{alert('Open in Google Chrome to use Contacts.');}
+    } catch(e) {
+      console.error("Contact picker error:", e);
+    }
+  } else {
+    alert('Please open in Google Chrome on Android to import contacts.');
+  }
 }
 
 function shareWA(){
@@ -1168,52 +1191,49 @@ function previewPackingSlip() {
     const slipRef = document.getElementById('slip-ref').value || 'N/A';
     
     let htmlString = `
-    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-slip-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0;">
+        <div id="actual-slip-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px;">
             <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
-                <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase; letter-spacing: 1px;">PACKING SLIP (POKA DETAILS)</h1>
+                <h1 style="font-size: 26px; color: #1a1f36; margin: 0;">PACKING SLIP (POKA DETAILS)</h1>
                 <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
             </div>
-
             <table style="width: 100%; margin-bottom: 30px;">
                 <tr>
                     <td style="width: 50%; vertical-align: top;">
-                        <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; border-radius: 4px;">
-                            <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
+                        <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6;">
+                            <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0;">SHIP TO:</p>
                             <p style="font-size: 16px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
                             ${bill.phone ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
-                            ${bill.address ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.address}</p>` : ''}
                         </div>
                     </td>
                     <td style="width: 50%; vertical-align: top; text-align: right;">
-                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
-                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Date:</strong> ${slipDate}</p>
+                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
                         <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
-            </table>
-        `;
+            </table>`;
 
         bill.pokaDetails.forEach(p => {
             htmlString += `
             <div style="margin-bottom: 25px; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-                <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800; color: #1e293b; border-bottom: 2px solid #cbd5e1; display:flex; justify-content:space-between;">
+                <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800;">
                     <span>📦 Poka #${p.pokaNum}</span>
                 </div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
                     <thead>
                         <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                            <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Garment Description</th>
-                            <th style="padding: 12px 15px; color: #475569; font-weight: 700;">Breakdown</th>
-                            <th style="padding: 12px 15px; text-align: right; color: #475569; font-weight: 700;">Total Pcs</th>
+                            <th style="padding: 12px 15px;">Garment Description</th>
+                            <th style="padding: 12px 15px;">Breakdown</th>
+                            <th style="padding: 12px 15px; text-align: right;">Total Pcs</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${p.items.map(it => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 12px 15px; font-weight: bold; color: #0f172a;">${it.desc}</td>
-                                <td style="padding: 12px 15px; font-family: 'Space Mono', monospace; color: #334155; font-size: 15px; letter-spacing: 1px;">${it.formula || '—'}</td>
-                                <td style="padding: 12px 15px; text-align: right; font-family: 'Space Mono', monospace; font-weight: bold; color: #0f172a; font-size: 15px;">${it.total}</td>
+                                <td style="padding: 12px 15px; font-weight: bold;">${it.desc}</td>
+                                <td style="padding: 12px 15px; font-family: monospace;">${it.formula || '—'}</td>
+                                <td style="padding: 12px 15px; text-align: right; font-weight: bold;">${it.total}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1221,20 +1241,13 @@ function previewPackingSlip() {
             </div>`;
         });
 
-        htmlString += `
-            <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                This is a logistics packing slip only. It does not contain pricing or financial information.
-            </div>
-        </div>
-    </div>`;
-
+        htmlString += `</div></div>`;
     document.getElementById('slip-body').innerHTML = htmlString;
     document.getElementById('slip-modal').classList.add('open');
 }
 
 function downloadSlipOnly() {
     const btn = document.getElementById('slip-dl-btn');
-    const oldText = btn.innerHTML;
     btn.innerHTML = '⏳ Processing...';
 
     const originalElement = document.getElementById('actual-slip-to-render');
@@ -1243,32 +1256,25 @@ function downloadSlipOnly() {
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
-    clone.style.left = '0';
-    clone.style.width = '800px'; 
-    clone.style.maxWidth = 'none';
-    clone.style.margin = '0'; 
+    clone.style.width = '800px';
 
-    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
-        const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        const refName = document.getElementById('customer-name').value.trim() || 'Customer';
-        link.download = `PackingSlip-${refName}.png`;
-        link.href = dataUrl;
+        link.download = `PackingSlip-${document.getElementById('customer-name').value.trim() || 'Customer'}.png`;
+        link.href = canvas.toDataURL('image/png');
         link.click();
-        
-        btn.innerHTML = oldText;
+        btn.innerHTML = '💾 Download Slip Image';
         closeModal('slip-modal');
     }).catch(function (error) {
         if(document.body.contains(clone)) document.body.removeChild(clone);
-        console.error("Slip Error:", error);
-        btn.innerHTML = oldText;
+        btn.innerHTML = '💾 Download Slip Image';
         alert("Error generating image.");
     });
 }
 
 // ============================================================
-// MAIN INVOICE PREVIEW & SIGNATURE LOGIC
+// MAIN INVOICE PREVIEW & SIGNATURE
 // ============================================================
 function previewBill(){
   pendingBill = extractPendingBillData();
@@ -1279,48 +1285,37 @@ function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach(it => {
         rowsHtml += `<tr>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">${it.desc}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:center;">${it.code || '—'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.qty}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.rate}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right; font-weight:bold;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${it.desc}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align:center;">${it.code || '—'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align:right;">${it.qty}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align:right;">${it.rate}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align:right; font-weight:bold;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
     const bizSub = document.getElementById('biz-sub').innerText || "";
-    
-    let cashDateStr = '';
-    if (bill.paid && bill.paid !== '0' && bill.cashPaidDate) {
-        let bsStr = '';
-        try {
-            const [cy,cm,cd] = bill.cashPaidDate.split('-').map(Number);
-            const cBs = adToBS(cy,cm,cd);
-            if(cBs) bsStr = ` (${cBs.day} ${cBs.monthName})`;
-        } catch(e){}
-        cashDateStr = `<br><span style="font-size:11.5px; opacity:0.85; font-weight:normal;">📅 ${bill.cashPaidDate}${bsStr}</span>`;
-    }
 
     let htmlString = `
-    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;">
-            <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; border-collapse: collapse;">
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0;">
+        <div id="actual-bill-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 40px;">
+            <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px;">
                 <tr>
                     <td style="vertical-align: top; padding-bottom: 20px;">
                         <h1 style="font-size: 28px; color: #1a1f36; margin: 0;">${bizName}</h1>
                         <p style="font-size: 14px; color: #4a5280; margin-top: 5px;">${bizSub}</p>
                     </td>
                     <td style="vertical-align: top; text-align: right; padding-bottom: 20px;">
-                        <h2 style="font-size: 24px; color: #a0aec0; margin: 0; letter-spacing: 2px;">INVOICE</h2>
-                        <p style="font-size: 16px; font-weight: bold; margin-top: 5px;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 14px; margin-top: 2px;">${bill.date}</p>
-                        <p style="font-size: 12px; margin-top: 2px;">${bill.dateBS || ""}</p>
+                        <h2 style="font-size: 24px; color: #a0aec0; margin: 0;">INVOICE</h2>
+                        <p style="font-size: 16px; font-weight: bold;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 14px;">${bill.date}</p>
+                        <p style="font-size: 12px;">${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
 
             <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #8b5cf6; margin-bottom: 25px;">
-                <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0 0 5px 0;">BILL TO:</p>
+                <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0;">BILL TO:</p>
                 <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
                 <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
             </div>
@@ -1328,85 +1323,57 @@ function generatePreviewHTML(bill) {
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                 <thead>
                     <tr>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: left;">Description</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: center;">Code</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Qty</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Rate</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; font-size: 14px; text-align: right;">Total (NRS)</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: left;">Description</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: center;">Code</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Qty</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Rate</th>
+                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Total (NRS)</th>
                     </tr>
                 </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
+                <tbody>${rowsHtml}</tbody>
             </table>
 
-            <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+            <table style="width: 100%; margin-top: 20px;">
                 <tr>
                     <td style="width: 45%; vertical-align: top; padding-right: 20px;">
                         ${bill.billNotes && bill.billNotes.length > 0 ? `
-                        <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6; border-radius: 4px; margin-bottom:15px;">
+                        <div style="padding: 12px; background: #f8fafc; border-left: 4px solid #8b5cf6;">
                             <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
-                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                ${bill.billNotes.map(n => `
-                                    <tr>
-                                        <td style="padding: 4px 0; width: 85px; color: #4a5280; font-family: 'Space Mono', monospace; vertical-align: top;">${n.date}</td>
-                                        <td style="padding: 4px 0; color: #1a1f36; vertical-align: top;">${n.text}</td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        </div>
-                        ` : ''}
+                            ${bill.billNotes.map(n => `<p style="margin:2px 0; font-size:13px;">${n.date}: ${n.text}</p>`).join('')}
+                        </div>` : ''}
                     </td>
-                    <td style="width: 55%; padding: 0;">
+                    <td style="width: 55%;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Items Subtotal:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Transport (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
-                            
-                            ${bill.discount && bill.discount !== '0' ? `<tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">Discount (-):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">NRS ${parseInt(bill.discount).toLocaleString('en-IN')}</td></tr>` : ''}
-
-                            <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 10px;">Today's Bill:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0;">Purano Baki (+):</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
-                            
-                            ${bill.totalPoka && bill.totalPoka !== '0' ? `<tr style="font-size: 15px;"><td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold;">📦 Total Poka:</td><td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight:bold; color: #dc2626;">${bill.totalPoka}</td></tr>` : ''}
-
+                            <tr><td style="padding: 8px 0;">Today's Bill:</td><td style="text-align: right; font-weight:bold;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 8px 0;">Purano Baki:</td><td style="text-align: right;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
                             <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 10px;">Jamma Total:</td><td style="text-align: right; padding: 10px;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
-                            
-                            <tr style="color: #059669;">
-                                <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">Nagad Paid (-):${cashDateStr}</td>
-                                <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #e2e8f0; vertical-align: top;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-
+                            <tr style="color: #059669;"><td style="padding: 8px 0;">Nagad Paid (-):</td><td style="text-align: right;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
                             <tr style="background: #fee2e2; color: #dc2626; font-size: 18px; font-weight: bold;"><td style="padding: 12px 10px;">Remaining Baki:</td><td style="text-align: right; padding: 12px 10px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
                         </table>
                     </td>
                 </tr>
             </table>
-            
+
             <div style="margin-top:50px; display:flex; justify-content:space-between; font-size:12px; color:#8892b0; align-items:flex-end;">
                 <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:200px;">Customer Signature</div>
-                
                 <div style="width:350px; display:flex; flex-direction:column; align-items:center; position:relative;">
                     <img id="bill-sig-img" src="" style="width:350px; height:120px; object-fit:contain; display:none; margin-bottom:4px;" />
-                    <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:30px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; margin-bottom:4px; color:#4a5280; font-weight:bold; font-size:15px; font-family:inherit;">✏️ Tap to Sign (Large)</button>
+                    <button id="sign-btn" onclick="openSignaturePad()" style="width:100%; padding:20px 0; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:8px; cursor:pointer; font-weight:bold;">✏️ Tap to Sign</button>
                     <div style="text-align:center; border-top:1px solid #c7d2fe; padding-top:6px; width:100%;">Authorized Signature & Stamp</div>
                 </div>
             </div>
         </div>
-    </div>
-    `;
+    </div>`;
 
     document.getElementById('preview-body').innerHTML = htmlString;
     document.getElementById('preview-modal').classList.add('open');
 }
 
-let isDrawing = false;
-let sigCtx = null;
-let canvasListenersAdded = false;
-
 function openSignaturePad() {
     document.getElementById('sig-pad-modal').classList.add('open');
     setTimeout(() => {
         const canvas = document.getElementById('large-sig-canvas');
+        if(!canvas) return;
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
         initSignaturePadCanvas(canvas);
@@ -1461,21 +1428,21 @@ function initSignaturePadCanvas(canvas) {
 
 function saveLargeSignature() {
     const canvas = document.getElementById('large-sig-canvas');
-    const dataUrl = canvas.toDataURL('image/png');
+    if(!canvas) return;
     const img = document.getElementById('bill-sig-img');
     const btn = document.getElementById('sign-btn');
-    img.src = dataUrl;
+    img.src = canvas.toDataURL('image/png');
     img.style.display = 'block';
-    btn.style.display = 'none';
+    if(btn) btn.style.display = 'none';
     closeModal('sig-pad-modal');
 }
 
-window.clearLargeSignature = function() {
+function clearLargeSignature() {
     const canvas = document.getElementById('large-sig-canvas');
     if(canvas && sigCtx) sigCtx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-window.clearSignature = function() {
+function clearSignature() {
     const img = document.getElementById('bill-sig-img');
     const btn = document.getElementById('sign-btn');
     if(img && btn) {
@@ -1488,10 +1455,6 @@ window.clearSignature = function() {
 
 function confirmAndDownload() {
     if(!pendingBill) return;
-
-    const btn = document.getElementById('confirm-btn-text');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '⏳ Processing...';
 
     saveNewItems(pendingBill.items);
     
@@ -1509,70 +1472,35 @@ function confirmAndDownload() {
 
     const originalElement = document.getElementById('actual-bill-to-render');
     const clone = originalElement.cloneNode(true);
-    const signBtnNode = clone.querySelector('#sign-btn');
-    if(signBtnNode) signBtnNode.style.display = 'none';
     
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
-    clone.style.left = '0';
     clone.style.width = '800px'; 
-    clone.style.maxWidth = 'none';
-    clone.style.margin = '0'; 
 
-    html2canvas(clone, { 
-        scale: 4, 
-        useCORS: true,
-        backgroundColor: '#ffffff'
-    }).then(function (canvas) {
+    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
-
-        const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = `Invoice-${pendingBill.invoiceNum}.png`;
-        link.href = dataUrl;
+        link.href = canvas.toDataURL('image/png');
         link.click();
 
-        btn.innerHTML = oldText;
         closeModal('preview-modal');
-        
-        ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
-            let el = document.getElementById(id);
-            if(el) el.value='';
-        });
-        
-        document.getElementById('current-date-ad').value = todayStr;
-        updateBSDate();
-        document.getElementById('cash-paid-date').value = todayStr;
-        document.getElementById('slip-date').value = todayStr;
-        document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
-        
-        document.getElementById('invoice-items').innerHTML='';addRow();calc();
-        document.getElementById('notes-container').innerHTML = '';
-        document.getElementById('poka-groups-container').innerHTML = '';
-        pokaCounter = 0;
-        addNoteRow();
-        
-        editBillKey = null;
-        editInvoiceNum = null;
-        document.getElementById('tab-invoice').innerHTML = `🧾 <span class="L" data-k="New Invoice">New Invoice</span>`;
-        document.getElementById('invoice-number').innerText = cloudNextInvoice;
-        
+        clearForm();
         pendingBill = null;
     }).catch(function (error) {
         if(document.body.contains(clone)) document.body.removeChild(clone);
-        btn.innerHTML = oldText;
-        alert("Error generating image. " + (error.message || "Unknown Error"));
+        alert("Error generating image.");
     });
 }
 
 // ============================================================
-// MODALS AND LEDGER VIEWS
+// MODALS & LEDGER VIEWS
 // ============================================================
-
 function showPriceBook(custName) {
     document.getElementById('pb-title').innerText = `📕 ${custName} Rates`;
     const list = document.getElementById('price-book-list');
+    if(!list) return;
     list.innerHTML = '';
     const historyMap = {};
     for(let i=allBills.length-1; i>=0; i--) { 
@@ -1585,10 +1513,10 @@ function showPriceBook(custName) {
     }
     const items = Object.entries(historyMap).sort((a,b) => a[0].localeCompare(b[0]));
     if(items.length === 0) {
-        list.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px; color:var(--text3);">No item history found.</td></tr>`;
+        list.innerHTML = `<tr><td colspan="2" style="text-align:center; padding:20px;">No item history found.</td></tr>`;
     } else {
         items.forEach(([desc, rate]) => {
-            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 18px; font-weight:500;">${desc}</td><td style="text-align:right; padding:10px 18px; font-family:'Space Mono',monospace; font-weight:700; color:var(--green);">NRS ${rate}</td></tr>`;
+            list.innerHTML += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 18px;">${desc}</td><td style="text-align:right; padding:10px 18px; font-weight:700; color:var(--green);">NRS ${rate}</td></tr>`;
         });
     }
     document.getElementById('price-book-modal').classList.add('open');
@@ -1603,105 +1531,57 @@ function showLedgerStatement(custName) {
     document.getElementById('ls-cust-sub').innerText = subInfo.join(' • ');
     
     const list = document.getElementById('ledger-statement-list');
+    if(!list) return;
     list.innerHTML = '';
     
     let events = [];
-    let totalBilled = 0;
-    let totalPaid = 0;
-
     allBills.filter(b => b.customer === custName).forEach(b => {
         let billTotal = parseInt(b.billAmount) || 0;
-        totalBilled += billTotal;
-
         if(b.payments) {
             Object.values(b.payments).forEach(p => {
                 let amt = parseInt(p.amount) || 0;
-                totalPaid += amt;
-                events.push({ date: p.date, time: new Date(p.date).getTime() + 1000, desc: `Pay against Inv #${b.invoiceNum}`, debit: 0, credit: amt });
+                events.push({ date: p.date, time: new Date(p.date).getTime() + 1000, desc: `Payment (${p.mode || 'Cash'})`, debit: 0, credit: amt });
             });
         }
-        
-        let initialPaid = parseInt(b.paid) || 0;
-        if(initialPaid > 0) {
-            totalPaid += initialPaid;
-            events.push({ date: b.cashPaidDate || b.date, time: new Date(b.cashPaidDate || b.date).getTime() + 500, desc: `Initial Pay Inv #${b.invoiceNum}`, debit: 0, credit: initialPaid });
-        }
-
-        events.push({ date: b.date, time: new Date(b.date).getTime(), desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: 0, declaredPrev: parseInt(b.prevBalance) || 0, isInvoice: true });
+        events.push({ date: b.date, time: new Date(b.date).getTime(), desc: `Invoice #${b.invoiceNum}`, debit: billTotal, credit: 0 });
     });
     
     events.sort((a,b) => a.time - b.time);
     let listHtml = '';
-    const firstInvoice = events.find(e => e.isInvoice);
-    let bal = firstInvoice ? firstInvoice.declaredPrev : 0;
-    
-    totalBilled += bal;
-
-    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:12px;">—</td><td style="padding:12px; font-style:italic;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+    let bal = 0;
+    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:12px;">—</td><td style="padding:12px;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">0</td></tr>`;
     events.forEach(e => {
         bal += e.debit; bal -= e.credit;
-        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:12px; font-size:12px;">${e.date}</td>
-            <td style="padding:12px; font-size:13px;">${e.desc}</td>
-            <td style="text-align:right; padding:12px; font-size:13px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; padding:12px; color:#059669; font-size:13px;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; font-weight:bold; font-size:13px;">${bal.toLocaleString('en-IN')}</td>
-        </tr>`;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:12px;">${e.date}</td><td style="padding:12px;">${e.desc}</td><td style="text-align:right; padding:12px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; padding:12px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
     });
     list.innerHTML = listHtml;
-
-    const summaryDiv = document.getElementById('ls-summary-box') || document.createElement('div');
-    summaryDiv.id = 'ls-summary-box';
-    summaryDiv.style = "display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;";
-    summaryDiv.innerHTML = `
-        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">TOTAL BILLED</div><div style="font-size:15px; font-weight:bold; color:#1e293b;">NRS ${totalBilled.toLocaleString('en-IN')}</div></div>
-        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">TOTAL PAID</div><div style="font-size:15px; font-weight:bold; color:#059669;">NRS ${totalPaid.toLocaleString('en-IN')}</div></div>
-        <div style="text-align:center;"><div style="font-size:11px; color:#64748b; font-weight:bold;">CURRENT DUE</div><div style="font-size:16px; font-weight:900; color:#dc2626;">NRS ${bal.toLocaleString('en-IN')}</div></div>
-    `;
-    
-    const renderBox = document.getElementById('ledger-statement-render');
-    const existingSummary = renderBox.querySelector('#ls-summary-box');
-    if(existingSummary) existingSummary.remove();
-    renderBox.insertBefore(summaryDiv, renderBox.querySelector('table'));
-
     document.getElementById('ledger-statement-modal').classList.add('open');
 }
 
 function shareStatementWA() {
     const custName = document.getElementById('ls-cust-name').innerText;
     const cu = cloudCustomers[custName];
-    if(!cu || !cu.phone) {
-        alert("No phone number found for this customer.");
-        return;
-    }
-    const baki = parseInt(cu.balance || 0);
-    const msg = `🏪 *Rabi Kapada Pasal*\n\nNamaste *${custName}*,\n\nHere is your updated account summary:\n🔴 *Total Remaining Due: NRS ${baki.toLocaleString('en-IN')}*\n\n*(Please find your detailed ledger statement image attached separately)*.\n\nThank you for your business!`;
+    if(!cu || !cu.phone) { alert("No phone number found for this customer."); return; }
+    const baki = getCustomerTrueBalance(custName);
+    const msg = `🏪 *Rabi Kapada Pasal*\n\nNamaste *${custName}*,\nAccount Summary:\n🔴 *Total Due: NRS ${baki.toLocaleString('en-IN')}*`;
     window.open('https://wa.me/'+cu.phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
 }
 
 function downloadLedgerStatement() {
-    const btn = document.getElementById('ls-download-btn');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '⏳ Processing...';
     const originalElement = document.getElementById('ledger-statement-render');
     const clone = originalElement.cloneNode(true);
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
-    clone.style.left = '0';
     clone.style.width = '800px';
 
-    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
-        const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
-        link.href = dataUrl;
+        link.href = canvas.toDataURL('image/png');
         link.click();
-        btn.innerHTML = oldText;
     }).catch(function (err) {
-        if(document.body.contains(clone)) document.body.removeChild(clone);
-        btn.innerHTML = oldText;
         alert("Error generating image.");
     });
 }
@@ -1712,95 +1592,41 @@ function showBillDetail(key){
   
   let iHtml='';
   if(b.items&&b.items.length){
-    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;color:var(--text2)">Item</th><th style="padding:7px 10px;text-align:center;color:var(--text2)">Code</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Qty</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Rate</th><th style="padding:7px 10px;text-align:right;color:var(--text2)">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:center;font-family:'Space Mono',monospace;font-size:.73rem;color:var(--text3)">${it.code||'—'}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-family:'Space Mono',monospace;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;">Item</th><th style="padding:7px 10px;text-align:right;">Qty</th><th style="padding:7px 10px;text-align:right;">Rate</th><th style="padding:7px 10px;text-align:right;">Total</th></tr></thead><tbody>`;
+    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
     iHtml+='</tbody></table></div>';
   }
 
   const baki=parseInt(b.remaining)||0;
   
   document.getElementById('modal-body').innerHTML=`
-    <div class="d-row"><span class="d-label">Date (AD/BS)</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
+    <div class="d-row"><span class="d-label">Date</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
     ${iHtml}
-    ${b.discount && b.discount !== '0' ? `<div class="d-row"><span class="d-label">Discount</span><span class="d-val" style="color:var(--red)">- NRS ${parseInt(b.discount).toLocaleString('en-IN')}</span></div>` : ''}
     <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label">Purano Baki</span><span class="d-val">NRS ${parseInt(b.prevBalance || 0).toLocaleString('en-IN')}</span></div>
-    <div class="d-row"><span class="d-label">Jamma Total</span><span class="d-val">NRS ${parseInt(b.grandTotal || 0).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label">Paid</span><span class="d-val" style="color:green">NRS ${parseInt(b.paid).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
-    <div style="display:flex; gap:8px; margin-top:16px;">
-        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
+    <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
         ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
+        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--red); color:var(--red);" onclick="deleteBill('${key}')">🗑️ Delete Bill</button>
     </div>
   `;
   document.getElementById('bill-modal').classList.add('open');
 }
 
-function loadBillForEdit(key) {
-    const bill = allBills.find(b => b.key === key);
-    if (!bill) return;
-
-    editBillKey = bill.key;
-    editInvoiceNum = bill.invoiceNum;
-
-    document.getElementById('customer-name').value = bill.customer || '';
-    document.getElementById('customer-phone').value = bill.phone || '';
-    document.getElementById('customer-address').value = bill.address || '';
-    
-    document.getElementById('current-date-ad').value = bill.date || todayStr;
-    updateBSDate();
-    if (bill.cashPaidDate) document.getElementById('cash-paid-date').value = bill.cashPaidDate;
-
-    const itemsTbody = document.getElementById('invoice-items');
-    itemsTbody.innerHTML = '';
-    if (bill.items && bill.items.length > 0) {
-        bill.items.forEach(it => addRow(it.desc, it.qty, it.rate, it.code));
-    } else {
-        addRow();
-    }
-
-    const notesContainer = document.getElementById('notes-container');
-    notesContainer.innerHTML = '';
-    if (bill.billNotes && bill.billNotes.length > 0) {
-        bill.billNotes.forEach(n => addNoteRow(n.date, n.text));
-    } else {
-        addNoteRow();
-    }
-
-    const pokaContainer = document.getElementById('poka-groups-container');
-    pokaContainer.innerHTML = '';
-    pokaCounter = 0;
-    if (bill.pokaDetails && bill.pokaDetails.length > 0) {
-        bill.pokaDetails.forEach(group => addPokaGroup(group.items));
-    }
-
-    document.getElementById('total-poka').value = bill.totalPoka || '';
-    document.getElementById('transport-expense').value = bill.transport || '';
-    document.getElementById('discount-amount').value = bill.discount || '';
-    document.getElementById('prev-balance').value = bill.prevBalance || '';
-    document.getElementById('cash-paid').value = bill.paid || '';
-
-    document.getElementById('invoice-number').innerText = bill.invoiceNum;
-    document.getElementById('tab-invoice').innerHTML = `🧾 <span style="color:var(--red);">Editing #${bill.invoiceNum}</span>`;
-    
-    calc();
-    closeModal('bill-modal');
-    switchTab('invoice');
-}
-
-
 function showCustDetail(name){
   const cu=cloudCustomers[name];if(!cu) return;
-  const baki=parseInt(cu.balance)||0;
+  const baki=getCustomerTrueBalance(name);
+  const safeName = name.replace(/'/g, "\\'");
   document.getElementById('modal-title').innerText=`👤 ${name}`;
   document.getElementById('modal-body').innerHTML=`
     <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
     <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
     <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
-    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${name.replace(/'/g, "\\'")}')">📜 View Statement of Account</button>
-    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${name.replace(/'/g,'')}',${baki})">💰 Record Payment</button>`:''}
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${safeName}')">📜 View Statement of Account</button>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${safeName}',${baki})">💰 Record Payment</button>`:''}
   `;
   document.getElementById('bill-modal').classList.add('open');
 }
@@ -1812,7 +1638,7 @@ function editCustomer(oldName) {
     document.getElementById('edit-cust-name').value = oldName;
     document.getElementById('edit-cust-phone').value = cu.phone || '';
     document.getElementById('edit-cust-address').value = cu.address || '';
-    document.getElementById('edit-cust-baki').value = cu.balance || '0';
+    document.getElementById('edit-cust-baki').value = getCustomerTrueBalance(oldName);
     document.getElementById('edit-cust-modal').classList.add('open');
 }
 
@@ -1823,7 +1649,7 @@ function saveEditedCustomer() {
     
     const phone = document.getElementById('edit-cust-phone').value.trim();
     const address = document.getElementById('edit-cust-address').value.trim();
-    const balance = document.getElementById('edit-cust-baki').value || "0";
+    const balance = getCustomerTrueBalance(oldName);
 
     if(!newName) { alert("Name cannot be empty."); return; }
 
@@ -1835,12 +1661,11 @@ function saveEditedCustomer() {
 }
 
 function deleteCustomer(name) {
-    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger? This cannot be undone.`)) {
+    if(confirm(`⚠️ Are you sure you want to delete the customer "${name}" from the ledger?`)) {
         queueDatabaseWrite('nwh/customers/' + name, 'remove', null);
     }
 }
 
-let _payKey='',_payCust='';
 function openPayModal(key,cust,baki){
   _payKey=key;_payCust=cust;
   document.getElementById('pay-modal-title').innerText=`💰 Payment — ${cust}`;
@@ -1861,31 +1686,29 @@ function confirmPayment(){
   const amount=parseFloat(document.getElementById('pay-amount-inp').value)||0;
   const note=document.getElementById('pay-note-inp').value.trim();
   const payDate = document.getElementById('pay-date-inp').value || todayStr; 
+  const payMode = document.getElementById('pay-mode-inp') ? document.getElementById('pay-mode-inp').value : 'Cash 💵';
   
   if(amount<=0){alert('Enter a valid amount');return;}
   const bill=allBills.find(b=>b.key===_payKey);if(!bill) return;
   
   const newRem=Math.max(0,(parseInt(bill.remaining)||0)-amount);
   const newPaid=(parseInt(bill.paid)||0)+amount;
-  const entry={amount, date: payDate, note}; 
-  
-  const currentCustBal = parseInt(cloudCustomers[_payCust]?.balance) || 0;
-  const newCustBal = Math.max(0, currentCustBal - amount);
+  const entry={amount, date: payDate, note, mode: payMode}; 
   
   queueDatabaseWrite('nwh/bills/'+_payKey+'/remaining', 'set', newRem.toString());
   queueDatabaseWrite('nwh/bills/'+_payKey+'/paid', 'set', newPaid.toString());
   queueDatabaseWrite('nwh/bills/'+_payKey+'/payments', 'push', entry);
-  if(cloudCustomers[_payCust]) queueDatabaseWrite('nwh/customers/'+_payCust+'/balance', 'set', newCustBal.toString());
   
   closeModal('pay-modal');
   
   document.getElementById('rec-date').innerText = payDate;
   document.getElementById('rec-cust').innerText = _payCust;
   document.getElementById('rec-amt').innerText = amount.toLocaleString('en-IN');
-  document.getElementById('rec-baki').innerText = newCustBal.toLocaleString('en-IN');
-  document.getElementById('rec-note').innerText = note || '—';
+  document.getElementById('rec-baki').innerText = getCustomerTrueBalance(_payCust).toLocaleString('en-IN');
+  document.getElementById('rec-note').innerText = `${payMode} ${note ? '• ' + note : ''}`;
   
   document.getElementById('receipt-modal').classList.add('open');
+  renderDashboardSummary();
 }
 
 function shareReceiptWA() {
@@ -1901,99 +1724,81 @@ function shareReceiptWA() {
 
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
-    html2canvas(targetElement, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
+    if(!targetElement) return;
+    html2canvas(targetElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         const link = document.createElement('a');
         link.download = `Receipt-${_payCust}.png`;
-        link.href = dataUrl;
+        link.href = canvas.toDataURL('image/png');
         link.click();
     }).catch(function (err) {
-        console.error(err);
         alert('Error generating receipt image.');
     });
 }
 
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function deleteBill(key) {
+  const b = allBills.find(x => x.key === key);
+  if (!b) return;
 
-function renderHistory(){
+  if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum} for ${b.customer}?`)) {
+    queueDatabaseWrite('nwh/bills/' + key, 'remove', null);
+    closeModal('bill-modal');
+
+    if (document.getElementById('panel-history') && document.getElementById('panel-history').classList.contains('active')) renderHistory();
+    if (document.getElementById('panel-ledger') && document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+
+    alert(`✅ Invoice #${b.invoiceNum} deleted successfully!`);
+    renderDashboardSummary();
+  }
+}
+
+function closeModal(id){
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('open');
+}
+
+let historyLimit = 30;
+function renderHistory(resetLimit = false){
+  if(resetLimit) historyLimit = 30;
   const c=document.getElementById('history-container');
+  if(!c) return;
   if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
 
-  const q = document.getElementById('history-search').value.toLowerCase();
+  const qEl = document.getElementById('history-search');
+  const q = qEl ? qEl.value.toLowerCase() : '';
   let filtered = q ? allBills.filter(b => b.customer.toLowerCase().includes(q) || b.invoiceNum.toString().includes(q)) : allBills;
   if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching bills.</div>`;
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  filtered.forEach(b=>{
+  filtered.slice(0, historyLimit).forEach(b=>{
     const baki=parseInt(b.remaining)||0;
     html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${b.customer}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
   html += `</tbody></table>`;
-  
-  if(allBills.length >= dbBillsLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="loadMoreBills()">Load More Server Data</button>`;
+  if(filtered.length > historyLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="historyLimit += 30; renderHistory();">Load More</button>`;
   c.innerHTML = html;
 }
-const debouncedFilterHistory = debounce(() => renderHistory());
+const debouncedFilterHistory = debounce(() => renderHistory(true));
 
 let ledgerLimit = 30;
 function renderLedger(resetLimit = false){
   if(resetLimit) ledgerLimit = 30;
-  const c = document.getElementById('ledger-container');
-  const custs = Object.entries(cloudCustomers);
+  const c=document.getElementById('ledger-container');
+  if(!c) return;
+  const custs=Object.entries(cloudCustomers);
   if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
 
-  const q = document.getElementById('ledger-search').value.toLowerCase();
-  const sortMode = document.getElementById('ledger-sort').value;
-
+  const qEl = document.getElementById('ledger-search');
+  const q = qEl ? qEl.value.toLowerCase() : '';
   let filtered = q ? custs.filter(([n, cu]) => n.toLowerCase().includes(q) || (cu.phone && cu.phone.includes(q))) : custs;
-  
-  if(sortMode === 'dues') {
-      filtered.sort((a,b) => (parseInt(b[1].balance)||0) - (parseInt(a[1].balance)||0));
-  } else if (sortMode === 'recent') {
-      const lastActive = {};
-      allBills.forEach(b => {
-         const t = new Date(b.date).getTime();
-         if(!lastActive[b.customer] || t > lastActive[b.customer]) lastActive[b.customer] = t;
-      });
-      filtered.sort((a,b) => (lastActive[b[0]]||0) - (lastActive[a[0]]||0));
-  } else {
-      filtered.sort((a,b) => a[0].localeCompare(b[0]));
-  }
-
   if(!filtered.length) return c.innerHTML=`<div class="empty-state">No matching customers.</div>`;
 
   let html = '';
   filtered.slice(0, ledgerLimit).forEach(([name,cu])=>{
-    const baki = parseInt(cu.balance)||0;
+    const baki = getCustomerTrueBalance(name);
     const safeName = name.replace(/'/g, "\\'"); 
-    const phoneClean = cu.phone ? cu.phone.replace(/\D/g,'') : '';
-    
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')">
-        <div style="flex:1;">
-            <div class="lc-name">${name}</div>
-            <div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button>
-                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price</button>
-                ${phoneClean ? `<button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#059669;" onclick="event.stopPropagation(); window.open('https://wa.me/${phoneClean}', '_blank')">💬 WA</button>
-                <button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#2563eb;" onclick="event.stopPropagation(); window.open('tel:${phoneClean}', '_self')">📞 Call</button>` : ''}
-            </div>
-        </div>
-        <div style="text-align:right">
-            <div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div>
-            <span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span>
-        </div>
-    </div>`;
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1;"><div class="lc-name">${name}</div><div class="lc-phone" style="margin-bottom:8px;">${cu.phone||'—'}</div><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:#4a5280;" onclick="event.stopPropagation(); editCustomer('${safeName}')">✏️ Edit</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#cbd5e1; color:var(--accent);" onclick="event.stopPropagation(); showPriceBook('${safeName}')">📕 Price Book</button><button class="btn btn-ghost" style="padding:4px 10px; font-size:0.7rem; border-color:#fecaca; color:#dc2626;" onclick="event.stopPropagation(); deleteCustomer('${safeName}')">🗑️ Delete</button></div></div><div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
-  
   if(filtered.length > ledgerLimit) html += `<button class="btn btn-ghost" style="width:100%; margin-top:10px;" onclick="ledgerLimit += 30; renderLedger();">Load More</button>`;
   c.innerHTML = html;
 }
 const debouncedFilterLedger = debounce(() => renderLedger(true));
-
-// SERVICE WORKER REGISTRATION
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-      for(let registration of registrations) { registration.unregister(); }
-  });
-}
