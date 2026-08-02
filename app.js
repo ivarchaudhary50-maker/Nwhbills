@@ -19,6 +19,7 @@ let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+let _payKey='', _payCust='';
 
 // ============================================================
 // PIN LOCK LOGIC
@@ -142,7 +143,7 @@ function getCustomerTrueBalance(custName) {
 }
 
 // ============================================================
-// CUSTOMER AUTO-FILL & LEDGER DUES LOGIC
+// CUSTOMER AUTO-FILL LOGIC
 // ============================================================
 function triggerCustomerAutoFill() {
     const nameEl = document.getElementById('customer-name');
@@ -1241,9 +1242,9 @@ function generatePreviewHTML(bill) {
                     </td>
                     <td style="vertical-align: top; text-align: right; padding-bottom: 15px;">
                         <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1px;">INVOICE</h2>
-                        <p style="font-size: 15px; font-weight: bold;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 13px;">${bill.date}</p>
-                        <p style="font-size: 12px; color:#4a5280;">${bill.dateBS || ""}</p>
+                        <p style="font-size: 15px; font-weight: bold; margin-top:2px;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 13px; margin-top:2px;">${bill.date}</p>
+                        <p style="font-size: 12px; color:#4a5280; margin-top:2px;">${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
@@ -1267,16 +1268,23 @@ function generatePreviewHTML(bill) {
                 <tbody>${rowsHtml}</tbody>
             </table>
 
+            <!-- BALANCED 2-COLUMN BOTTOM SECTION FIX -->
             <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
                 <tr>
-                    <td style="width: 50%; vertical-align: top; padding-right: 15px;">
+                    <td style="width: 48%; vertical-align: top; padding-right: 15px;">
                         ${bill.billNotes && bill.billNotes.length > 0 ? `
-                        <div style="padding: 10px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
+                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px; margin-bottom: 12px;">
                             <p style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
                             ${bill.billNotes.map(n => `<p style="margin:2px 0; font-size:12px; color:#1a1f36;">${n.date}: ${n.text}</p>`).join('')}
                         </div>` : ''}
+
+                        <div style="padding: 12px; background: #f7f9ff; border: 1px solid #e2e8f8; border-radius: 6px; font-size: 11.5px; color: #4a5280; line-height: 1.5;">
+                            <p style="font-weight: bold; color: #1a1f36; margin-bottom: 4px;">Payment Info & Terms:</p>
+                            <p style="margin: 2px 0;">• Cash / Fonepay / eSewa Accepted</p>
+                            <p style="margin: 2px 0;">• Keep invoice image for ledger reference</p>
+                        </div>
                     </td>
-                    <td style="width: 50%; vertical-align: top;">
+                    <td style="width: 52%; vertical-align: top;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
                             <tr><td style="padding: 5px 0;">Items Subtotal:</td><td style="text-align: right; font-weight:bold;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
                             <tr><td style="padding: 5px 0;">Transport (+):</td><td style="text-align: right;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
@@ -1453,6 +1461,101 @@ function showCustDetail(name){
     ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${safeName}',${baki})">💰 Record Payment</button>`:''}
   `;
   document.getElementById('bill-modal').classList.add('open');
+}
+
+function payFromLedger(name, baki){
+  _payCust = name;
+  const bill = allBills.find(b => b.customer === name && (parseFloat(b.remaining) || 0) > 0);
+  _payKey = bill ? bill.key : '';
+  
+  document.getElementById('pay-modal-title').innerText = `💰 Payment — ${name}`;
+  document.getElementById('pay-baki-display').innerText = `NRS ${Math.round(baki).toLocaleString('en-IN')}`;
+  document.getElementById('pay-amount-inp').value = '';
+  document.getElementById('pay-note-inp').value = '';
+  document.getElementById('pay-date-inp').value = todayStr;
+  
+  closeModal('bill-modal');
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+function openPayModal(key, cust, baki){
+  _payKey = key;
+  _payCust = cust;
+  document.getElementById('pay-modal-title').innerText = `💰 Payment — ${cust}`;
+  document.getElementById('pay-baki-display').innerText = `NRS ${Math.round(baki).toLocaleString('en-IN')}`;
+  document.getElementById('pay-amount-inp').value = '';
+  document.getElementById('pay-note-inp').value = '';
+  document.getElementById('pay-date-inp').value = todayStr;
+  
+  closeModal('bill-modal');
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+// BULLETPROOF PAYMENT CONFIRMATION LOGIC FIX
+function confirmPayment(){
+  const amount = parseFloat(document.getElementById('pay-amount-inp').value) || 0;
+  const note = document.getElementById('pay-note-inp').value.trim();
+  const payDate = document.getElementById('pay-date-inp').value || todayStr; 
+  
+  if(amount <= 0){ alert('Enter a valid amount'); return; }
+  
+  let bill = allBills.find(b => b.key === _payKey);
+  if(!bill && _payCust) {
+      bill = allBills.find(b => b.customer === _payCust && (parseFloat(b.remaining) || 0) > 0);
+  }
+  
+  if(bill) {
+      const newRem = Math.max(0, (parseFloat(bill.remaining) || 0) - amount);
+      const newPaid = (parseFloat(bill.paid) || 0) + amount;
+      const entry = { amount, date: payDate, note }; 
+      
+      queueDatabaseWrite('nwh/bills/' + bill.key + '/remaining', 'set', newRem.toString());
+      queueDatabaseWrite('nwh/bills/' + bill.key + '/paid', 'set', newPaid.toString());
+      queueDatabaseWrite('nwh/bills/' + bill.key + '/payments', 'push', entry);
+  }
+  
+  if(_payCust) {
+      const currentCustBal = getCustomerTrueBalance(_payCust);
+      const newCustBal = Math.max(0, currentCustBal - amount);
+      queueDatabaseWrite('nwh/customers/' + _payCust + '/balance', 'set', newCustBal.toString());
+      
+      document.getElementById('rec-date').innerText = payDate;
+      document.getElementById('rec-cust').innerText = _payCust;
+      document.getElementById('rec-amt').innerText = Math.round(amount).toLocaleString('en-IN');
+      document.getElementById('rec-baki').innerText = Math.round(newCustBal).toLocaleString('en-IN');
+      document.getElementById('rec-note').innerText = note || '—';
+  }
+  
+  closeModal('pay-modal');
+  document.getElementById('receipt-modal').classList.add('open');
+  renderLedger();
+  renderHistory();
+}
+
+function shareReceiptWA() {
+    const amt = document.getElementById('rec-amt').innerText;
+    const baki = document.getElementById('rec-baki').innerText;
+    const note = document.getElementById('rec-note').innerText;
+    let msg = `🏪 *Rabi Kapada Pasal*\n✅ Payment Received: *NRS ${amt}*\n🔴 Remaining Baki: *NRS ${baki}*`;
+    if(note !== '—') msg += `\n📝 Note: ${note}`;
+    
+    const phone = cloudCustomers[_payCust]?.phone || '';
+    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function downloadReceiptImage() {
+    const targetElement = document.getElementById('thermal-receipt');
+    if(!targetElement) return;
+    html2canvas(targetElement, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Receipt-${_payCust}.png`;
+        link.href = dataUrl;
+        link.click();
+    }).catch(function (err) {
+        console.error(err);
+        alert('Error generating receipt image.');
+    });
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
