@@ -10,10 +10,10 @@
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="stylesheet" href="style.css">
 
-<!-- External Libraries -->
+<!-- Firebase Libraries (App, Auth, Database) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -236,7 +236,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
   <div class="nav-actions">
     <span id="sync-status" class="sync-badge">⟳ Connecting...</span>
-    <button class="btn-icon" onclick="exportDatabaseBackup()" title="Backup Database">📥</button>
     <button class="lang-btn" onclick="toggleLang()" id="lang-btn">नेपाली</button>
     <button class="btn-icon" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
   </div>
@@ -379,25 +378,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </div>
 
 <div class="panel" id="panel-history">
-  <div class="dash-grid no-print" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:14px;">
-    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
-      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">TODAY'S SALES</div>
-      <div id="dash-today-sales" style="font-size:1.1rem; font-weight:800; color:var(--accent); font-family:'Space Mono',monospace;">NRS 0</div>
-    </div>
-    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
-      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">COLLECTED TODAY</div>
-      <div id="dash-today-collected" style="font-size:1.1rem; font-weight:800; color:var(--green); font-family:'Space Mono',monospace;">NRS 0</div>
-    </div>
-    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
-      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">MARKET BAKI</div>
-      <div id="dash-market-baki" style="font-size:1.1rem; font-weight:800; color:var(--red); font-family:'Space Mono',monospace;">NRS 0</div>
-    </div>
-  </div>
-
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="debouncedFilterHistory()" style="width:150px;">
+      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
     </div>
     <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div></div>
   </div>
@@ -407,10 +391,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="card">
     <div class="card-header">
       <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:170px;">
+      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="filterLedger()" style="width:170px;">
     </div>
     <div class="card-body" style="padding:0 18px 18px;">
-      <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
       <div id="ledger-container"><div class="empty-state"><div class="icon">👥</div><div class="L" data-k="Loading customers...">Syncing ledger...</div></div></div>
     </div>
   </div>
@@ -434,12 +417,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="pay-big" id="pay-baki-display">NRS 0</div>
       <div class="sec-div">Payment Date</div>
       <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Space Mono',monospace;">
-      <div class="sec-div">Payment Mode</div>
-      <select class="inp" id="pay-mode-inp" style="margin-bottom:10px; font-weight:700;">
-        <option value="Cash 💵">Cash 💵</option>
-        <option value="Fonepay / eSewa 📱">Fonepay / eSewa 📱</option>
-        <option value="Bank Transfer 🏦">Bank Transfer 🏦</option>
-      </select>
       <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
       <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
@@ -564,7 +541,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="clearSignature()">🧹 Clear Signature</button>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn btn-ghost" onclick="printCurrentInvoice()" style="border-color:var(--accent); color:var(--accent);">🖨️ Print Native</button>
             <button class="btn btn-ghost" onclick="closeModal('preview-modal')">Cancel</button>
             <button class="btn btn-primary" onclick="confirmAndDownload()" id="confirm-btn-text">💾 Confirm & Download</button>
         </div>
@@ -586,23 +562,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<div class="modal-overlay" id="sig-pad-modal" style="z-index: 400;">
-  <div class="modal" style="max-width:600px; width:95%; height:60vh; display:flex; flex-direction:column; padding:0;">
-    <div class="modal-header">
-        <div class="modal-title">✏️ Draw Signature</div>
-        <button class="close-btn" onclick="closeModal('sig-pad-modal')">✕</button>
-    </div>
-    <div class="modal-body" style="flex:1; padding:15px; display:flex; background:var(--surface2);">
-        <canvas id="large-sig-canvas" style="flex:1; width:100%; height:100%; background:#fff; border:2px dashed var(--border); border-radius:12px; touch-action:none;"></canvas>
-    </div>
-    <div style="padding:15px; display:flex; gap:10px; border-top:1px solid var(--border);">
-        <button class="btn btn-ghost" onclick="clearLargeSignature()">🧹 Clear</button>
-        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveLargeSignature()">✅ Save Signature</button>
-    </div>
-  </div>
-</div>
-
-<!-- EXTERNAL JAVASCRIPT LINK -->
+<!-- JavaScript File -->
 <script src="app.js"></script>
 
 <script>
