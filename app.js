@@ -1374,10 +1374,8 @@ function deleteCustomer(name) {
     if(confirm(`⚠️ Are you sure you want to delete customer "${name}" and all associated records from your ledger?`)) {
         const safePathName = name.replace(/[.#$\[\]]/g, ' ').trim();
 
-        // 1. Remove customer entry from cloudCustomers node
         queueDatabaseWrite('nwh/customers/' + safePathName, 'remove', null);
 
-        // 2. Remove all bills associated with this customer
         if (Array.isArray(allBills)) {
             allBills.forEach(b => {
                 if(b && b.customer === name && b.key) {
@@ -1501,7 +1499,7 @@ function showCustDetail(name){
 }
 
 // ============================================================
-// STATEMENT OF ACCOUNT GENERATOR
+// STATEMENT OF ACCOUNT GENERATOR (WITH ALL PAID AMOUNTS FIX)
 // ============================================================
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
@@ -1516,26 +1514,78 @@ function showLedgerStatement(custName) {
     list.innerHTML = '';
     
     let events = [];
-    allBills.filter(b => b && b.customer === custName).forEach(b => {
-        let billTotal = parseInt(b.billAmount) || 0;
-        if(b.payments) {
+    
+    // Sort customer bills chronologically (oldest to newest)
+    const custBills = allBills.filter(b => b && b.customer === custName).reverse();
+    
+    custBills.forEach(b => {
+        let billTotal = parseFloat(b.billAmount) || 0;
+        let totalPaidOnBill = parseFloat(b.paid) || 0;
+        let timeBase = new Date(b.date || 0).getTime();
+        if (isNaN(timeBase)) timeBase = 0;
+        
+        // 1. Add Invoice Debit event (+)
+        events.push({ 
+            date: b.date || '—', 
+            time: timeBase, 
+            desc: `Invoice #${b.invoiceNum || 'N/A'}`, 
+            debit: billTotal, 
+            credit: 0 
+        });
+        
+        // 2. Track payments logged via Payment Modal
+        let modalPaymentsSum = 0;
+        if (b.payments && typeof b.payments === 'object') {
             Object.values(b.payments).forEach(p => {
                 if(!p) return;
-                let amt = parseInt(p.amount) || 0;
-                events.push({ date: p.date || '', time: new Date(p.date || 0).getTime() + 1000, desc: `Payment (${p.mode || 'Cash'})`, debit: 0, credit: amt });
+                let amt = parseFloat(p.amount) || 0;
+                modalPaymentsSum += amt;
+                let pTime = new Date(p.date || b.date || 0).getTime() + 1000;
+                if (isNaN(pTime)) pTime = timeBase + 1000;
+                events.push({ 
+                    date: p.date || b.date || '—', 
+                    time: pTime, 
+                    desc: `Payment (${p.mode || 'Cash'}${p.note ? ' - ' + p.note : ''})`, 
+                    debit: 0, 
+                    credit: amt 
+                });
             });
         }
-        events.push({ date: b.date || '', time: new Date(b.date || 0).getTime(), desc: `Invoice #${b.invoiceNum || ''}`, debit: billTotal, credit: 0 });
+        
+        // 3. Track initial cash payment entered on the invoice form (Nagad Paid input)
+        let initialPaid = totalPaidOnBill - modalPaymentsSum;
+        if (initialPaid > 0) {
+            let initTime = new Date(b.cashPaidDate || b.date || 0).getTime() + 500;
+            if (isNaN(initTime)) initTime = timeBase + 500;
+            events.push({ 
+                date: b.cashPaidDate || b.date || '—', 
+                time: initTime, 
+                desc: `Payment (Cash)`, 
+                debit: 0, 
+                credit: initialPaid 
+            });
+        }
     });
     
+    // Sort all transactions from oldest to newest
     events.sort((a,b) => a.time - b.time);
+    
     let listHtml = '';
     let bal = 0;
     listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:10px;">—</td><td style="padding:10px;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">0</td></tr>`;
+    
     events.forEach(e => {
-        bal += e.debit; bal -= e.credit;
-        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;">${e.date}</td><td style="padding:10px;">${e.desc}</td><td style="text-align:right; padding:10px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; padding:10px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+        bal += e.debit; 
+        bal -= e.credit;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:10px;">${e.date}</td>
+            <td style="padding:10px;">${e.desc}</td>
+            <td style="text-align:right; padding:10px;">${e.debit > 0 ? Math.round(e.debit).toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; padding:10px; color:#059669; font-weight:bold;">${e.credit > 0 ? Math.round(e.credit).toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; font-weight:bold;">${Math.round(bal).toLocaleString('en-IN')}</td>
+        </tr>`;
     });
+    
     list.innerHTML = listHtml;
     closeModal('bill-modal');
     document.getElementById('ledger-statement-modal').classList.add('open');
