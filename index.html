@@ -91,6 +91,34 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:50;max-height:160px;overflow-y:auto;display:none;}
 .sr-item{padding:9px 12px;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 
+/* UNIFIED BUTTON DESIGN SYSTEM */
+.btn {
+    padding: 8px 14px;
+    border-radius: 9px;
+    border: none;
+    font-family: inherit;
+    font-size: 0.83rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+.btn-primary { background: var(--grad); color: #fff; border: none; }
+.btn-primary:active { opacity: 0.9; transform: scale(0.98); }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
+.btn-ghost:active { background: var(--border); }
+.btn-green { background: #10b981; color: #ffffff; border: none; }
+.btn-green:active { background: #059669; }
+.btn-red { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.btn-red:active { background: #fca5a5; }
+.btn-wa { background: #25d366; color: #fff; border: none; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; border-radius: 7px; }
+
 .items-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .items-table thead tr{background:var(--grad);color:#fff;}
 .items-table th{padding:10px 6px;font-size:.73rem;font-weight:700;text-transform:uppercase;}
@@ -279,7 +307,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
       <div contenteditable="true" class="biz-name" id="biz-name">Rabi Kapada Pasal</div>
-      <span contenteditable="true" class="biz-sub" id="biz-sub">Garment Wholesaler & Screen Printing</span>
+      <span contenteditable="true" class="biz-sub" id="biz-sub">Garment Wholesaler</span>
     </div>
     <div class="inv-meta">
       <div class="inv-label">INVOICE</div>
@@ -384,12 +412,14 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       </div>
     </div>
     <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:16px;"></div>
-    <div style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; background:var(--surface2);">
-        <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.85rem; padding:8px 16px; background:var(--surface2); color:var(--accent); border:2px dashed var(--accent);">+ Add Bundle</button>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn btn-ghost" onclick="previewPackingSlip()" style="border-color:var(--accent); color:var(--accent);">👀 Preview</button>
+    
+    <!-- STYLED ACTION BUTTONS -->
+    <div style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; background:var(--surface2);">
+        <button class="btn btn-ghost" onclick="addPokaGroup()">+ Add Bundle</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="previewPackingSlip()">👀 Preview</button>
             <button class="btn btn-ghost" onclick="savePokaDraft()">💾 Save Draft</button>
-            <button class="btn btn-primary" onclick="syncPokasToInvoice()" style="background:var(--green);">📤 Push to Invoice</button>
+            <button class="btn btn-green" onclick="syncPokasToInvoice()">📤 Push to Invoice</button>
         </div>
     </div>
   </div>
@@ -495,6 +525,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
+<!-- STATEMENT OF ACCOUNT MODAL -->
 <div class="modal-overlay" id="ledger-statement-modal" style="z-index: 350;">
   <div class="modal" style="max-width:900px; width:95%; height:90vh; display:flex; flex-direction:column; padding:0;">
     <div class="modal-header">
