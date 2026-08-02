@@ -919,7 +919,7 @@ function addRow(desc='',qty='',rate='',code=''){
     <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
     <td><input type="number" class="ti r qty" placeholder="0" min="0" value="${qty}" oninput="calc()"></td>
     <td style="position:relative;"><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="manualRateOverride(this)"></td>
-    <td class="amount" style="text-align:right; font-weight:600; padding-right:8px;">0</td>
+    <td class="amount">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   tbody.appendChild(tr);
 
@@ -1231,7 +1231,7 @@ function generatePreviewHTML(bill) {
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:center; width: 15%;">${it.code || '—'}</td>
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.qty}</td>
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.rate}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:600; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:500; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1451,7 +1451,7 @@ function showBillDetail(key){
   let iHtml='';
   if(b.items&&b.items.length){
     iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;">Item</th><th style="padding:7px 10px;text-align:right;">Qty</th><th style="padding:7px 10px;text-align:right;">Rate</th><th style="padding:7px 10px;text-align:right;">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:500">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
     iHtml+='</tbody></table></div>';
   }
 
