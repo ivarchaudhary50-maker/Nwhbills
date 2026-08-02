@@ -1,8 +1,15 @@
 // ============================================================
-// SAFE STORAGE & GLOBALS
+// SAFE STORAGE & ESCAPING UTILITIES
 // ============================================================
 function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
 function safeSetLocal(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+
+function escapeJsStr(str) {
+    return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+function escapeHtmlAttr(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 let editBillKey = null;
 let editInvoiceNum = null;
@@ -119,6 +126,22 @@ async function processSyncQueue() {
 }
 
 // ============================================================
+// DYNAMIC TRUE CUSTOMER BALANCE
+// ============================================================
+function getCustomerTrueBalance(custName) {
+    if (!custName) return 0;
+    let totalBaki = 0;
+    if (Array.isArray(allBills)) {
+        allBills.forEach(b => {
+            if (b && typeof b === 'object' && b.customer === custName) {
+                totalBaki += parseFloat(b.remaining) || 0;
+            }
+        });
+    }
+    return totalBaki;
+}
+
+// ============================================================
 // CUSTOMER AUTO-FILL & LEDGER DUES LOGIC
 // ============================================================
 function triggerCustomerAutoFill() {
@@ -141,7 +164,7 @@ function triggerCustomerAutoFill() {
         document.getElementById('customer-phone').value = cu.phone || '';
         document.getElementById('customer-address').value = cu.address || '';
         if (!editBillKey) {
-            document.getElementById('prev-balance').value = cu.balance || '0';
+            document.getElementById('prev-balance').value = getCustomerTrueBalance(rawName);
             calc();
         }
     }
@@ -597,9 +620,8 @@ function checkAndAutoFillRate(inputElement) {
     if(!hintSpan) {
         hintSpan = document.createElement('div');
         hintSpan.className = 'rate-hint';
-        hintSpan.style = 'font-size: 0.65rem; color: var(--green); position: absolute; margin-top: 2px; right: 12px; pointer-events: none;';
+        hintSpan.style = 'font-size: 0.65rem; color: var(--green); display: block; margin-top: 1px; pointer-events: none; font-weight: 600;';
         rateInput.parentNode.appendChild(hintSpan);
-        rateInput.parentNode.style.position = 'relative';
     }
     
     hintSpan.innerText = '';
@@ -889,7 +911,7 @@ function addRow(desc='',qty='',rate='',code=''){
     <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
     <td><input type="number" class="ti r qty" placeholder="0" min="0" value="${qty}" oninput="calc()"></td>
     <td style="position:relative;"><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="manualRateOverride(this)"></td>
-    <td class="amount" style="text-align:right; font-weight:bold; padding-right:12px;">0</td>
+    <td class="amount" style="text-align:right; font-weight:bold; padding-right:8px;">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   tbody.appendChild(tr);
 
@@ -952,7 +974,7 @@ function searchDB(){
     const ph=(cloudCustomers[name].phone||'').toLowerCase();
     if(name.toLowerCase().includes(q)||ph.includes(q)){
       const d=document.createElement('div');d.className='sr-item';
-      d.innerHTML=`<span><strong>${name}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
+      d.innerHTML=`<span><strong>${escapeHtmlAttr(name)}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
       d.onclick=()=>{
           document.getElementById('customer-name').value=name;
           triggerCustomerAutoFill();
@@ -1103,7 +1125,7 @@ function previewPackingSlip() {
     
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-slip-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0; padding: 40px;">
+        <div id="actual-slip-to-render" style="width: 720px; min-width: 720px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; padding: 30px;">
             <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
                 <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase;">PACKING SLIP (POKA DETAILS)</h1>
                 <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
@@ -1169,9 +1191,9 @@ function downloadSlipOnly() {
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
-    clone.style.width = '800px'; 
+    clone.style.width = '720px'; 
 
-    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -1197,11 +1219,11 @@ function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach(it => {
         rowsHtml += `<tr>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px;">${it.desc}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:center;">${it.code || '—'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.qty}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right;">${it.rate}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-align:right; font-weight:bold;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; width: 40%; word-break: break-word;">${it.desc}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:center; width: 15%;">${it.code || '—'}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.qty}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.rate}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:bold; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1209,52 +1231,61 @@ function generatePreviewHTML(bill) {
     const bizSub = document.getElementById('biz-sub').innerText || "";
 
     let htmlString = `
-    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0;">
-        <div id="actual-bill-to-render" style="width: 800px; min-width: 800px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 40px;">
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
+        <div id="actual-bill-to-render">
             <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px;">
                 <tr>
-                    <td style="vertical-align: top; padding-bottom: 20px;">
-                        <h1 style="font-size: 28px; color: #1a1f36; margin: 0;">${bizName}</h1>
-                        <p style="font-size: 14px; color: #4a5280; margin-top: 5px;">${bizSub}</p>
+                    <td style="vertical-align: top; padding-bottom: 15px;">
+                        <h1 style="font-size: 26px; color: #1a1f36; margin: 0;">${bizName}</h1>
+                        <p style="font-size: 13px; color: #4a5280; margin-top: 4px;">${bizSub}</p>
                     </td>
-                    <td style="vertical-align: top; text-align: right; padding-bottom: 20px;">
-                        <h2 style="font-size: 24px; color: #a0aec0; margin: 0;">INVOICE</h2>
-                        <p style="font-size: 16px; font-weight: bold;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 14px;">${bill.date}</p>
-                        <p style="font-size: 12px;">${bill.dateBS || ""}</p>
+                    <td style="vertical-align: top; text-align: right; padding-bottom: 15px;">
+                        <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1px;">INVOICE</h2>
+                        <p style="font-size: 15px; font-weight: bold;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 13px;">${bill.date}</p>
+                        <p style="font-size: 12px; color:#4a5280;">${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
 
-            <div style="background: #f7f9ff; padding: 20px; border-left: 4px solid #8b5cf6; margin-bottom: 25px;">
-                <p style="font-size: 12px; font-weight: bold; color: #8892b0; margin: 0;">BILL TO:</p>
-                <p style="font-size: 18px; font-weight: bold; margin: 0;">${bill.customer}</p>
-                <p style="font-size: 14px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
+            <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; margin-bottom: 20px; border-radius: 4px;">
+                <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0;">BILL TO:</p>
+                <p style="font-size: 17px; font-weight: bold; color: #1a1f36; margin: 2px 0 0 0;">${bill.customer}</p>
+                <p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;">
                 <thead>
                     <tr>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: left;">Description</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: center;">Code</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Qty</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Rate</th>
-                        <th style="background: #8b5cf6; color: white; padding: 12px; text-align: right;">Total (NRS)</th>
+                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: left; width: 40%;">Description</th>
+                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: center; width: 15%;">Code</th>
+                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Qty</th>
+                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Rate</th>
+                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Total (NRS)</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
 
-            <table style="width: 100%; margin-top: 20px;">
+            <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
                 <tr>
-                    <td style="width: 55%; font-size: 14px;">
-                        <p>Items Subtotal: <strong>NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</strong></p>
-                        <p>Transport (+): NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</p>
-                        <p>Today's Bill: <strong>NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</strong></p>
-                        <p>Purano Baki (+): NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</p>
-                        <p style="color:#8b5cf6; font-weight:bold;">Jamma Total: NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</p>
-                        <p style="color:#059669;">Paid (-): NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</p>
-                        <p style="color:#dc2626; font-size:18px; font-weight:bold;">Remaining Baki: NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</p>
+                    <td style="width: 50%; vertical-align: top; padding-right: 15px;">
+                        ${bill.billNotes && bill.billNotes.length > 0 ? `
+                        <div style="padding: 10px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
+                            <p style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
+                            ${bill.billNotes.map(n => `<p style="margin:2px 0; font-size:12px; color:#1a1f36;">${n.date}: ${n.text}</p>`).join('')}
+                        </div>` : ''}
+                    </td>
+                    <td style="width: 50%; vertical-align: top;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
+                            <tr><td style="padding: 5px 0;">Items Subtotal:</td><td style="text-align: right; font-weight:bold;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 5px 0;">Transport (+):</td><td style="text-align: right;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 6px 0;">Today's Bill:</td><td style="text-align: right;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 5px 0;">Purano Baki (+):</td><td style="text-align: right;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 6px 0;">Jamma Total:</td><td style="text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="color: #059669;"><td style="padding: 5px 0;">Paid (-):</td><td style="text-align: right;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #fee2e2; color: #dc2626; font-size: 16px; font-weight: bold;"><td style="padding: 8px 4px;">Remaining Baki:</td><td style="text-align: right; padding: 8px 4px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
+                        </table>
                     </td>
                 </tr>
             </table>
@@ -1288,9 +1319,9 @@ function confirmAndDownload() {
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
     clone.style.top = '-9999px';
-    clone.style.width = '800px'; 
+    clone.style.width = '720px'; 
 
-    html2canvas(clone, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
         document.body.removeChild(clone);
 
         const dataUrl = canvas.toDataURL('image/png');
@@ -1400,9 +1431,26 @@ function showBillDetail(key){
     
     <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
         <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
-        ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
+        ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${escapeJsStr(b.customer||'')}',${baki})">💰 Pay</button>`:''}
         <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--red); color:var(--red);" onclick="deleteBill('${key}')">🗑️ Delete Bill</button>
     </div>
+  `;
+  document.getElementById('bill-modal').classList.add('open');
+}
+
+function showCustDetail(name){
+  const cu=cloudCustomers[name];if(!cu) return;
+  const baki=getCustomerTrueBalance(name);
+  const safeName = escapeJsStr(name);
+  const attrName = escapeHtmlAttr(name);
+  document.getElementById('modal-title').innerText=`👤 ${name}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="d-row"><span class="d-label">📞 Phone</span><span class="d-val">${cu.phone||'—'}</span></div>
+    <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
+    <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
+    
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${safeName}')">📜 View Statement of Account</button>
+    ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${safeName}',${baki})">💰 Record Payment</button>`:''}
   `;
   document.getElementById('bill-modal').classList.add('open');
 }
@@ -1417,7 +1465,7 @@ function renderHistory(){
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
   allBills.forEach(b=>{
     const baki=parseInt(b.remaining)||0;
-    html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${b.customer}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
+    html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${escapeHtmlAttr(b.customer)}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
   html += `</tbody></table>`;
   c.innerHTML = html;
@@ -1426,14 +1474,15 @@ function renderHistory(){
 function renderLedger(resetLimit = false){
   const c=document.getElementById('ledger-container');
   if(!c) return;
-  const custs=Object.entries(cloudCustomers);
+  const custs=Object.entries(cloudCustomers || {});
   if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
 
   let html = '';
   custs.forEach(([name,cu])=>{
-    const baki=parseInt(cu.balance)||0;
-    const safeName = name.replace(/'/g, "\\'"); 
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1;"><div class="lc-name">${name}</div><div class="lc-phone">${cu.phone||'—'}</div></div><div style="text-align:right"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div></div></div>`;
+    const baki=getCustomerTrueBalance(name);
+    const safeName = escapeJsStr(name);
+    const attrName = escapeHtmlAttr(name);
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${cu.phone||'—'}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
   c.innerHTML = html;
 }
