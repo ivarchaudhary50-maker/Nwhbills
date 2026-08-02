@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 
-<!-- Firebase Libraries (App, Auth, Database) -->
+<!-- Firebase Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
@@ -97,10 +97,11 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .btn-green{background:#d1fae5;color:#065f46;border:1.5px solid #a7f3d0;}
 .btn-wa{background:#25d366;color:#fff;}
 
-.items-table{width:100%;border-collapse:collapse;}
+/* FORM ITEMS TABLE FORMING & ALIGNMENT FIX */
+.items-table{width:100%;border-collapse:collapse;table-layout:fixed;}
 .items-table thead tr{background:var(--grad);color:#fff;}
-.items-table th{padding:10px 12px;font-size:.73rem;font-weight:700;text-transform:uppercase;}
-.items-table td{padding:6px 12px;}
+.items-table th{padding:10px 6px;font-size:.73rem;font-weight:700;text-transform:uppercase;}
+.items-table td{padding:6px 4px;vertical-align:middle;}
 .ti{width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:.83rem;color:var(--text);}
 .ti.r{text-align:right;}
 .del-row{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 5px;border-radius:5px;}
@@ -129,7 +130,21 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .h-table th{padding:10px 13px;font-size:.72rem;font-weight:700;text-transform:uppercase;}
 .h-table td{padding:10px 13px;font-size:.82rem;}
 
-.ledger-card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+/* LEDGER CARD TAP & SELECTION FIX */
+.ledger-card{
+    background:var(--surface);
+    border-radius:12px;
+    border:1px solid var(--border);
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+}
 .lc-name{font-weight:700;font-size:.92rem;}
 .lc-phone{font-size:.73rem;color:var(--text3);margin-top:2px;}
 .lc-baki{font-family:'Space Mono',monospace;font-weight:800;font-size:1.05rem;}
@@ -171,7 +186,25 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .pin-del{font-size:1rem;color:var(--text3);}
 #pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
 
-.responsive-preview-container { width: 100%; overflow-x: auto; background: #e2e8f0; }
+/* RESPONSIVE PREVIEW SCROLLING FIX */
+.responsive-preview-container {
+    width: 100%;
+    overflow-x: auto;
+    background: #e2e8f0;
+    padding: 10px;
+    -webkit-overflow-scrolling: touch;
+}
+#actual-bill-to-render {
+    width: 720px;
+    min-width: 720px;
+    background: #ffffff;
+    color: #000000;
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    padding: 30px;
+    margin: 0 auto;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
 </style>
 </head>
 <body>
@@ -287,15 +320,15 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 
   <div class="card">
     <div class="card-header"><div class="card-title">📦 <span class="L" data-k="Items">Items</span></div></div>
-    <div style="overflow:visible;">
-      <table class="items-table">
+    <div style="overflow-x:auto;">
+      <table class="items-table" style="min-width: 380px;">
         <thead><tr>
-          <th style="width:42%"><span class="L" data-k="Garment Description">Garment Description</span></th>
-          <th style="width:80px;text-align:center"><span class="L" data-k="Code">Code</span></th>
-          <th style="text-align:right"><span class="L" data-k="Qty">Qty</span></th>
-          <th style="text-align:right"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
-          <th style="text-align:right"><span class="L" data-k="Total">Total</span></th>
-          <th class="no-print" style="width:30px"></th>
+          <th style="width:40%; text-align:left;"><span class="L" data-k="Garment Description">Garment Description</span></th>
+          <th style="width:12%; text-align:center;"><span class="L" data-k="Code">Code</span></th>
+          <th style="width:14%; text-align:right;"><span class="L" data-k="Qty">Qty</span></th>
+          <th style="width:16%; text-align:right;"><span class="L" data-k="Rate (NRS)">Rate (NRS)</span></th>
+          <th style="width:18%; text-align:right;"><span class="L" data-k="Total">Total</span></th>
+          <th class="no-print" style="width:25px"></th>
         </tr></thead>
         <tbody id="invoice-items"></tbody>
       </table>
@@ -562,7 +595,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<!-- JavaScript File -->
 <script src="app.js"></script>
 
 <script>
