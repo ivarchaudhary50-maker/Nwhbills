@@ -475,7 +475,6 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // Authenticate if auth module is loaded
     if(firebase.auth) {
         firebase.auth().signInAnonymously().then(() => {
             startDatabaseListeners();
@@ -1322,6 +1321,62 @@ function deleteBill(key) {
   }
 }
 
+function loadBillForEdit(key) {
+    const bill = allBills.find(b => b.key === key);
+    if (!bill) return;
+
+    editBillKey = bill.key;
+    editInvoiceNum = bill.invoiceNum;
+
+    document.getElementById('customer-name').value = bill.customer || '';
+    document.getElementById('customer-phone').value = bill.phone || '';
+    document.getElementById('customer-address').value = bill.address || '';
+    
+    document.getElementById('current-date-ad').value = bill.date || todayStr;
+    updateBSDate();
+    if (bill.cashPaidDate) document.getElementById('cash-paid-date').value = bill.cashPaidDate;
+
+    const itemsTbody = document.getElementById('invoice-items');
+    itemsTbody.innerHTML = '';
+    if (bill.items && bill.items.length > 0) {
+        bill.items.forEach(it => addRow(it.desc, it.qty, it.rate, it.code));
+    } else {
+        addRow();
+    }
+
+    const notesContainer = document.getElementById('notes-container');
+    if(notesContainer) {
+        notesContainer.innerHTML = '';
+        if (bill.billNotes && bill.billNotes.length > 0) {
+            bill.billNotes.forEach(n => addNoteRow(n.date, n.text));
+        } else {
+            addNoteRow();
+        }
+    }
+
+    const pokaContainer = document.getElementById('poka-groups-container');
+    if(pokaContainer) {
+        pokaContainer.innerHTML = '';
+        pokaCounter = 0;
+        if (bill.pokaDetails && bill.pokaDetails.length > 0) {
+            bill.pokaDetails.forEach(group => addPokaGroup(group.items));
+        }
+    }
+
+    document.getElementById('total-poka').value = bill.totalPoka || '';
+    document.getElementById('transport-expense').value = bill.transport || '';
+    document.getElementById('discount-amount').value = bill.discount || '';
+    document.getElementById('prev-balance').value = bill.prevBalance || '';
+    document.getElementById('cash-paid').value = bill.paid || '';
+
+    document.getElementById('invoice-number').innerText = bill.invoiceNum;
+    document.getElementById('tab-invoice').innerHTML = `🧾 <span style="color:var(--red);">Editing #${bill.invoiceNum}</span>`;
+    
+    calc();
+    closeModal('bill-modal');
+    switchTab('invoice');
+}
+
 function showBillDetail(key){
   const b=allBills.find(x=>x.key===key);if(!b) return;
   document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
@@ -1344,6 +1399,7 @@ function showBillDetail(key){
     <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
     <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
         ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
         <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--red); color:var(--red);" onclick="deleteBill('${key}')">🗑️ Delete Bill</button>
     </div>
