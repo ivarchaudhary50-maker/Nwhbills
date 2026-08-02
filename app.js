@@ -821,12 +821,12 @@ function renderPokaHistory() {
     allPokas.forEach(p => {
         if(!p) return;
         html += `<tr>
-            <td><strong style="color:var(--accent);">${p.ref || 'N/A'}</strong><br><span style="font-size:10px">${p.date || ''}</span></td>
-            <td><strong>${p.customer || 'Unknown'}</strong></td>
+            <td><strong style="color:var(--accent);">${escapeHtmlAttr(p.ref || 'N/A')}</strong><br><span style="font-size:10px">${p.date || ''}</span></td>
+            <td><strong>${escapeHtmlAttr(p.customer || 'Unknown')}</strong></td>
             <td>${p.totalPoka || 0}</td>
             <td style="white-space:nowrap;">
-                <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--accent); color:var(--accent);" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
-                <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--red); color:var(--red); margin-left:4px;" onclick="deletePokaDraft('${p.key}')">🗑️</button>
+                <button class="btn btn-ghost btn-sm" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
+                <button class="btn btn-red btn-sm" onclick="deletePokaDraft('${p.key}')">🗑️</button>
             </td>
         </tr>`;
     });
@@ -1268,7 +1268,6 @@ function generatePreviewHTML(bill) {
                 <tbody>${rowsHtml}</tbody>
             </table>
 
-            <!-- BALANCED 2-COLUMN BOTTOM SECTION FIX -->
             <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 48%; vertical-align: top; padding-right: 15px;">
@@ -1463,6 +1462,76 @@ function showCustDetail(name){
   document.getElementById('bill-modal').classList.add('open');
 }
 
+// ============================================================
+// STATEMENT OF ACCOUNT GENERATOR
+// ============================================================
+function showLedgerStatement(custName) {
+    document.getElementById('ls-cust-name').innerText = custName;
+    const cu = cloudCustomers[custName] || {};
+    let subInfo = [];
+    if(cu.address) subInfo.push(cu.address);
+    if(cu.phone) subInfo.push(cu.phone);
+    document.getElementById('ls-cust-sub').innerText = subInfo.join(' • ');
+    
+    const list = document.getElementById('ledger-statement-list');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    let events = [];
+    allBills.filter(b => b && b.customer === custName).forEach(b => {
+        let billTotal = parseInt(b.billAmount) || 0;
+        if(b.payments) {
+            Object.values(b.payments).forEach(p => {
+                if(!p) return;
+                let amt = parseInt(p.amount) || 0;
+                events.push({ date: p.date || '', time: new Date(p.date || 0).getTime() + 1000, desc: `Payment (${p.mode || 'Cash'})`, debit: 0, credit: amt });
+            });
+        }
+        events.push({ date: b.date || '', time: new Date(b.date || 0).getTime(), desc: `Invoice #${b.invoiceNum || ''}`, debit: billTotal, credit: 0 });
+    });
+    
+    events.sort((a,b) => a.time - b.time);
+    let listHtml = '';
+    let bal = 0;
+    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:10px;">—</td><td style="padding:10px;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">0</td></tr>`;
+    events.forEach(e => {
+        bal += e.debit; bal -= e.credit;
+        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px;">${e.date}</td><td style="padding:10px;">${e.desc}</td><td style="text-align:right; padding:10px;">${e.debit > 0 ? e.debit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; padding:10px; color:#059669;">${e.credit > 0 ? e.credit.toLocaleString('en-IN') : ''}</td><td style="text-align:right; font-weight:bold;">${bal.toLocaleString('en-IN')}</td></tr>`;
+    });
+    list.innerHTML = listHtml;
+    closeModal('bill-modal');
+    document.getElementById('ledger-statement-modal').classList.add('open');
+}
+
+function shareStatementWA() {
+    const custName = document.getElementById('ls-cust-name').innerText;
+    const cu = cloudCustomers[custName];
+    if(!cu || !cu.phone) { alert("No phone number found for this customer."); return; }
+    const baki = getCustomerTrueBalance(custName);
+    const msg = `🏪 *Rabi Kapada Pasal*\n\nNamaste *${custName}*,\nAccount Summary:\n🔴 *Total Due: NRS ${baki.toLocaleString('en-IN')}*`;
+    window.open('https://wa.me/'+cu.phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function downloadLedgerStatement() {
+    const originalElement = document.getElementById('ledger-statement-render');
+    const clone = originalElement.cloneNode(true);
+    document.body.appendChild(clone);
+    clone.style.position = 'absolute';
+    clone.style.top = '-9999px';
+    clone.style.width = '800px';
+
+    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
+        document.body.removeChild(clone);
+        const link = document.createElement('a');
+        link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }).catch(function (err) {
+        console.error(err);
+        alert("Error generating image.");
+    });
+}
+
 function payFromLedger(name, baki){
   _payCust = name;
   const bill = allBills.find(b => b.customer === name && (parseFloat(b.remaining) || 0) > 0);
@@ -1491,7 +1560,6 @@ function openPayModal(key, cust, baki){
   document.getElementById('pay-modal').classList.add('open');
 }
 
-// BULLETPROOF PAYMENT CONFIRMATION LOGIC FIX
 function confirmPayment(){
   const amount = parseFloat(document.getElementById('pay-amount-inp').value) || 0;
   const note = document.getElementById('pay-note-inp').value.trim();
