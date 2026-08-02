@@ -628,7 +628,7 @@ function checkAndAutoFillRate(inputElement) {
     if(!hintSpan) {
         hintSpan = document.createElement('div');
         hintSpan.className = 'rate-hint';
-        hintSpan.style = 'font-size: 0.65rem; color: var(--green); display: block; margin-top: 1px; pointer-events: none; font-weight: 600;';
+        hintSpan.style = 'font-size: 0.65rem; color: var(--green); display: block; margin-top: 1px; pointer-events: none; font-weight: 600; font-style: normal; font-family: "Plus Jakarta Sans", sans-serif;';
         rateInput.parentNode.appendChild(hintSpan);
     }
     
@@ -733,11 +733,11 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
             <button class="del-row" onclick="this.closest('.poka-item-row').remove(); syncPokaCountValue();" style="padding:8px 14px; font-size:1rem; background:#fee2e2; color:#991b1b; border-radius:8px; border:none; cursor:pointer;">✕</button>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <input type="text" class="inp poka-formula-inp" placeholder="e.g. 11+13+5" value="${formula}" oninput="evaluatePokaRowSum(this)" style="flex:2; font-family:'Space Mono', monospace; font-size:1rem; font-weight:700; padding:10px;">
+            <input type="text" class="inp poka-formula-inp" placeholder="e.g. 11+13+5" value="${formula}" oninput="evaluatePokaRowSum(this)" style="flex:2; font-family:'Plus Jakarta Sans', sans-serif; font-size:1rem; font-weight:600; padding:10px;">
             <span style="font-size:1.2rem; color:var(--text3); font-weight:bold;">×</span>
-            <input type="number" class="inp poka-mult-inp" value="${mult}" oninput="evaluatePokaRowSum(this)" style="flex:1; max-width:70px; font-family:'Space Mono', monospace; font-size:1rem; font-weight:700; padding:10px; text-align:center;">
+            <input type="number" class="inp poka-mult-inp" value="${mult}" oninput="evaluatePokaRowSum(this)" style="flex:1; max-width:70px; font-family:'Plus Jakarta Sans', sans-serif; font-size:1rem; font-weight:600; padding:10px; text-align:center;">
             <div style="min-width:65px; text-align:right;">
-                <span class="poka-row-sum-output" style="font-family:'Space Mono', monospace; font-size:1.15rem; font-weight:800; color:var(--accent);">0</span>
+                <span class="poka-row-sum-output" style="font-family:'Plus Jakarta Sans', sans-serif; font-size:1.15rem; font-weight:700; color:var(--accent);">0</span>
             </div>
         </div>
     `;
@@ -919,7 +919,7 @@ function addRow(desc='',qty='',rate='',code=''){
     <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
     <td><input type="number" class="ti r qty" placeholder="0" min="0" value="${qty}" oninput="calc()"></td>
     <td style="position:relative;"><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="manualRateOverride(this)"></td>
-    <td class="amount" style="text-align:right; font-weight:bold; padding-right:8px;">0</td>
+    <td class="amount" style="text-align:right; font-weight:600; padding-right:8px;">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
   tbody.appendChild(tr);
 
@@ -1174,7 +1174,7 @@ function previewPackingSlip() {
                         ${p.items.map(it => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
                                 <td style="padding: 12px 15px; font-weight: bold;">${it.desc}</td>
-                                <td style="padding: 12px 15px; font-family: 'Space Mono', monospace;">${it.formula || '—'}</td>
+                                <td style="padding: 12px 15px; font-family: 'Plus Jakarta Sans', sans-serif;">${it.formula || '—'}</td>
                                 <td style="padding: 12px 15px; text-align: right; font-weight: bold;">${it.total}</td>
                             </tr>
                         `).join('')}
@@ -1231,7 +1231,7 @@ function generatePreviewHTML(bill) {
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:center; width: 15%;">${it.code || '—'}</td>
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.qty}</td>
             <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.rate}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:bold; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:600; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1249,7 +1249,7 @@ function generatePreviewHTML(bill) {
                     </td>
                     <td style="vertical-align: top; text-align: right; padding-bottom: 15px;">
                         <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1px;">INVOICE</h2>
-                        <p style="font-size: 15px; font-weight: bold; margin-top:2px;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 15px; font-weight: 600; margin-top:2px;">#${bill.invoiceNum}</p>
                         <p style="font-size: 13px; margin-top:2px;">${bill.date}</p>
                         <p style="font-size: 12px; color:#4a5280; margin-top:2px;">${bill.dateBS || ""}</p>
                     </td>
@@ -1258,7 +1258,7 @@ function generatePreviewHTML(bill) {
 
             <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; margin-bottom: 20px; border-radius: 4px;">
                 <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0;">BILL TO:</p>
-                <p style="font-size: 17px; font-weight: bold; color: #1a1f36; margin: 2px 0 0 0;">${bill.customer}</p>
+                <p style="font-size: 17px; font-weight: 700; color: #1a1f36; margin: 2px 0 0 0;">${bill.customer}</p>
                 <p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
             </div>
 
@@ -1279,26 +1279,20 @@ function generatePreviewHTML(bill) {
                 <tr>
                     <td style="width: 48%; vertical-align: top; padding-right: 15px;">
                         ${bill.billNotes && bill.billNotes.length > 0 ? `
-                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px; margin-bottom: 12px;">
+                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
                             <p style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
                             ${bill.billNotes.map(n => `<p style="margin:2px 0; font-size:12px; color:#1a1f36;">${n.date}: ${n.text}</p>`).join('')}
                         </div>` : ''}
-
-                        <div style="padding: 12px; background: #f7f9ff; border: 1px solid #e2e8f8; border-radius: 6px; font-size: 11.5px; color: #4a5280; line-height: 1.5;">
-                            <p style="font-weight: bold; color: #1a1f36; margin-bottom: 4px;">Payment Info & Terms:</p>
-                            <p style="margin: 2px 0;">• Cash / Fonepay / eSewa Accepted</p>
-                            <p style="margin: 2px 0;">• Keep invoice image for ledger reference</p>
-                        </div>
                     </td>
                     <td style="width: 52%; vertical-align: top;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
-                            <tr><td style="padding: 5px 0;">Items Subtotal:</td><td style="text-align: right; font-weight:bold;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr><td style="padding: 5px 0;">Items Subtotal:</td><td style="text-align: right; font-weight:600;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
                             <tr><td style="padding: 5px 0;">Transport (+):</td><td style="text-align: right;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #f8fafc; font-weight: bold;"><td style="padding: 6px 0;">Today's Bill:</td><td style="text-align: right;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #f8fafc; font-weight: 600;"><td style="padding: 6px 0;">Today's Bill:</td><td style="text-align: right;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
                             <tr><td style="padding: 5px 0;">Purano Baki (+):</td><td style="text-align: right;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: bold;"><td style="padding: 6px 0;">Jamma Total:</td><td style="text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: 600;"><td style="padding: 6px 0;">Jamma Total:</td><td style="text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
                             <tr style="color: #059669;"><td style="padding: 5px 0;">Paid (-):</td><td style="text-align: right;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #fee2e2; color: #dc2626; font-size: 16px; font-weight: bold;"><td style="padding: 8px 4px;">Remaining Baki:</td><td style="text-align: right; padding: 8px 4px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
+                            <tr style="background: #fee2e2; color: #dc2626; font-size: 15px; font-weight: 700;"><td style="padding: 8px 4px;">Remaining Baki:</td><td style="text-align: right; padding: 8px 4px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
                         </table>
                     </td>
                 </tr>
@@ -1457,7 +1451,7 @@ function showBillDetail(key){
   let iHtml='';
   if(b.items&&b.items.length){
     iHtml=`<div style="margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:.79rem;"><thead><tr style="background:var(--surface2);"><th style="padding:7px 10px;text-align:left;">Item</th><th style="padding:7px 10px;text-align:right;">Qty</th><th style="padding:7px 10px;text-align:right;">Rate</th><th style="padding:7px 10px;text-align:right;">Total</th></tr></thead><tbody>`;
-    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:700">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
+    b.items.forEach(it=>{iHtml+=`<tr style="border-top:1px solid var(--border)"><td style="padding:6px 10px">${it.desc}</td><td style="padding:6px 10px;text-align:right">${it.qty}</td><td style="padding:6px 10px;text-align:right">${it.rate||''}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${parseInt(it.amount||0).toLocaleString('en-IN')}</td></tr>`;});
     iHtml+='</tbody></table></div>';
   }
 
@@ -1499,7 +1493,7 @@ function showCustDetail(name){
 }
 
 // ============================================================
-// STATEMENT OF ACCOUNT GENERATOR (WITH ALL PAID AMOUNTS FIX)
+// STATEMENT OF ACCOUNT GENERATOR
 // ============================================================
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
@@ -1515,7 +1509,6 @@ function showLedgerStatement(custName) {
     
     let events = [];
     
-    // Sort customer bills chronologically (oldest to newest)
     const custBills = allBills.filter(b => b && b.customer === custName).reverse();
     
     custBills.forEach(b => {
@@ -1524,7 +1517,6 @@ function showLedgerStatement(custName) {
         let timeBase = new Date(b.date || 0).getTime();
         if (isNaN(timeBase)) timeBase = 0;
         
-        // 1. Add Invoice Debit event (+)
         events.push({ 
             date: b.date || '—', 
             time: timeBase, 
@@ -1533,7 +1525,6 @@ function showLedgerStatement(custName) {
             credit: 0 
         });
         
-        // 2. Track payments logged via Payment Modal
         let modalPaymentsSum = 0;
         if (b.payments && typeof b.payments === 'object') {
             Object.values(b.payments).forEach(p => {
@@ -1552,7 +1543,6 @@ function showLedgerStatement(custName) {
             });
         }
         
-        // 3. Track initial cash payment entered on the invoice form (Nagad Paid input)
         let initialPaid = totalPaidOnBill - modalPaymentsSum;
         if (initialPaid > 0) {
             let initTime = new Date(b.cashPaidDate || b.date || 0).getTime() + 500;
@@ -1567,12 +1557,11 @@ function showLedgerStatement(custName) {
         }
     });
     
-    // Sort all transactions from oldest to newest
     events.sort((a,b) => a.time - b.time);
     
     let listHtml = '';
     let bal = 0;
-    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:10px;">—</td><td style="padding:10px;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:bold;">0</td></tr>`;
+    listHtml += `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;"><td style="padding:10px;">—</td><td style="padding:10px;">Opening Balance</td><td></td><td></td><td style="text-align:right; font-weight:600;">0</td></tr>`;
     
     events.forEach(e => {
         bal += e.debit; 
@@ -1581,8 +1570,8 @@ function showLedgerStatement(custName) {
             <td style="padding:10px;">${e.date}</td>
             <td style="padding:10px;">${e.desc}</td>
             <td style="text-align:right; padding:10px;">${e.debit > 0 ? Math.round(e.debit).toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; padding:10px; color:#059669; font-weight:bold;">${e.credit > 0 ? Math.round(e.credit).toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; font-weight:bold;">${Math.round(bal).toLocaleString('en-IN')}</td>
+            <td style="text-align:right; padding:10px; color:#059669; font-weight:600;">${e.credit > 0 ? Math.round(e.credit).toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; font-weight:600;">${Math.round(bal).toLocaleString('en-IN')}</td>
         </tr>`;
     });
     
