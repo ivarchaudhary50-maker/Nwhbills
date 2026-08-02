@@ -56,7 +56,7 @@ function checkPin() {
 }
 
 // ============================================================
-// FEATURE: DYNAMIC TRUE CUSTOMER BALANCE (FAULT-TOLERANT)
+// FEATURE: DYNAMIC TRUE CUSTOMER BALANCE
 // ============================================================
 function getCustomerTrueBalance(custName) {
     if (!custName) return 0;
@@ -509,10 +509,10 @@ function selectNpDate(y, m, d) {
     document.getElementById('current-date-ad').value = `${adDate.getUTCFullYear()}-${mm}-${dd}`;
 }
 
-const todayObj=new Date();
+const todayObj = new Date();
 const tMM = String(todayObj.getMonth() + 1).padStart(2, '0');
 const tDD = String(todayObj.getDate()).padStart(2, '0');
-const todayStr= `${todayObj.getFullYear()}-${tMM}-${tDD}`;
+const todayStr = `${todayObj.getFullYear()}-${tMM}-${tDD}`;
 
 window.onload = function() {
     initNpCal();
