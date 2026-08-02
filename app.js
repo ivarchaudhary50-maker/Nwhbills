@@ -127,19 +127,27 @@ async function processSyncQueue() {
 }
 
 // ============================================================
-// DYNAMIC TRUE CUSTOMER BALANCE
+// DYNAMIC TRUE CUSTOMER BALANCE FIX
 // ============================================================
 function getCustomerTrueBalance(custName) {
     if (!custName) return 0;
-    let totalBaki = 0;
+    
+    // 1. Find the latest bill for this customer (allBills is sorted newest-first)
     if (Array.isArray(allBills)) {
-        allBills.forEach(b => {
-            if (b && typeof b === 'object' && b.customer === custName) {
-                totalBaki += parseFloat(b.remaining) || 0;
-            }
-        });
+        const latestBill = allBills.find(b => b && typeof b === 'object' && b.customer === custName);
+        if (latestBill && latestBill.remaining !== undefined && latestBill.remaining !== '') {
+            const rem = parseFloat(latestBill.remaining);
+            if (!isNaN(rem)) return rem;
+        }
     }
-    return totalBaki;
+    
+    // 2. Fallback to cloudCustomers balance if no bill exists
+    if (cloudCustomers && cloudCustomers[custName] && cloudCustomers[custName].balance !== undefined && cloudCustomers[custName].balance !== '') {
+        const bal = parseFloat(cloudCustomers[custName].balance);
+        if (!isNaN(bal)) return bal;
+    }
+    
+    return 0;
 }
 
 // ============================================================
@@ -547,6 +555,7 @@ function startDatabaseListeners() {
             allBills = [];
         }
         renderHistory();
+        renderLedger();
     });
 
     db.ref('nwh/pokas').on('value', s => {
@@ -1645,15 +1654,21 @@ function renderHistory(){
 function renderLedger(resetLimit = false){
   const c=document.getElementById('ledger-container');
   if(!c) return;
-  const custs=Object.entries(cloudCustomers || {});
-  if(!custs.length) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
+  
+  const allCustNames = new Set(Object.keys(cloudCustomers || {}));
+  if (Array.isArray(allBills)) {
+      allBills.forEach(b => { if (b && b.customer) allCustNames.add(b.customer); });
+  }
+  
+  if(!allCustNames.size) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
 
   let html = '';
-  custs.forEach(([name,cu])=>{
-    const baki=getCustomerTrueBalance(name);
+  Array.from(allCustNames).sort().forEach(name => {
+    const cu = cloudCustomers[name] || {};
+    const baki = getCustomerTrueBalance(name);
     const safeName = escapeJsStr(name);
     const attrName = escapeHtmlAttr(name);
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${cu.phone||'—'}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${baki.toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
+    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${cu.phone||'—'}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
   c.innerHTML = html;
 }
