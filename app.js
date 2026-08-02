@@ -127,12 +127,11 @@ async function processSyncQueue() {
 }
 
 // ============================================================
-// DYNAMIC TRUE CUSTOMER BALANCE FIX
+// DYNAMIC TRUE CUSTOMER BALANCE
 // ============================================================
 function getCustomerTrueBalance(custName) {
     if (!custName) return 0;
     
-    // 1. Find the latest bill for this customer (allBills is sorted newest-first)
     if (Array.isArray(allBills)) {
         const latestBill = allBills.find(b => b && typeof b === 'object' && b.customer === custName);
         if (latestBill && latestBill.remaining !== undefined && latestBill.remaining !== '') {
@@ -141,7 +140,6 @@ function getCustomerTrueBalance(custName) {
         }
     }
     
-    // 2. Fallback to cloudCustomers balance if no bill exists
     if (cloudCustomers && cloudCustomers[custName] && cloudCustomers[custName].balance !== undefined && cloudCustomers[custName].balance !== '') {
         const bal = parseFloat(cloudCustomers[custName].balance);
         if (!isNaN(bal)) return bal;
@@ -1368,6 +1366,36 @@ function deleteBill(key) {
   }
 }
 
+// ============================================================
+// DELETE CUSTOMER & ALL ASSOCIATED RECORDS
+// ============================================================
+function deleteCustomer(name) {
+    if(!name) return;
+    if(confirm(`⚠️ Are you sure you want to delete customer "${name}" and all associated records from your ledger?`)) {
+        const safePathName = name.replace(/[.#$\[\]]/g, ' ').trim();
+
+        // 1. Remove customer entry from cloudCustomers node
+        queueDatabaseWrite('nwh/customers/' + safePathName, 'remove', null);
+
+        // 2. Remove all bills associated with this customer
+        if (Array.isArray(allBills)) {
+            allBills.forEach(b => {
+                if(b && b.customer === name && b.key) {
+                    queueDatabaseWrite('nwh/bills/' + b.key, 'remove', null);
+                }
+            });
+        }
+
+        delete cloudCustomers[name];
+        allBills = allBills.filter(b => b.customer !== name);
+
+        closeModal('bill-modal');
+        renderLedger();
+        renderHistory();
+        alert(`✅ Customer "${name}" deleted successfully.`);
+    }
+}
+
 function loadBillForEdit(key) {
     const bill = allBills.find(b => b.key === key);
     if (!bill) return;
@@ -1455,7 +1483,7 @@ function showBillDetail(key){
 }
 
 function showCustDetail(name){
-  const cu=cloudCustomers[name];if(!cu) return;
+  const cu=cloudCustomers[name] || {};
   const baki=getCustomerTrueBalance(name);
   const safeName = escapeJsStr(name);
   const attrName = escapeHtmlAttr(name);
@@ -1465,8 +1493,9 @@ function showCustDetail(name){
     <div class="d-row"><span class="d-label">📍 Address</span><span class="d-val">${cu.address||'—'}</span></div>
     <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
-    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${safeName}')">📜 View Statement of Account</button>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:12px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${safeName}')">📜 View Statement of Account</button>
     ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${safeName}',${baki})">💰 Record Payment</button>`:''}
+    <button class="btn btn-red" style="width:100%;justify-content:center;margin-top:8px;" onclick="deleteCustomer('${safeName}')">🗑️ Delete Customer</button>
   `;
   document.getElementById('bill-modal').classList.add('open');
 }
