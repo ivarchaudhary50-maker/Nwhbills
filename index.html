@@ -17,7 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -68,11 +68,11 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .biz-sub{font-size:.82rem;opacity:.8;outline:none;background:transparent;border-bottom:1px dashed rgba(255,255,255,.2);min-width:130px;display:block;margin-top:4px;color:#fff;}
 .inv-meta{text-align:right;}
 .inv-label{font-size:1.5rem;font-weight:800;opacity:.2;letter-spacing:4px;text-transform:uppercase;}
-.inv-num{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+.inv-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
 
 .date-dual{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-end;}
-.date-ad{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Space Mono',monospace;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:160px;text-align:center;}
-.bs-pill{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;cursor:pointer;}
+.date-ad{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Plus Jakarta Sans',sans-serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:160px;text-align:center;}
+.bs-pill{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;cursor:pointer;}
 
 .np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.3); padding:12px; display:none; width:280px; text-align:left; z-index:9999; }
 .np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
@@ -97,7 +97,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     border: none;
     font-family: inherit;
     font-size: 0.83rem;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -129,19 +129,19 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .totals-wrap{display:flex;justify-content:flex-end;}
 .totals-box{width:330px;background:var(--surface2);border-radius:12px;border:1.5px solid var(--border);overflow:hidden;}
 .t-row{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--border);font-size:.85rem;}
-.t-val{font-family:'Space Mono',monospace;font-weight:700;color:var(--text);}
+.t-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:var(--text);}
 .t-row.grand{background:var(--grad);padding:12px 15px;}
 .t-row.grand label,.t-row.grand .t-val{color:#fff;font-size:.9rem;}
 .t-row.remaining{background:linear-gradient(135deg,#dc2626,#ea580c);}
 .t-row.remaining label,.t-row.remaining .t-val{color:#fff;font-size:.95rem;}
-.t-inp{border:none;outline:none;background:transparent;font-family:'Space Mono',monospace;font-size:.85rem;font-weight:700;color:var(--text);text-align:right;width:95px;}
+.t-inp{border:none;outline:none;background:transparent;font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;font-weight:600;color:var(--text);text-align:right;width:95px;}
 
 .actions-bar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
 .actions-left{display:flex;gap:7px;flex-wrap:wrap;}
 
 .contact-btn{width:100%;padding:9px;background:var(--surface2);border:1.5px dashed var(--border);border-radius:9px;color:var(--text2);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;margin-bottom:10px;}
 
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700;}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;}
 .b-green{background:#d1fae5;color:#065f46;}
 .b-red{background:#fee2e2;color:#991b1b;}
 
@@ -166,7 +166,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 }
 .lc-name{font-weight:700;font-size:.92rem;}
 .lc-phone{font-size:.73rem;color:var(--text3);margin-top:2px;}
-.lc-baki{font-family:'Space Mono',monospace;font-weight:800;font-size:1.05rem;}
+.lc-baki{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:1rem;}
 .lc-baki.due{color:var(--red);}
 .lc-baki.ok{color:var(--green);}
 
@@ -182,12 +182,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .close-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;}
 .d-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.84rem;}
 .d-label{color:var(--text2);}
-.d-val{font-weight:600;font-family:'Space Mono',monospace;}
+.d-val{font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;}
 
 .sec-div{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:14px 0 8px;display:flex;align-items:center;gap:7px;}
 .sec-div::after{content:'';flex:1;height:1px;background:var(--border);}
 
-.pay-big{font-family:'Space Mono',monospace;font-size:1.8rem;font-weight:800;color:var(--red);text-align:center;padding:12px;background:#fff0f0;border-radius:10px;margin-bottom:14px;}
+.pay-big{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.6rem;font-weight:700;color:var(--red);text-align:center;padding:12px;background:#fff0f0;border-radius:10px;margin-bottom:14px;}
 
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
@@ -375,7 +375,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
       <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
       <div class="t-row"><label><span class="L" data-k="Discount (-)">Discount (-)</span></label><input type="number" class="t-inp" id="discount-amount" placeholder="0" min="0" oninput="calc()" style="color:var(--red);"></div>
-      <div class="t-row" style="font-weight:700;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
+      <div class="t-row" style="font-weight:600;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
       <div class="t-row grand"><label><span class="L" data-k="Jamma Total">Jamma Total</span></label><span class="t-val" id="grand-total">0</span></div>
       <div class="t-row g-row" style="align-items: flex-start;">
@@ -469,9 +469,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="modal-body">
       <div class="pay-big" id="pay-baki-display">NRS 0</div>
       <div class="sec-div">Payment Date</div>
-      <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Space Mono',monospace;">
+      <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Plus Jakarta Sans',sans-serif;">
       <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
-      <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
+      <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:600;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="confirmPayment()">✅ <span class="L" data-k="Confirm Payment">Confirm Payment</span></button>
     </div>
@@ -482,7 +482,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="modal" style="max-width:360px;">
     <div class="modal-header"><div class="modal-title">✅ Payment Saved</div><button class="close-btn" onclick="closeModal('receipt-modal')">✕</button></div>
     <div class="modal-body">
-      <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px;">
+      <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:sans-serif; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px;">
         <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
             <h2 style="margin:0; font-size:1.1rem;">Rabi Kapada Pasal</h2>
             <p style="margin:4px 0 0 0; font-size:12px;">Payment Receipt</p>
