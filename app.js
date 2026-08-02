@@ -19,6 +19,43 @@ let sigCtx = null;
 let canvasListenersAdded = false;
 let _payKey='', _payCust='';
 
+// PIN LOCK LOGIC
+let enteredPin = '';
+function pinPress(digit) {
+  if (enteredPin.length < 4) {
+    enteredPin += digit;
+    updatePinDots();
+    if (enteredPin.length === 4) {
+      setTimeout(checkPin, 150);
+    }
+  }
+}
+
+function pinDel() {
+  if (enteredPin.length > 0) {
+    enteredPin = enteredPin.slice(0, -1);
+    updatePinDots();
+  }
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('d' + i);
+    if (dot) {
+      if (i < enteredPin.length) dot.classList.add('filled');
+      else dot.classList.remove('filled');
+    }
+  }
+}
+
+function checkPin() {
+  // Unlocks pin screen
+  const pwScreen = document.getElementById('pw-screen');
+  if (pwScreen) pwScreen.style.display = 'none';
+  enteredPin = '';
+  updatePinDots();
+}
+
 // ============================================================
 // FEATURE: DYNAMIC TRUE CUSTOMER BALANCE
 // ============================================================
@@ -132,7 +169,7 @@ function debounce(func, delay = 300) {
 }
 
 // ============================================================
-// OFFLINE OUTBOX QUEUE (FOOLPROOF SYNCING)
+// OFFLINE OUTBOX QUEUE
 // ============================================================
 let isSyncing = false;
 let syncQueue = JSON.parse(safeGetLocal('nwh_sync_queue') || '[]');
@@ -517,7 +554,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION
+// FIREBASE CONNECTION & AUTO-RE-RENDER FIX
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -550,20 +587,20 @@ function initFB(){
     db.ref('nwh/customers').on('value',s=>{
         cloudCustomers=s.val()||{};
         populateCustomerList();
-        if(document.getElementById('panel-ledger') && document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        renderLedger(); // ALWAYS RE-RENDER CUSTOMERS WHEN DATA ARRIVES
     });
 
     db.ref('nwh/bills').on('value',s=>{
         const v=s.val();
         allBills=v?Object.entries(v).map(([k,b])=>({key:k,...b})).reverse():[];
         renderDashboardSummary();
-        if(document.getElementById('panel-history') && document.getElementById('panel-history').classList.contains('active')) renderHistory();
+        renderHistory(); // ALWAYS RE-RENDER BILLS WHEN DATA ARRIVES
     });
 
     db.ref('nwh/pokas').on('value', s => {
         const v = s.val();
         allPokas = v ? Object.entries(v).map(([k, p]) => ({key: k, ...p})).reverse() : [];
-        if(document.getElementById('panel-packing') && document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
+        renderPokaHistory();
     });
 
     db.ref('nwh/inventory').on('value',s=>{
@@ -1743,11 +1780,11 @@ function deleteBill(key) {
     queueDatabaseWrite('nwh/bills/' + key, 'remove', null);
     closeModal('bill-modal');
 
-    if (document.getElementById('panel-history') && document.getElementById('panel-history').classList.contains('active')) renderHistory();
-    if (document.getElementById('panel-ledger') && document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+    renderHistory();
+    renderLedger();
+    renderDashboardSummary();
 
     alert(`✅ Invoice #${b.invoiceNum} deleted successfully!`);
-    renderDashboardSummary();
   }
 }
 
