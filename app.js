@@ -3,8 +3,6 @@
 // ============================================================
 function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
 function safeSetLocal(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
-function safeGetSession(k) { try { return sessionStorage.getItem(k); } catch(e) { return null; } }
-function safeSetSession(k, v) { try { sessionStorage.setItem(k, v); } catch(e) {} }
 
 let editBillKey = null;
 let editInvoiceNum = null;
@@ -14,19 +12,6 @@ let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
-
-// ============================================================
-// PAGINATION LIMITS (RAM OPTIMIZATION)
-// ============================================================
-let dbBillsLimit = 50; 
-let dbPokasLimit = 50;
-let billsListenerRef = null;
-let pokasListenerRef = null;
-
-// ============================================================
-// OFFLINE CACHE (FOR PERFECT DATES)
-// ============================================================
-let calendarCorrections = JSON.parse(safeGetLocal('nwh_cal_corrections') || '{}');
 
 // ============================================================
 // PIN LOCK LOGIC
@@ -47,10 +32,11 @@ function pinPress(num) {
       pinCode = '';
       document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
     } else {
-      document.getElementById('pw-err').innerText = 'Incorrect PIN';
+      const err = document.getElementById('pw-err');
+      if(err) err.innerText = 'Incorrect PIN';
       setTimeout(() => {
         pinCode = '';
-        document.getElementById('pw-err').innerText = '';
+        if(err) err.innerText = '';
         document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('filled'));
       }, 1000);
     }
@@ -105,7 +91,7 @@ function queueDatabaseWrite(path, method, data) {
 }
 
 async function processSyncQueue() {
-    if (!fbReady || isSyncing || syncQueue.length === 0 || !firebase.auth().currentUser) {
+    if (!fbReady || isSyncing || syncQueue.length === 0) {
         updateSyncBadge();
         return;
     }
@@ -133,14 +119,13 @@ async function processSyncQueue() {
 }
 
 // ============================================================
-// BULLETPROOF CUSTOMER DATA AUTO-FILL ENGINE
+// CUSTOMER AUTO-FILL & LEDGER DUES LOGIC
 // ============================================================
 function triggerCustomerAutoFill() {
-    const rawName = document.getElementById('customer-name').value.trim();
-    if(!rawName) {
-        if (!editBillKey) document.getElementById('prev-balance').value = '';
-        return;
-    }
+    const nameEl = document.getElementById('customer-name');
+    if(!nameEl) return;
+    const rawName = nameEl.value.trim();
+    if(!rawName) return;
     
     const searchName = rawName.toLowerCase();
     let cu = null;
@@ -155,22 +140,10 @@ function triggerCustomerAutoFill() {
     if(cu) {
         document.getElementById('customer-phone').value = cu.phone || '';
         document.getElementById('customer-address').value = cu.address || '';
-    }
-
-    if (!editBillKey) {
-        let bal = cu ? parseFloat((cu.balance || '0').toString().replace(/,/g, '')) : 0;
-        
-        if (!bal || isNaN(bal) || bal === 0) {
-            for(let i = 0; i < allBills.length; i++) {
-                if(allBills[i].customer && allBills[i].customer.toLowerCase() === searchName) {
-                    bal = parseFloat((allBills[i].remaining || '0').toString().replace(/,/g, ''));
-                    break;
-                }
-            }
+        if (!editBillKey) {
+            document.getElementById('prev-balance').value = cu.balance || '0';
+            calc();
         }
-        
-        document.getElementById('prev-balance').value = (isNaN(bal) || bal === 0) ? '' : bal;
-        calc();
     }
 }
 
@@ -191,7 +164,7 @@ function initSuggestionBar() {
         }
     });
 
-    document.addEventListener('focusout', (e) => {
+    document.addEventListener('focusout', () => {
         setTimeout(() => { 
             if(!document.activeElement || document.activeElement.tagName !== 'INPUT') {
                 bar.style.display = 'none'; 
@@ -204,7 +177,7 @@ function updateSuggestions(target) {
     const bar = document.getElementById('suggestion-bar');
     if(!bar) return;
     bar.innerHTML = '';
-    let opts = (target.id === 'customer-name' || target.id === 'slip-customer') ? Object.keys(cloudCustomers) : inventoryList;
+    let opts = (target.id === 'customer-name' || target.id === 'slip-customer') ? Object.keys(cloudCustomers || {}) : (inventoryList || []);
     
     if (opts.length === 0) { bar.style.display = 'none'; return; }
     
@@ -212,7 +185,6 @@ function updateSuggestions(target) {
         const btn = document.createElement('button');
         btn.className = 's-btn';
         btn.innerText = opt;
-        
         btn.onmousedown = (e) => e.preventDefault(); 
         
         btn.onclick = () => { 
@@ -278,7 +250,7 @@ const NM=['बैशाख','जेठ','असार','श्रावण','भ
 let selCalY = 2080, selCalM = 1, selCalD = 1;
 
 function adToBS(y,m,d){
-  const ref = Date.UTC(1943, 3, 15); 
+  const ref = Date.UTC(1943, 3, 14); 
   const inp = Date.UTC(y, m-1, d);
   let days = Math.round((inp - ref) / 86400000);
   for(let i=0; i<ND.length; i++){
@@ -301,7 +273,7 @@ function bsToAd(bsY, bsM, bsD) {
         }
     }
     days += (bsD - 1);
-    const ref = Date.UTC(1943, 3, 15); 
+    const ref = Date.UTC(1943, 3, 14); 
     return new Date(ref + days * 86400000);
 }
 
@@ -315,38 +287,28 @@ function getBsMonthStartDayOfWeek(bsY, bsM) {
             break;
         }
     }
-    return (4 + days) % 7; 
+    return (3 + days) % 7; 
 }
 
 function updateBSDate() {
-  const adVal = document.getElementById('current-date-ad').value;
+  const adValInput = document.getElementById('current-date-ad');
+  if(!adValInput) return;
+  const adVal = adValInput.value;
   if(!adVal) { 
-      document.getElementById('bs-date-inp').value = '';
+      const bsInp = document.getElementById('bs-date-inp');
+      if(bsInp) bsInp.value = '';
       return; 
   }
   
-  if (calendarCorrections[adVal]) {
-      const correctBS = calendarCorrections[adVal]; 
-      const [cy, cm, cd] = correctBS.split(',').map(Number);
-      selCalY = cy; selCalM = cm; selCalD = cd;
-      document.getElementById('bs-date-inp').value = `📅 ${cd} ${NM[cm-1]} ${cy}`;
-      
-      if(document.getElementById('np-cal-popup').style.display === 'block') {
-          document.getElementById('np-cal-y').value = selCalY;
-          document.getElementById('np-cal-m').value = selCalM;
-          renderNpCal();
-      }
-      return;
-  }
-
   const [y,m,d] = adVal.split('-').map(Number);
   const bsData = adToBS(y,m,d);
-  
   if(bsData) {
       selCalY = bsData.year; selCalM = bsData.month; selCalD = bsData.day;
-      document.getElementById('bs-date-inp').value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
+      const bsInp = document.getElementById('bs-date-inp');
+      if(bsInp) bsInp.value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
       
-      if(document.getElementById('np-cal-popup').style.display === 'block') {
+      const popup = document.getElementById('np-cal-popup');
+      if(popup && popup.style.display === 'block') {
           document.getElementById('np-cal-y').value = selCalY;
           document.getElementById('np-cal-m').value = selCalM;
           renderNpCal();
@@ -358,7 +320,7 @@ function populateCustomerList() {
     const list = document.getElementById('customer-list');
     if(!list) return;
     list.innerHTML = '';
-    Object.keys(cloudCustomers).forEach(name => {
+    Object.keys(cloudCustomers || {}).forEach(name => {
         let option = document.createElement('option');
         option.value = name;
         list.appendChild(option);
@@ -384,6 +346,7 @@ function initNpCal() {
 function toggleNpCal() {
     const popup = document.getElementById('np-cal-popup');
     const inp = document.getElementById('bs-date-inp');
+    if(!popup || !inp) return;
 
     if(popup.style.display === 'block') {
         popup.style.display = 'none';
@@ -437,7 +400,8 @@ function renderNpCal() {
         let isSel = (d === selCalD && y === selCalY && m === selCalM);
         html += `<div class="np-day ${isSel?'active':''}" onclick="selectNpDate(${y},${m},${d})">${d}</div>`;
     }
-    document.getElementById('np-cal-grid').innerHTML = html;
+    const grid = document.getElementById('np-cal-grid');
+    if(grid) grid.innerHTML = html;
 }
 
 function selectNpDate(y, m, d) {
@@ -451,10 +415,10 @@ function selectNpDate(y, m, d) {
     document.getElementById('current-date-ad').value = `${adDate.getUTCFullYear()}-${mm}-${dd}`;
 }
 
-const todayObj=new Date();
+const todayObj = new Date();
 const tMM = String(todayObj.getMonth() + 1).padStart(2, '0');
 const tDD = String(todayObj.getDate()).padStart(2, '0');
-const todayStr= `${todayObj.getFullYear()}-${tMM}-${tDD}`;
+const todayStr = `${todayObj.getFullYear()}-${tMM}-${tDD}`;
 
 window.onload = function() {
     initNpCal();
@@ -464,12 +428,7 @@ window.onload = function() {
     if(document.getElementById('slip-date')) document.getElementById('slip-date').value = todayStr;
     if(document.getElementById('slip-ref')) document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
-
-    const cNameInput = document.getElementById('customer-name');
-    if(cNameInput) {
-        cNameInput.addEventListener('input', triggerCustomerAutoFill);
-        cNameInput.addEventListener('blur', triggerCustomerAutoFill);
-    }
+    addRow();
 };
 
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
@@ -485,13 +444,17 @@ function switchTab(name){
 }
 
 function filterHistory(){
-  const q = document.getElementById('history-search').value.toLowerCase();
+  const qEl = document.getElementById('history-search');
+  if(!qEl) return;
+  const q = qEl.value.toLowerCase();
   const rows = document.querySelectorAll('#history-container .h-table tbody tr');
   rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 function filterLedger(){
-  const q = document.getElementById('ledger-search').value.toLowerCase();
+  const qEl = document.getElementById('ledger-search');
+  if(!qEl) return;
+  const q = qEl.value.toLowerCase();
   const cards = document.querySelectorAll('#ledger-container .ledger-card');
   cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
@@ -508,16 +471,23 @@ const fbConfig={
 
 function initFB(){
   try{
+    if(typeof firebase === 'undefined') return;
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    firebase.auth().signInAnonymously().then(() => {
+    // Authenticate if auth module is loaded
+    if(firebase.auth) {
+        firebase.auth().signInAnonymously().then(() => {
+            startDatabaseListeners();
+        }).catch(() => {
+            startDatabaseListeners();
+        });
+    } else {
         startDatabaseListeners();
-    }).catch(e => console.error("Auth error:", e));
+    }
 
   }catch(e){ console.error(e); }
 }
-setTimeout(initFB, 300);
 
 function startDatabaseListeners() {
     db.ref('.info/connected').on('value',s=>{
@@ -529,14 +499,6 @@ function startDatabaseListeners() {
         updateSyncBadge();
       }
     });
-    
-    db.ref('nwh/calendar_corrections').on('value', s => {
-        if (s.val()) {
-            calendarCorrections = s.val();
-            safeSetLocal('nwh_cal_corrections', JSON.stringify(calendarCorrections));
-            updateBSDate();
-        }
-    });
 
     db.ref('nwh/nextInvoiceNumber').on('value',s=>{
       const v=s.val();
@@ -545,50 +507,48 @@ function startDatabaseListeners() {
     });
 
     db.ref('nwh/customers').on('value',s=>{
-        cloudCustomers=s.val()||{};
+        const val = s.val();
+        cloudCustomers = (val && typeof val === 'object') ? val : {};
         populateCustomerList();
-        if(document.getElementById('panel-ledger') && document.getElementById('panel-ledger').classList.contains('active')) renderLedger();
+        renderLedger();
+    });
+
+    db.ref('nwh/bills').on('value',s=>{
+        const v = s.val();
+        if (v && typeof v === 'object') {
+            allBills = Object.entries(v)
+                .filter(([k, b]) => b && typeof b === 'object')
+                .map(([k, b]) => ({ key: k, ...b }))
+                .reverse();
+        } else {
+            allBills = [];
+        }
+        renderHistory();
+    });
+
+    db.ref('nwh/pokas').on('value', s => {
+        const v = s.val();
+        allPokas = (v && typeof v === 'object') ? Object.entries(v).filter(([k, p]) => p && typeof p === 'object').map(([k, p]) => ({key: k, ...p})).reverse() : [];
+        renderPokaHistory();
     });
 
     db.ref('nwh/inventory').on('value',s=>{
       const val = s.val();
       if(Array.isArray(val)) inventoryList = val;
-      else if(val) inventoryList = Object.values(val);
+      else if(val && typeof val === 'object') inventoryList = Object.values(val);
       renderInventory();
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
-
-    loadBills();
-    loadPokas();
 }
 
-function loadBills() {
-    if(billsListenerRef) db.ref('nwh/bills').off('value', billsListenerRef);
-    billsListenerRef = db.ref('nwh/bills').orderByKey().limitToLast(dbBillsLimit).on('value', s => {
-        const v = s.val();
-        allBills = v ? Object.entries(v).map(([k, b]) => ({ key: k, ...b })).reverse() : [];
-        if (document.getElementById('panel-history') && document.getElementById('panel-history').classList.contains('active')) renderHistory();
-    });
+function startFirebase() {
+  if (typeof firebase !== 'undefined' && firebase.apps) {
+    initFB();
+  } else {
+    setTimeout(startFirebase, 150);
+  }
 }
-
-function loadPokas() {
-    if(pokasListenerRef) db.ref('nwh/pokas').off('value', pokasListenerRef);
-    pokasListenerRef = db.ref('nwh/pokas').orderByKey().limitToLast(dbPokasLimit).on('value', s => {
-        const v = s.val();
-        allPokas = v ? Object.entries(v).map(([k, p]) => ({ key: k, ...p })).reverse() : [];
-        if (document.getElementById('panel-packing') && document.getElementById('panel-packing').classList.contains('active')) renderPokaHistory();
-    });
-}
-
-function loadMoreBills() {
-    dbBillsLimit += 50;
-    loadBills();
-}
-
-function loadMorePokas() {
-    dbPokasLimit += 50;
-    loadPokas();
-}
+setTimeout(startFirebase, 100);
 
 // ============================================================
 // ITEM CATALOG & AUTO-FILL RATE MEMORY
@@ -602,7 +562,7 @@ function renderInventory() {
     const list = document.getElementById('inventory-list');
     if(!list) return;
     list.innerHTML = '';
-    inventoryList.forEach(item => {
+    (inventoryList || []).forEach(item => {
         let option = document.createElement('option');
         option.value = item;
         list.appendChild(option);
@@ -611,7 +571,8 @@ function renderInventory() {
 
 function saveNewItems(itemsArray) {
     let changed = false;
-    itemsArray.forEach(it => {
+    (itemsArray || []).forEach(it => {
+        if (!it || !it.desc) return;
         const d = it.desc.trim();
         if (d && d !== 'Item' && !inventoryList.includes(d)) {
             inventoryList.push(d);
@@ -631,6 +592,7 @@ function checkAndAutoFillRate(inputElement) {
     const custName = document.getElementById('customer-name').value.trim().replace(/[.#$\[\]]/g, ' ');
     const descInput = row.querySelector('.item-desc');
     const rateInput = row.querySelector('.rate');
+    if (!descInput || !rateInput) return;
     
     let hintSpan = row.querySelector('.rate-hint');
     if(!hintSpan) {
@@ -646,8 +608,8 @@ function checkAndAutoFillRate(inputElement) {
     
     let lastRate = null;
     for(let i=0; i<allBills.length; i++) {
-        if(allBills[i].customer === custName && allBills[i].items) {
-            const match = allBills[i].items.find(it => it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
+        if(allBills[i] && allBills[i].customer === custName && allBills[i].items) {
+            const match = allBills[i].items.find(it => it && it.desc && it.desc.toLowerCase() === descInput.value.toLowerCase().trim());
             if(match && match.rate) {
                 lastRate = match.rate;
                 break; 
@@ -672,9 +634,6 @@ function manualRateOverride(inputElement) {
     calc();
 }
 
-// ============================================================
-// DYNAMIC NOTES SECTION
-// ============================================================
 function addNoteRow(dateVal = '', textVal = '') {
     const container = document.getElementById('notes-container');
     if(!container) return;
@@ -689,9 +648,6 @@ function addNoteRow(dateVal = '', textVal = '') {
     container.appendChild(div);
 }
 
-// ============================================================
-// POKA DRAFT HISTORY SYSTEM & MATRIX GENERATOR
-// ============================================================
 function addPokaGroup(items = null) {
     const existing = document.querySelectorAll('.poka-card-wrapper').length;
     pokaCounter = existing + 1; 
@@ -711,7 +667,7 @@ function addPokaGroup(items = null) {
             <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
         </div>
         <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
-            </div>
+        </div>
         <div style="padding:0 12px 12px 12px;">
             <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
         </div>
@@ -720,14 +676,14 @@ function addPokaGroup(items = null) {
     
     if (items && items.length > 0) {
         items.forEach(it => {
-            let form = it.formula;
+            let form = it.formula || '';
             let mult = '10'; 
             if (form.includes('×')) {
                const parts = form.split('×');
                form = parts[0].replace(/[() ]/g, '');
                mult = parts[1].trim();
             }
-            addPokaItemRow(currentId, it.desc, form, mult);
+            addPokaItemRow(currentId, it.desc || '', form, mult);
         });
     } else {
         addPokaItemRow(currentId);
@@ -841,10 +797,11 @@ function renderPokaHistory() {
 
     let html = `<table class="h-table"><thead><tr><th>Date & Ref</th><th>Customer</th><th>Total</th><th>Actions</th></tr></thead><tbody>`;
     allPokas.forEach(p => {
+        if(!p) return;
         html += `<tr>
-            <td><strong style="color:var(--accent);">${p.ref}</strong><br><span style="font-size:10px">${p.date}</span></td>
-            <td><strong>${p.customer}</strong></td>
-            <td>${p.totalPoka}</td>
+            <td><strong style="color:var(--accent);">${p.ref || 'N/A'}</strong><br><span style="font-size:10px">${p.date || ''}</span></td>
+            <td><strong>${p.customer || 'Unknown'}</strong></td>
+            <td>${p.totalPoka || 0}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--accent); color:var(--accent);" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
                 <button class="btn btn-ghost" style="padding:4px 8px; font-size:0.75rem; border-color:var(--red); color:var(--red); margin-left:4px;" onclick="deletePokaDraft('${p.key}')">🗑️</button>
@@ -855,12 +812,12 @@ function renderPokaHistory() {
 }
 
 function loadPokaDraft(key) {
-    const p = allPokas.find(x => x.key === key);
+    const p = allPokas.find(x => x && x.key === key);
     if(!p) return;
 
     document.getElementById('slip-customer').value = p.customer !== 'Walk-in / Unknown' ? p.customer : '';
-    document.getElementById('slip-ref').value = p.ref;
-    document.getElementById('slip-date').value = p.date;
+    document.getElementById('slip-ref').value = p.ref || '';
+    document.getElementById('slip-date').value = p.date || todayStr;
 
     document.getElementById('poka-groups-container').innerHTML = '';
     pokaCounter = 0;
@@ -925,10 +882,9 @@ function syncPokasToInvoice() {
     }
 }
 
-// ============================================================
-// INVOICE MATH
-// ============================================================
 function addRow(desc='',qty='',rate='',code=''){
+  const tbody = document.getElementById('invoice-items');
+  if(!tbody) return;
   const tr=document.createElement('tr');
   tr.innerHTML=`<td><input type="text" class="ti item-desc" placeholder="Type item..." value="${desc}" list="inventory-list" oninput="checkAndAutoFillRate(this)"></td>
     <td><input type="text" class="ti r item-code" placeholder="—" value="${code}"></td>
@@ -936,7 +892,7 @@ function addRow(desc='',qty='',rate='',code=''){
     <td style="position:relative;"><input type="number" class="ti r rate" placeholder="0" min="0" value="${rate}" oninput="manualRateOverride(this)"></td>
     <td class="amount" style="text-align:right; font-weight:bold; padding-right:12px;">0</td>
     <td class="no-print"><button class="del-row" onclick="this.closest('tr').remove();calc()">✕</button></td>`;
-  document.getElementById('invoice-items').appendChild(tr);
+  tbody.appendChild(tr);
 
   if(qty&&rate) calc();
   initSuggestionBar();
@@ -945,15 +901,19 @@ function addRow(desc='',qty='',rate='',code=''){
 function calc(){
   let sub=0;
   document.querySelectorAll('#invoice-items tr').forEach(r=>{
-    const q=parseFloat(r.querySelector('.qty').value)||0,rt=parseFloat(r.querySelector('.rate').value)||0,a=q*rt;
-    r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');sub+=a;
+    const q=parseFloat(r.querySelector('.qty').value)||0;
+    const rt=parseFloat(r.querySelector('.rate').value)||0;
+    const a=q*rt;
+    r.querySelector('.amount').innerText=Math.round(a).toLocaleString('en-IN');
+    sub+=a;
   });
   document.getElementById('items-total').innerText=Math.round(sub).toLocaleString('en-IN');
   const tr=parseFloat(document.getElementById('transport-expense').value)||0;
   const disc=parseFloat(document.getElementById('discount-amount').value)||0;
   const cb=(sub+tr)-disc;
   document.getElementById('current-bill').innerText=Math.round(cb).toLocaleString('en-IN');
-  const pb=parseFloat(document.getElementById('prev-balance').value)||0,gt=cb+pb;
+  const pb=parseFloat(document.getElementById('prev-balance').value)||0;
+  const gt=cb+pb;
   document.getElementById('grand-total').innerText=Math.round(gt).toLocaleString('en-IN');
   const cp=parseFloat(document.getElementById('cash-paid').value)||0;
   document.getElementById('remaining-balance').innerText=Math.round(gt-cp).toLocaleString('en-IN');
@@ -984,9 +944,6 @@ function clearForm(){
   document.getElementById('invoice-number').innerText = cloudNextInvoice;
 }
 
-// ============================================================
-// CUSTOMER SEARCH & SAVE & CONTACT IMPORT
-// ============================================================
 function searchDB(){
   const q=document.getElementById('db-search').value.toLowerCase(),box=document.getElementById('search-results');
   box.innerHTML='';
@@ -1072,9 +1029,6 @@ function shareWA(){
   window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
 }
 
-// ============================================================
-// DATA EXTRACTION HELPER
-// ============================================================
 function extractPendingBillData() {
   const rawName=document.getElementById('customer-name').value.trim()||'Walk-in Customer';
   const safeName = rawName.replace(/[.#$\[\]]/g, ' ').trim(); 
@@ -1137,9 +1091,6 @@ function extractPendingBillData() {
   };
 }
 
-// ============================================================
-// STANDALONE POKA PACKING SLIP
-// ============================================================
 function previewPackingSlip() {
     const bill = extractPendingBillData();
     if (!bill.pokaDetails || bill.pokaDetails.length === 0) {
@@ -1238,9 +1189,6 @@ function downloadSlipOnly() {
     });
 }
 
-// ============================================================
-// MAIN INVOICE PREVIEW & SIGNATURE LOGIC
-// ============================================================
 function previewBill(){
   pendingBill = extractPendingBillData();
   generatePreviewHTML(pendingBill);
@@ -1361,9 +1309,6 @@ function confirmAndDownload() {
     });
 }
 
-// ============================================================
-// DELETE BILL FEATURE
-// ============================================================
 function deleteBill(key) {
   const b = allBills.find(x => x.key === key);
   if (!b) return;
@@ -1377,9 +1322,6 @@ function deleteBill(key) {
   }
 }
 
-// ============================================================
-// MODALS AND LEDGER VIEWS
-// ============================================================
 function showBillDetail(key){
   const b=allBills.find(x=>x.key===key);if(!b) return;
   document.getElementById('modal-title').innerText=`Invoice #${b.invoiceNum} — ${b.customer}`;
@@ -1402,7 +1344,6 @@ function showBillDetail(key){
     <div class="d-row"><span class="d-label" style="color:red">Remaining</span><span class="d-val" style="color:red">NRS ${baki.toLocaleString('en-IN')}</span></div>
     
     <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
-        <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--accent); color:var(--accent);" onclick="loadBillForEdit('${key}')">✏️ Edit Bill</button>
         ${baki>0?`<button class="btn btn-green" style="flex:1; justify-content:center;" onclick="openPayModal('${key}','${(b.customer||'').replace(/'/g,'')}',${baki})">💰 Pay</button>`:''}
         <button class="btn btn-ghost" style="flex:1; justify-content:center; border-color:var(--red); color:var(--red);" onclick="deleteBill('${key}')">🗑️ Delete Bill</button>
     </div>
@@ -1441,7 +1382,7 @@ function renderLedger(resetLimit = false){
   c.innerHTML = html;
 }
 
-// SERVICE WORKER REGISTRATION
+// SERVICE WORKER CLEANUP
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function(registrations) {
       for(let registration of registrations) { registration.unregister(); }
