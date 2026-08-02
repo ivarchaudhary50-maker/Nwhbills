@@ -10,23 +10,167 @@
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
 
-<!-- Required Firebase Scripts (Including Auth) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<style>
+:root {
+  --bg:#f0f4ff;--surface:#fff;--surface2:#f7f9ff;--border:#e2e8f8;
+  --text:#1a1f36;--text2:#4a5280;--text3:#8892b0;
+  --accent:#4f46e5;--green:#059669;--red:#dc2626;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#c026d3 100%);
+  --shadow:0 4px 24px rgba(79,70,229,.10);--hover:#f0f0ff;
+}
+[data-theme="dark"] {
+  --bg:#0f0f1a;--surface:#1a1a2e;--surface2:#16213e;--border:#2a2a4a;
+  --text:#e2e8f0;--text2:#a0aec0;--text3:#718096;
+  --accent:#818cf8;--green:#34d399;--red:#f87171;
+  --grad:linear-gradient(135deg,#1e1b4b 0%,#2d1b69 50%,#4a044e 100%);
+  --shadow:0 4px 24px rgba(0,0,0,.4);--hover:#1e2040;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s; padding-bottom: 70px;}
+
+.top-nav{background:var(--grad);padding:0 1.2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(79,70,229,.3);}
+.nav-brand{display:flex;align-items:center;gap:10px;color:#fff;}
+.nav-logo{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(255,255,255,.3);}
+.nav-title{font-size:1rem;font-weight:800;}
+.nav-sub{font-size:.68rem;opacity:.8;}
+.nav-actions{display:flex;align-items:center;gap:7px;}
+.sync-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
+.sync-badge.synced{background:rgba(52,211,153,.25);border-color:rgba(52,211,153,.5);}
+.btn-icon{width:33px;height:33px;border-radius:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .2s;}
+.btn-icon:hover{background:rgba(255,255,255,.28);}
+.lang-btn{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:8px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;font-family:inherit;}
+.lang-btn:hover{background:rgba(255,255,255,.3);}
+
+.tab-bar{background:var(--surface);border-bottom:2px solid var(--border);display:flex;padding:0 1rem;overflow-x:auto;scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{padding:12px 16px;font-size:.82rem;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;}
+.tab:hover{color:var(--accent);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.main{padding:1.2rem;max-width:960px;margin:0 auto;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadeIn .22s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+.card-header{padding:13px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:6px;}
+.card-body{padding:16px 18px;}
+
+.inv-head{background:var(--grad);border-radius:14px;padding:20px;color:#fff;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;position:relative;overflow:hidden;}
+.biz-name{font-size:1.5rem;font-weight:800;outline:none;color:#fff;background:transparent;border-bottom:2px dashed rgba(255,255,255,.3);min-width:160px;}
+.biz-sub{font-size:.82rem;opacity:.8;outline:none;background:transparent;border-bottom:1px dashed rgba(255,255,255,.2);min-width:130px;display:block;margin-top:4px;color:#fff;}
+.inv-meta{text-align:right;}
+.inv-label{font-size:1.5rem;font-weight:800;opacity:.2;letter-spacing:4px;text-transform:uppercase;}
+.inv-num{font-family:'Space Mono',monospace;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
+
+.date-dual{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-end;}
+.date-ad{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Space Mono',monospace;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:160px;text-align:center;}
+.bs-pill{font-size:.9rem;font-weight:700;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;cursor:pointer;}
+
+.np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.3); padding:12px; display:none; width:280px; text-align:left; z-index:9999; }
+.np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
+.np-cal-header select { flex:1; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:'Tiro Devanagari Hindi', serif; font-weight:700; outline:none; cursor:pointer; }
+.np-cal-header button { border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:8px; cursor:pointer; padding:4px 12px; font-weight:bold; }
+.np-cal-grid-header { display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-size:0.75rem; font-weight:800; color:var(--text3); margin-bottom:8px; }
+.np-cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+.np-day { padding:8px 0; text-align:center; font-size:0.9rem; cursor:pointer; border-radius:8px; font-family:'Tiro Devanagari Hindi',serif; }
+.np-day.active { background:var(--accent); color:#fff; font-weight:bold; }
+
+.inp{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-family:inherit;font-size:.875rem;outline:none;}
+.inp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.inp-grid .full{grid-column:1/-1;}
+
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);z-index:50;max-height:160px;overflow-y:auto;display:none;}
+.sr-item{padding:9px 12px;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+
+.btn{padding:8px 15px;border-radius:9px;border:none;font-family:inherit;font-size:.83rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+.btn-primary{background:var(--grad);color:#fff;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);}
+.btn-green{background:#d1fae5;color:#065f46;border:1.5px solid #a7f3d0;}
+.btn-wa{background:#25d366;color:#fff;}
+
+.items-table{width:100%;border-collapse:collapse;}
+.items-table thead tr{background:var(--grad);color:#fff;}
+.items-table th{padding:10px 12px;font-size:.73rem;font-weight:700;text-transform:uppercase;}
+.items-table td{padding:6px 12px;}
+.ti{width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:.83rem;color:var(--text);}
+.ti.r{text-align:right;}
+.del-row{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 5px;border-radius:5px;}
+
+.totals-wrap{display:flex;justify-content:flex-end;}
+.totals-box{width:330px;background:var(--surface2);border-radius:12px;border:1.5px solid var(--border);overflow:hidden;}
+.t-row{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--border);font-size:.85rem;}
+.t-val{font-family:'Space Mono',monospace;font-weight:700;color:var(--text);}
+.t-row.grand{background:var(--grad);padding:12px 15px;}
+.t-row.grand label,.t-row.grand .t-val{color:#fff;font-size:.9rem;}
+.t-row.remaining{background:linear-gradient(135deg,#dc2626,#ea580c);}
+.t-row.remaining label,.t-row.remaining .t-val{color:#fff;font-size:.95rem;}
+.t-inp{border:none;outline:none;background:transparent;font-family:'Space Mono',monospace;font-size:.85rem;font-weight:700;color:var(--text);text-align:right;width:95px;}
+
+.actions-bar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+.actions-left{display:flex;gap:7px;flex-wrap:wrap;}
+
+.contact-btn{width:100%;padding:9px;background:var(--surface2);border:1.5px dashed var(--border);border-radius:9px;color:var(--text2);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;margin-bottom:10px;}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700;}
+.b-green{background:#d1fae5;color:#065f46;}
+.b-red{background:#fee2e2;color:#991b1b;}
+
+.h-table{width:100%;border-collapse:collapse;}
+.h-table thead tr{background:var(--grad);color:#fff;}
+.h-table th{padding:10px 13px;font-size:.72rem;font-weight:700;text-transform:uppercase;}
+.h-table td{padding:10px 13px;font-size:.82rem;}
+
+.ledger-card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.lc-name{font-weight:700;font-size:.92rem;}
+.lc-phone{font-size:.73rem;color:var(--text3);margin-top:2px;}
+.lc-baki{font-family:'Space Mono',monospace;font-weight:800;font-size:1.05rem;}
+.lc-baki.due{color:var(--red);}
+.lc-baki.ok{color:var(--green);}
+
+.suggestion-bar{ position: fixed; bottom: 0; left: 0; right: 0; background: #1a1f36; padding: 10px; border-top: 1px solid var(--border); display: none; gap: 10px; overflow-x: auto; z-index: 10000;}
+.s-btn{ white-space: nowrap; padding: 10px 16px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.85rem; cursor: pointer; color: #fff; font-weight: 600;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:14px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:16px;border:1.5px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.25);max-width:560px;width:100%;max-height:88vh;overflow-y:auto;}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1;border-radius:16px 16px 0 0;}
+.modal-title{font-size:.92rem;font-weight:700;}
+.modal-body{padding:18px 20px;}
+.close-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;}
+.d-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.84rem;}
+.d-label{color:var(--text2);}
+.d-val{font-weight:600;font-family:'Space Mono',monospace;}
+
+.sec-div{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin:14px 0 8px;display:flex;align-items:center;gap:7px;}
+.sec-div::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.pay-big{font-family:'Space Mono',monospace;font-size:1.8rem;font-weight:800;color:var(--red);text-align:center;padding:12px;background:#fff0f0;border-radius:10px;margin-bottom:14px;}
+
+.empty-state{text-align:center;padding:40px;color:var(--text3);}
+.empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
+
+.responsive-preview-container { width: 100%; overflow-x: auto; background: #e2e8f0; }
+</style>
 </head>
 <body>
 
 <datalist id="inventory-list"></datalist>
 <datalist id="customer-list"></datalist>
 
+<!-- SUGGESTION BAR FIXED AT BOTTOM -->
 <div id="suggestion-bar" class="suggestion-bar no-print"></div>
 
+<!-- NATIVE CALENDAR POPUP -->
 <div id="np-cal-popup" class="np-cal-popup no-print">
     <div class="np-cal-header">
         <button onclick="prevNpMonth()">&#8592;</button>
@@ -40,46 +184,17 @@
     <div id="np-cal-grid" class="np-cal-grid"></div>
 </div>
 
-<!-- SECURE 8860 PIN PAD -->
-<div id="pw-screen">
-  <div id="pw-box">
-    <div id="pw-logo">🏪</div>
-    <div id="pw-title">Rabi Kapada Pasal</div>
-    <div id="pw-sub">Enter your 4-digit PIN</div>
-    <div id="pin-dots" style="display:flex;justify-content:center;gap:14px;margin-bottom:22px;">
-      <div class="pin-dot" id="d0"></div>
-      <div class="pin-dot" id="d1"></div>
-      <div class="pin-dot" id="d2"></div>
-      <div class="pin-dot" id="d3"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:230px;margin:0 auto;">
-      <button class="pin-btn" onclick="pinPress('1')">1</button>
-      <button class="pin-btn" onclick="pinPress('2')">2</button>
-      <button class="pin-btn" onclick="pinPress('3')">3</button>
-      <button class="pin-btn" onclick="pinPress('4')">4</button>
-      <button class="pin-btn" onclick="pinPress('5')">5</button>
-      <button class="pin-btn" onclick="pinPress('6')">6</button>
-      <button class="pin-btn" onclick="pinPress('7')">7</button>
-      <button class="pin-btn" onclick="pinPress('8')">8</button>
-      <button class="pin-btn" onclick="pinPress('9')">9</button>
-      <div></div>
-      <button class="pin-btn" onclick="pinPress('0')">0</button>
-      <button class="pin-btn pin-del" onclick="pinDel()">⌫</button>
-    </div>
-    <div id="pw-err"></div>
-  </div>
-</div>
-
 <nav class="top-nav no-print">
   <div class="nav-brand">
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v41</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v42</div>
     </div>
   </div>
   <div class="nav-actions">
     <span id="sync-status" class="sync-badge">⟳ Connecting...</span>
+    <button class="btn-icon" onclick="exportDatabaseBackup()" title="Backup Database">📥</button>
     <button class="lang-btn" onclick="toggleLang()" id="lang-btn">नेपाली</button>
     <button class="btn-icon" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
   </div>
@@ -94,19 +209,18 @@
 
 <div class="main">
 
-<!-- INVOICE PANEL -->
 <div class="panel active" id="panel-invoice">
   <div class="inv-head">
     <div style="position:relative;z-index:1;">
-      <div contenteditable="true" class="biz-name" placeholder="Business Name" id="biz-name">Rabi Kapada Pasal</div>
-      <span contenteditable="true" class="biz-sub" placeholder="Address &amp; Contact" id="biz-sub"></span>
+      <div contenteditable="true" class="biz-name" id="biz-name">Rabi Kapada Pasal</div>
+      <span contenteditable="true" class="biz-sub" id="biz-sub">Address & Contact</span>
     </div>
     <div class="inv-meta">
       <div class="inv-label">INVOICE</div>
       <div class="inv-num">#<span id="invoice-number">...</span></div>
       <div class="date-dual">
         <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
-        <input type="text" id="bs-date-inp" class="bs-pill" readonly onclick="toggleNpCal()" placeholder="नेपाली मिति" title="Click to change Nepali Date">
+        <input type="text" id="bs-date-inp" class="bs-pill" readonly onclick="toggleNpCal()" placeholder="नेपाली मिति">
       </div>
     </div>
   </div>
@@ -146,7 +260,7 @@
       </table>
     </div>
     <div class="no-print" style="padding:10px 18px;border-top:1px solid var(--border);">
-      <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
+      <button onclick="addRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-weight:700;cursor:pointer;">
         + <span class="L" data-k="Add Row">Add Row</span>
       </button>
     </div>
@@ -154,10 +268,9 @@
 
   <div class="card no-print" style="margin-bottom:14px;">
     <div class="card-header"><div class="card-title">📝 <span class="L" data-k="Notes / Remarks">Notes / Remarks</span></div></div>
-    <div class="card-body" id="notes-container" style="padding: 10px 18px;">
-      </div>
+    <div class="card-body" id="notes-container" style="padding: 10px 18px;"></div>
     <div style="padding:10px 18px;border-top:1px solid var(--border);">
-      <button onclick="addNoteRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;">
+      <button onclick="addNoteRow()" style="width:100%;padding:10px;border:2px dashed var(--border);border-radius:9px;background:transparent;color:var(--accent);font-weight:700;cursor:pointer;">
         + Add Note Row
       </button>
     </div>
@@ -175,7 +288,7 @@
       <div class="t-row g-row" style="align-items: flex-start;">
         <div style="display:flex; flex-direction:column; gap:3px;">
           <label><span class="L" data-k="Nagad Paid (-)">Nagad Paid (-)</span></label>
-          <input type="date" id="cash-paid-date" style="background:rgba(255,255,255,0.6); border:1px dashed #a7f3d0; border-radius:4px; padding:2px 4px; font-size:0.7rem; color:#065f46; outline:none; font-family:inherit; max-width: 110px;">
+          <input type="date" id="cash-paid-date" style="background:rgba(255,255,255,0.6); border:1px dashed #a7f3d0; border-radius:4px; padding:2px 4px; font-size:0.7rem; color:#065f46; outline:none; max-width: 110px;">
         </div>
         <input type="number" class="t-inp" id="cash-paid" placeholder="0" min="0" oninput="calc()" style="color:#065f46; margin-top:2px;">
       </div>
@@ -194,7 +307,6 @@
   </div>
 </div>
 
-<!-- PACKING SLIPS PANEL -->
 <div class="panel" id="panel-packing">
   <div class="card no-print">
     <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
@@ -205,16 +317,13 @@
         <input type="date" class="inp" id="slip-date" style="width:130px; padding:6px 10px; font-size:0.85rem;">
       </div>
     </div>
-    
-    <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:16px;">
-      </div>
-
+    <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:16px;"></div>
     <div style="padding:15px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; background:var(--surface2);">
         <button class="btn btn-primary" onclick="addPokaGroup()" style="font-size:0.85rem; padding:8px 16px; background:var(--surface2); color:var(--accent); border:2px dashed var(--accent);">+ Add Bundle</button>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button class="btn btn-ghost" onclick="previewPackingSlip()" style="border-color:var(--accent); color:var(--accent);">👀 Preview</button>
             <button class="btn btn-ghost" onclick="savePokaDraft()">💾 Save Draft</button>
-            <button class="btn btn-primary" onclick="syncPokasToInvoice()" style="background:var(--green); box-shadow:0 4px 14px rgba(5,150,105,.3);">📤 Push to Invoice</button>
+            <button class="btn btn-primary" onclick="syncPokasToInvoice()" style="background:var(--green);">📤 Push to Invoice</button>
         </div>
     </div>
   </div>
@@ -227,8 +336,23 @@
   </div>
 </div>
 
-<!-- HISTORY PANEL -->
 <div class="panel" id="panel-history">
+  <!-- FINANCIAL DASHBOARD SUMMARY -->
+  <div class="dash-grid no-print" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:14px;">
+    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
+      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">TODAY'S SALES</div>
+      <div id="dash-today-sales" style="font-size:1.1rem; font-weight:800; color:var(--accent); font-family:'Space Mono',monospace;">NRS 0</div>
+    </div>
+    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
+      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">COLLECTED TODAY</div>
+      <div id="dash-today-collected" style="font-size:1.1rem; font-weight:800; color:var(--green); font-family:'Space Mono',monospace;">NRS 0</div>
+    </div>
+    <div style="background:var(--surface); padding:12px; border-radius:10px; border:1px solid var(--border); box-shadow:var(--shadow);">
+      <div style="font-size:0.7rem; color:var(--text3); font-weight:700;">MARKET BAKI</div>
+      <div id="dash-market-baki" style="font-size:1.1rem; font-weight:800; color:var(--red); font-family:'Space Mono',monospace;">NRS 0</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
@@ -238,19 +362,11 @@
   </div>
 </div>
 
-<!-- LEDGER PANEL -->
 <div class="panel" id="panel-ledger">
   <div class="card">
-    <div class="card-header" style="flex-wrap:wrap; gap:10px;">
+    <div class="card-header">
       <div class="card-title">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <select class="inp no-print" id="ledger-sort" onchange="renderLedger(true)" style="width:130px; padding:6px; font-size:0.8rem;">
-              <option value="az">A-Z</option>
-              <option value="dues">Highest Dues</option>
-              <option value="recent">Recently Active</option>
-          </select>
-          <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:140px; padding:6px; font-size:0.8rem;">
-      </div>
+      <input type="text" class="inp no-print" id="ledger-search" placeholder="Search..." oninput="debouncedFilterLedger()" style="width:170px;">
     </div>
     <div class="card-body" style="padding:0 18px 18px;">
       <div id="ledger-summary" style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;"></div>
@@ -261,7 +377,7 @@
 
 </div>
 
-<!-- ALL MODALS INCLUDED BELOW TO PREVENT THEM BEING CUT OFF -->
+<!-- ALL MODALS BELOW -->
 
 <div class="modal-overlay" id="bill-modal">
   <div class="modal">
@@ -277,6 +393,12 @@
       <div class="pay-big" id="pay-baki-display">NRS 0</div>
       <div class="sec-div">Payment Date</div>
       <input type="date" class="inp" id="pay-date-inp" style="margin-bottom:10px; font-family:'Space Mono',monospace;">
+      <div class="sec-div">Payment Mode</div>
+      <select class="inp" id="pay-mode-inp" style="margin-bottom:10px; font-weight:700;">
+        <option value="Cash 💵">Cash 💵</option>
+        <option value="Fonepay / eSewa 📱">Fonepay / eSewa 📱</option>
+        <option value="Bank Transfer 🏦">Bank Transfer 🏦</option>
+      </select>
       <div class="sec-div"><span class="L" data-k="Enter payment amount">Enter payment amount</span></div>
       <input type="number" class="inp" id="pay-amount-inp" placeholder="0" min="0" style="font-size:1.1rem;font-weight:700;text-align:center;margin-bottom:10px;">
       <input type="text" class="inp" id="pay-note-inp" placeholder="Note (optional)" style="margin-bottom:14px;">
@@ -289,9 +411,9 @@
   <div class="modal" style="max-width:360px;">
     <div class="modal-header"><div class="modal-title">✅ Payment Saved</div><button class="close-btn" onclick="closeModal('receipt-modal')">✕</button></div>
     <div class="modal-body">
-      <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+      <div id="thermal-receipt" style="background:#fff; padding:25px 20px; font-family:monospace; color:#000; width:300px; margin:0 auto 15px auto; border:1px solid #e2e8f8; border-radius:8px;">
         <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:12px; margin-bottom:12px;">
-            <h2 style="margin:0; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem;">Rabi Kapada Pasal</h2>
+            <h2 style="margin:0; font-size:1.1rem;">Rabi Kapada Pasal</h2>
             <p style="margin:4px 0 0 0; font-size:12px;">Payment Receipt</p>
         </div>
         <p style="margin:6px 0; font-size:13px;">Date: <span id="rec-date"></span></p>
@@ -337,8 +459,8 @@
         <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
     </div>
     
-    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow-x:auto; background:#94a3b8; padding:10px; text-align:left;">
-        <div id="ledger-statement-render" style="width:800px; min-width:800px; background:#ffffff; padding:40px; margin:0; box-shadow:0 10px 40px rgba(0,0,0,0.15);">
+    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow-x:auto; background:#94a3b8; padding:10px;">
+        <div id="ledger-statement-render" style="width:800px; min-width:800px; background:#ffffff; padding:40px; margin:0;">
             <div style="text-align:center; margin-bottom:25px;">
                 <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
                 <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
@@ -348,9 +470,6 @@
                     <p style="margin:2px 0 0 0; font-size:14px; color:#4a5280;" id="ls-cust-sub"></p>
                 </div>
             </div>
-            
-            <div id="ls-summary-box" style="display:flex; justify-content:space-between; background:#f1f5f9; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #cbd5e1;"></div>
-
             <table class="items-table" style="width:100%; border-collapse:collapse;">
                 <thead style="background:var(--grad); color:#fff;">
                     <tr>
@@ -388,7 +507,7 @@
       <div class="sec-div">Address</div>
       <input type="text" class="inp" id="edit-cust-address" style="margin-bottom:10px;">
       <div class="sec-div">Baki (Dues)</div>
-      <input type="number" class="inp" id="edit-cust-baki" style="margin-bottom:14px;">
+      <input type="number" class="inp" id="edit-cust-baki" style="margin-bottom:14px;" readonly>
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveEditedCustomer()">💾 Save Changes</button>
     </div>
   </div>
@@ -400,11 +519,11 @@
         <div class="modal-title">👀 Preview & Sign Bill</div>
         <button class="close-btn" onclick="closeModal('preview-modal')">✕</button>
     </div>
-    <div class="modal-body responsive-preview-container" id="preview-body" style="flex:1; padding:0;">
-        </div>
+    <div class="modal-body responsive-preview-container" id="preview-body" style="flex:1; padding:0;"></div>
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="clearSignature()">🧹 Clear Signature</button>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="printCurrentInvoice()" style="border-color:var(--accent); color:var(--accent);">🖨️ Print Native</button>
             <button class="btn btn-ghost" onclick="closeModal('preview-modal')">Cancel</button>
             <button class="btn btn-primary" onclick="confirmAndDownload()" id="confirm-btn-text">💾 Confirm & Download</button>
         </div>
@@ -418,8 +537,7 @@
         <div class="modal-title">📦 Preview Standalone Packing Slip</div>
         <button class="close-btn" onclick="closeModal('slip-modal')">✕</button>
     </div>
-    <div class="modal-body responsive-preview-container" id="slip-body" style="flex:1; padding:0;">
-        </div>
+    <div class="modal-body responsive-preview-container" id="slip-body" style="flex:1; padding:0;"></div>
     <div style="padding:15px 20px; background:var(--surface); border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 16px 16px;">
         <button class="btn btn-ghost" onclick="closeModal('slip-modal')">Cancel</button>
         <button class="btn btn-primary" onclick="downloadSlipOnly()" id="slip-dl-btn">💾 Download Slip Image</button>
@@ -444,6 +562,14 @@
 </div>
 
 <script src="app.js"></script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) { registration.unregister(); }
+    });
+  }
+</script>
 
 </body>
 </html>
