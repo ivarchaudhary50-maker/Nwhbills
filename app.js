@@ -1142,49 +1142,49 @@ function previewPackingSlip() {
     
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-slip-to-render" style="width: 680px; min-width: 680px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; padding: 30px;">
+        <div id="actual-slip-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; padding: 30px;">
             <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
-                <h1 style="font-size: 26px; color: #1a1f36; margin: 0; text-transform: uppercase;">PACKING SLIP (POKA DETAILS)</h1>
-                <h2 style="font-size: 18px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
+                <h1 style="font-size: 24px; color: #1a1f36; margin: 0; text-transform: uppercase;">PACKING SLIP (POKA DETAILS)</h1>
+                <h2 style="font-size: 16px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
             </div>
 
             <table style="width: 100%; margin-bottom: 30px;">
                 <tr>
                     <td style="width: 50%; vertical-align: top;">
-                        <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6;">
-                            <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
-                            <p style="font-size: 16px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
-                            ${bill.phone ? `<p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+                        <div style="background: #f7f9ff; padding: 12px 15px; border-left: 4px solid #8b5cf6;">
+                            <p style="font-size: 10px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
+                            <p style="font-size: 15px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                            ${bill.phone ? `<p style="font-size: 12px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
                         </div>
                     </td>
                     <td style="width: 50%; vertical-align: top; text-align: right;">
-                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
-                        <p style="font-size: 13px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
-                        <p style="font-size: 13px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
+                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 4px 0;"><strong>Date:</strong> ${slipDate}</p>
+                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 4px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        <p style="font-size: 12.5px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
             </table>`;
 
         bill.pokaDetails.forEach(p => {
             htmlString += `
-            <div style="margin-bottom: 25px; border: 2px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-                <div style="background: #f1f5f9; padding: 10px 15px; font-size: 14px; font-weight: 800;">
+            <div style="margin-bottom: 20px; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+                <div style="background: #f1f5f9; padding: 8px 12px; font-size: 13px; font-weight: 800;">
                     <span>📦 Poka #${p.pokaNum}</span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                            <th style="padding: 12px 15px;">Garment Description</th>
-                            <th style="padding: 12px 15px;">Breakdown</th>
-                            <th style="padding: 12px 15px; text-align: right;">Total Pcs</th>
+                            <th style="padding: 10px 12px;">Garment Description</th>
+                            <th style="padding: 10px 12px;">Breakdown</th>
+                            <th style="padding: 10px 12px; text-align: right;">Total Pcs</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${p.items.map(it => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 12px 15px; font-weight: bold;">${it.desc}</td>
-                                <td style="padding: 12px 15px; font-family: 'Plus Jakarta Sans', sans-serif;">${it.formula || '—'}</td>
-                                <td style="padding: 12px 15px; text-align: right; font-weight: bold;">${it.total}</td>
+                                <td style="padding: 10px 12px; font-weight: bold;">${it.desc}</td>
+                                <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif;">${it.formula || '—'}</td>
+                                <td style="padding: 10px 12px; text-align: right; font-weight: bold;">${it.total}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1198,32 +1198,77 @@ function previewPackingSlip() {
     document.getElementById('slip-modal').classList.add('open');
 }
 
+// ============================================================
+// BULLETPROOF CANVAS CAPTURE & DOWNLOAD ENGINE
+// ============================================================
+function downloadCanvasImage(cloneElement, filename, callback) {
+    document.body.appendChild(cloneElement);
+    
+    // Position fixed at top-left, almost invisible, so Mobile Chrome DOM paints it properly
+    cloneElement.style.position = 'fixed';
+    cloneElement.style.left = '0';
+    cloneElement.style.top = '0';
+    cloneElement.style.zIndex = '-9999';
+    cloneElement.style.opacity = '0.01';
+    cloneElement.style.pointerEvents = 'none';
+
+    html2canvas(cloneElement, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+    }).then(function (canvas) {
+        if (document.body.contains(cloneElement)) {
+            document.body.removeChild(cloneElement);
+        }
+
+        if (canvas.toBlob) {
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    alert("Error generating image blob.");
+                    if (callback) callback();
+                    return;
+                }
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                if (callback) callback();
+            }, 'image/png');
+        } else {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            if (callback) callback();
+        }
+    }).catch(function (error) {
+        console.error("html2canvas error:", error);
+        if (document.body.contains(cloneElement)) {
+            document.body.removeChild(cloneElement);
+        }
+        alert("Error generating image: " + error.message);
+        if (callback) callback();
+    });
+}
+
 function downloadSlipOnly() {
     const btn = document.getElementById('slip-dl-btn');
     btn.innerHTML = '⏳ Processing...';
 
     const originalElement = document.getElementById('actual-slip-to-render');
     const clone = originalElement.cloneNode(true);
-    
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '-9999px';
-    clone.style.width = '680px'; 
 
-    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
-        document.body.removeChild(clone);
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `PackingSlip-${document.getElementById('customer-name').value.trim() || 'Customer'}.png`;
-        link.href = dataUrl;
-        link.click();
-        
+    downloadCanvasImage(clone, `PackingSlip-${document.getElementById('customer-name').value.trim() || 'Customer'}.png`, () => {
         btn.innerHTML = '💾 Download Slip Image';
         closeModal('slip-modal');
-    }).catch(function (error) {
-        if(document.body.contains(clone)) document.body.removeChild(clone);
-        btn.innerHTML = '💾 Download Slip Image';
-        alert("Error generating image.");
     });
 }
 
@@ -1233,7 +1278,7 @@ function previewBill(){
 }
 
 // ============================================================
-// CLASSIC PORTRAIT INVOICE GENERATOR (EXACT MATCH FOR IMAGES 2 & 3)
+// EXACT PROPORTION INVOICE GENERATOR (IMAGE 2 MATCH)
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -1251,7 +1296,7 @@ function generatePreviewHTML(bill) {
 
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 680px; min-width: 680px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 40px 45px; margin: 0 auto; box-sizing: border-box; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div id="actual-bill-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 38px; margin: 0 auto; box-sizing: border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
             
             <!-- HEADER -->
             <table style="width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">
@@ -1297,10 +1342,10 @@ function generatePreviewHTML(bill) {
                         <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px; margin-bottom: 25px;">
                             <p style="margin: 0 0 6px 0; font-size: 10.5px; font-weight: 700; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
                             ${bill.billNotes.map(n => `<p style="margin: 2px 0; font-size: 11.5px; color: #64748b; font-family: monospace;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
-                        </div>` : `<div style="height: 40px;"></div>`}
+                        </div>` : `<div style="min-height: 20px;"></div>`}
 
-                        <div style="margin-top: 40px; width: 200px;">
-                            <div style="border-bottom: 1px solid #e2e8f0; height: 30px; margin-bottom: 4px;"></div>
+                        <div style="margin-top: 35px; width: 200px;">
+                            <div style="border-bottom: 1px dashed #cbd5e1; height: 30px; margin-bottom: 4px;"></div>
                             <p style="font-size: 11px; color: #94a3b8; margin: 0;">Customer Signature</p>
                         </div>
                     </td>
@@ -1491,27 +1536,11 @@ function confirmAndDownload() {
     const clone = originalElement.cloneNode(true);
     const signBtnNode = clone.querySelector('#sign-btn');
     if(signBtnNode) signBtnNode.style.display = 'none';
-    
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '-9999px';
-    clone.style.width = '680px'; 
 
-    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
-        document.body.removeChild(clone);
-
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `Invoice-${pendingBill.invoiceNum}.png`;
-        link.href = dataUrl;
-        link.click();
-
+    downloadCanvasImage(clone, `Invoice-${pendingBill.invoiceNum}.png`, () => {
         closeModal('preview-modal');
         clearForm();
         pendingBill = null;
-    }).catch(function (error) {
-        if(document.body.contains(clone)) document.body.removeChild(clone);
-        alert("Error generating image.");
     });
 }
 
@@ -1759,21 +1788,8 @@ function shareStatementWA() {
 function downloadLedgerStatement() {
     const originalElement = document.getElementById('ledger-statement-render');
     const clone = originalElement.cloneNode(true);
-    document.body.appendChild(clone);
-    clone.style.position = 'absolute';
-    clone.style.top = '-9999px';
-    clone.style.width = '800px';
 
-    html2canvas(clone, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
-        document.body.removeChild(clone);
-        const link = document.createElement('a');
-        link.download = `Statement-${document.getElementById('ls-cust-name').innerText}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    }).catch(function (err) {
-        console.error(err);
-        alert("Error generating image.");
-    });
+    downloadCanvasImage(clone, `Statement-${document.getElementById('ls-cust-name').innerText}.png`);
 }
 
 function payFromLedger(name, baki){
@@ -1858,16 +1874,8 @@ function shareReceiptWA() {
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
     if(!targetElement) return;
-    html2canvas(targetElement, { scale: 4, useCORS: true, backgroundColor: '#ffffff' }).then(function (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `Receipt-${_payCust}.png`;
-        link.href = dataUrl;
-        link.click();
-    }).catch(function (err) {
-        console.error(err);
-        alert('Error generating receipt image.');
-    });
+    const clone = targetElement.cloneNode(true);
+    downloadCanvasImage(clone, `Receipt-${_payCust}.png`);
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
