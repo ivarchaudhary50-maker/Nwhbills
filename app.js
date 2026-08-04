@@ -1223,85 +1223,261 @@ function previewBill(){
   generatePreviewHTML(pendingBill);
 }
 
+// ============================================================
+// EXECUTIVE INVOICE GENERATOR WITH WORKING SIGNATURE PAD
+// ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
-    bill.items.forEach(it => {
-        rowsHtml += `<tr>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; width: 40%; word-break: break-word;">${it.desc}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:center; width: 15%;">${it.code || '—'}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.qty}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; width: 15%;">${it.rate}</td>
-            <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; text-align:right; font-weight:500; width: 15%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+    bill.items.forEach((it, index) => {
+        const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        rowsHtml += `<tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 9px 10px; font-size: 13px; color: #1e293b; font-weight: 500; word-break: break-word; width: 40%;">${it.desc}</td>
+            <td style="padding: 9px 6px; font-size: 12.5px; color: #64748b; text-align: center; width: 14%;">${it.code || '—'}</td>
+            <td style="padding: 9px 6px; font-size: 13px; color: #1e293b; text-align: right; width: 14%; font-weight: 500;">${it.qty}</td>
+            <td style="padding: 9px 6px; font-size: 13px; color: #1e293b; text-align: right; width: 16%; font-weight: 500;">${it.rate}</td>
+            <td style="padding: 9px 10px; font-size: 13px; color: #0f172a; text-align: right; font-weight: 500; width: 16%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
     const bizName = document.getElementById('biz-name').innerText || "Rabi Kapada Pasal";
-    const bizSub = document.getElementById('biz-sub').innerText || "";
+    const bizSub = document.getElementById('biz-sub').innerText || "Garment Wholesaler";
 
     let htmlString = `
-    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render">
-            <table style="width: 100%; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px;">
+    <div style="padding: 10px; width: 100%; overflow-x: auto; background: #cbd5e1; -webkit-overflow-scrolling: touch;">
+        <div id="actual-bill-to-render" style="width: 720px; min-width: 720px; background: #ffffff; color: #0f172a; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 36px 40px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            
+            <!-- TOP BRAND HEADER -->
+            <table style="width: 100%; border-bottom: 2px solid #334155; padding-bottom: 16px; margin-bottom: 20px;">
                 <tr>
-                    <td style="vertical-align: top; padding-bottom: 15px;">
-                        <h1 style="font-size: 26px; color: #1a1f36; margin: 0;">${bizName}</h1>
-                        <p style="font-size: 13px; color: #4a5280; margin-top: 4px;">${bizSub}</p>
+                    <td style="vertical-align: top;">
+                        <h1 style="font-size: 26px; font-weight: 800; color: #1e293b; margin: 0; letter-spacing: -0.5px;">${bizName}</h1>
+                        <p style="font-size: 13px; font-weight: 600; color: #64748b; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 0.5px;">${bizSub}</p>
                     </td>
-                    <td style="vertical-align: top; text-align: right; padding-bottom: 15px;">
-                        <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1px;">INVOICE</h2>
-                        <p style="font-size: 15px; font-weight: 600; margin-top:2px;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 13px; margin-top:2px;">${bill.date}</p>
-                        <p style="font-size: 12px; color:#4a5280; margin-top:2px;">${bill.dateBS || ""}</p>
+                    <td style="vertical-align: top; text-align: right;">
+                        <span style="font-size: 20px; font-weight: 800; color: #475569; letter-spacing: 2px;">INVOICE</span>
+                        <p style="font-size: 15px; font-weight: 600; color: #1e293b; margin: 4px 0 0 0;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 12.5px; color: #475569; margin: 2px 0 0 0;">${bill.date} &nbsp;|&nbsp; ${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
 
-            <div style="background: #f7f9ff; padding: 15px; border-left: 4px solid #8b5cf6; margin-bottom: 20px; border-radius: 4px;">
-                <p style="font-size: 11px; font-weight: bold; color: #8892b0; margin: 0;">BILL TO:</p>
-                <p style="font-size: 17px; font-weight: 700; color: #1a1f36; margin: 2px 0 0 0;">${bill.customer}</p>
-                <p style="font-size: 13px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone || ""}</p>
-            </div>
+            <!-- BILL TO & SUMMARY GRID -->
+            <table style="width: 100%; margin-bottom: 22px; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 60%; vertical-align: top; padding-right: 15px;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f8; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 12px 16px;">
+                            <p style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 4px 0;">BILL TO</p>
+                            <p style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0;">${bill.customer}</p>
+                            ${bill.phone ? `<p style="font-size: 12.5px; color: #475569; margin: 3px 0 0 0;">📞 ${bill.phone}</p>` : ''}
+                            ${bill.address ? `<p style="font-size: 12.5px; color: #475569; margin: 2px 0 0 0;">📍 ${bill.address}</p>` : ''}
+                        </div>
+                    </td>
+                    <td style="width: 40%; vertical-align: top;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f8; border-radius: 6px; padding: 12px 16px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #475569; margin-bottom: 4px;">
+                                <span>Total Poka:</span>
+                                <strong style="color: #0f172a;">${bill.totalPoka || '0'} Bundles</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #475569;">
+                                <span>Total Line Items:</span>
+                                <strong style="color: #0f172a;">${bill.items.length}</strong>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;">
+            <!-- ITEMS TABLE -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; table-layout: fixed;">
                 <thead>
-                    <tr>
-                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: left; width: 40%;">Description</th>
-                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: center; width: 15%;">Code</th>
-                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Qty</th>
-                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Rate</th>
-                        <th style="background: #8b5cf6; color: white; padding: 10px 8px; font-size: 13px; text-align: right; width: 15%;">Total (NRS)</th>
+                    <tr style="background: #1e293b; color: #ffffff;">
+                        <th style="padding: 9px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; width: 40%; border-radius: 4px 0 0 0;">Description</th>
+                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; width: 14%;">Code</th>
+                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 14%;">Qty</th>
+                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%;">Rate</th>
+                        <th style="padding: 9px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%; border-radius: 0 4px 0 0;">Total (NRS)</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
 
-            <table style="width: 100%; margin-top: 15px; border-collapse: collapse;">
+            <!-- BOTTOM SECTION: NOTES, SIGNATURE & TOTALS -->
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <tr>
                     <td style="width: 48%; vertical-align: top; padding-right: 15px;">
                         ${bill.billNotes && bill.billNotes.length > 0 ? `
-                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
-                            <p style="margin: 0 0 5px 0; font-size: 11px; font-weight: bold; color: #8892b0;">REMARKS / NOTES:</p>
-                            ${bill.billNotes.map(n => `<p style="margin:2px 0; font-size:12px; color:#1a1f36;">${n.date}: ${n.text}</p>`).join('')}
+                        <div style="padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 20px;">
+                            <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">REMARKS / NOTES</p>
+                            ${bill.billNotes.map(n => `<p style="margin: 3px 0; font-size: 12px; color: #334155;"><strong>${n.date}:</strong> ${n.text}</p>`).join('')}
                         </div>` : ''}
+
+                        <!-- CUSTOMER SIGNATURE -->
+                        <div style="margin-top: 20px; width: 200px;">
+                            <div style="border-bottom: 1px solid #94a3b8; height: 40px; margin-bottom: 4px;"></div>
+                            <p style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Customer Signature</p>
+                        </div>
                     </td>
+
+                    <!-- TOTALS BREAKDOWN -->
                     <td style="width: 52%; vertical-align: top;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
-                            <tr><td style="padding: 5px 0;">Items Subtotal:</td><td style="text-align: right; font-weight:600;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr><td style="padding: 5px 0;">Transport (+):</td><td style="text-align: right;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #f8fafc; font-weight: 600;"><td style="padding: 6px 0;">Today's Bill:</td><td style="text-align: right;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr><td style="padding: 5px 0;">Purano Baki (+):</td><td style="text-align: right;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: 600;"><td style="padding: 6px 0;">Jamma Total:</td><td style="text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="color: #059669;"><td style="padding: 5px 0;">Paid (-):</td><td style="text-align: right;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td></tr>
-                            <tr style="background: #fee2e2; color: #dc2626; font-size: 15px; font-weight: 700;"><td style="padding: 8px 4px;">Remaining Baki:</td><td style="text-align: right; padding: 8px 4px;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td></tr>
-                        </table>
+                        <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; background: #ffffff;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <tr>
+                                    <td style="padding: 7px 12px; color: #475569;">Items Subtotal:</td>
+                                    <td style="padding: 7px 12px; text-align: right; font-weight: 600; color: #0f172a;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                ${parseFloat(bill.transport) > 0 ? `
+                                <tr>
+                                    <td style="padding: 6px 12px; color: #475569;">Transport (+):</td>
+                                    <td style="padding: 6px 12px; text-align: right; color: #0f172a;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
+                                </tr>` : ''}
+                                ${parseFloat(bill.discount) > 0 ? `
+                                <tr>
+                                    <td style="padding: 6px 12px; color: #dc2626;">Discount (-):</td>
+                                    <td style="padding: 6px 12px; text-align: right; color: #dc2626;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
+                                </tr>` : ''}
+                                <tr style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #0f172a;">Today's Bill:</td>
+                                    <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #0f172a;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 6px 12px; color: #475569;">Purano Baki (+):</td>
+                                    <td style="padding: 6px 12px; text-align: right; color: #475569;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr style="background: #f1f5f9; font-weight: 600;">
+                                    <td style="padding: 8px 12px; color: #1e293b;">Jamma Total:</td>
+                                    <td style="padding: 8px 12px; text-align: right; color: #1e293b;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 6px 12px; color: #059669; font-weight: 600;">Nagad Paid (-):</td>
+                                    <td style="padding: 6px 12px; text-align: right; color: #059669; font-weight: 600;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr style="background: #fee2e2; color: #dc2626; font-size: 14.5px; font-weight: 600; border-top: 1px solid #fca5a5;">
+                                    <td style="padding: 10px 12px;">Remaining Baki:</td>
+                                    <td style="padding: 10px 12px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                            </table>
+                        </div>
                     </td>
                 </tr>
             </table>
+
+            <!-- AUTHORIZED SIGNATURE & STAMP BLOCK -->
+            <table style="width: 100%; margin-top: 30px; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 50%;"></td>
+                    <td style="width: 50%; text-align: right;">
+                        <div style="width: 260px; margin-left: auto; text-align: center;">
+                            <img id="bill-sig-img" src="" style="width: 260px; height: 90px; object-fit: contain; display: none; margin-bottom: 2px;" />
+                            <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 20px 0; border: 1.5px dashed #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; margin-bottom: 2px; color: #475569; font-weight: 600; font-size: 12.5px; font-family: inherit;">✏️ Tap to Sign</button>
+                            <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                                Authorized Signature & Stamp
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
         </div>
     </div>`;
 
     document.getElementById('preview-body').innerHTML = htmlString;
     document.getElementById('preview-modal').classList.add('open');
+}
+
+// ============================================================
+// INTERACTIVE SIGNATURE PAD LOGIC
+// ============================================================
+let isDrawing = false;
+let sigCtx = null;
+let canvasListenersAdded = false;
+
+function openSignaturePad() {
+    const modal = document.getElementById('sig-pad-modal');
+    if (modal) modal.classList.add('open');
+    setTimeout(() => {
+        const canvas = document.getElementById('large-sig-canvas');
+        if (!canvas) return;
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        initSignaturePadCanvas(canvas);
+    }, 150);
+}
+
+function initSignaturePadCanvas(canvas) {
+    if(!canvas) return;
+    sigCtx = canvas.getContext('2d');
+    sigCtx.lineWidth = 3;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+    sigCtx.strokeStyle = '#1e293b';
+    sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const startDraw = (e) => {
+        isDrawing = true;
+        const pos = getPos(e);
+        sigCtx.beginPath();
+        sigCtx.moveTo(pos.x, pos.y);
+        if(e.touches) e.preventDefault(); 
+    };
+
+    const draw = (e) => {
+        if(!isDrawing) return;
+        const pos = getPos(e);
+        sigCtx.lineTo(pos.x, pos.y);
+        sigCtx.stroke();
+        if(e.touches) e.preventDefault();
+    };
+
+    const stopDraw = () => { isDrawing = false; };
+
+    if(!canvasListenersAdded) {
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
+        canvas.addEventListener('touchstart', startDraw, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDraw);
+        canvasListenersAdded = true;
+    }
+}
+
+function saveLargeSignature() {
+    const canvas = document.getElementById('large-sig-canvas');
+    if(!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    const img = document.getElementById('bill-sig-img');
+    const btn = document.getElementById('sign-btn');
+    if (img && btn) {
+        img.src = dataUrl;
+        img.style.display = 'block';
+        btn.style.display = 'none';
+    }
+    closeModal('sig-pad-modal');
+}
+
+function clearLargeSignature() {
+    const canvas = document.getElementById('large-sig-canvas');
+    if(canvas && sigCtx) sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function clearSignature() {
+    const img = document.getElementById('bill-sig-img');
+    const btn = document.getElementById('sign-btn');
+    if(img && btn) {
+        img.src = '';
+        img.style.display = 'none';
+        btn.style.display = 'block';
+    }
+    clearLargeSignature();
 }
 
 function confirmAndDownload() {
@@ -1323,6 +1499,8 @@ function confirmAndDownload() {
 
     const originalElement = document.getElementById('actual-bill-to-render');
     const clone = originalElement.cloneNode(true);
+    const signBtnNode = clone.querySelector('#sign-btn');
+    if(signBtnNode) signBtnNode.style.display = 'none';
     
     document.body.appendChild(clone);
     clone.style.position = 'absolute';
