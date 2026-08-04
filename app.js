@@ -1280,7 +1280,7 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT PROPORTION INVOICE GENERATOR (IMAGE 2 & 3 PROPORTIONS)
+// EXACT PROPORTION INVOICE GENERATOR (IMAGE 2 & 3 MATCH)
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -1300,7 +1300,6 @@ function generatePreviewHTML(bill) {
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
         <div id="actual-bill-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 38px; margin: 0 auto; box-sizing: border-box; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
             
-            <!-- HEADER -->
             <table style="width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">
                 <tr>
                     <td style="vertical-align: top;">
@@ -1315,14 +1314,12 @@ function generatePreviewHTML(bill) {
                 </tr>
             </table>
 
-            <!-- BILL TO CARD -->
             <div style="background: #f7f9ff; padding: 12px 16px; border-left: 4px solid #8b5cf6; margin-bottom: 22px; border-radius: 4px;">
                 <p style="font-size: 10px; font-weight: 700; color: #8892b0; margin: 0 0 4px 0; text-transform: uppercase;">BILL TO:</p>
                 <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
                 ${bill.phone ? `<p style="font-size: 12.5px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
             </div>
 
-            <!-- TABLE -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; table-layout: fixed;">
                 <thead>
                     <tr style="background: #8b5cf6; color: #ffffff;">
@@ -1336,23 +1333,16 @@ function generatePreviewHTML(bill) {
                 <tbody>${rowsHtml}</tbody>
             </table>
 
-            <!-- BOTTOM SECTION -->
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <tr>
                     <td style="width: 48%; vertical-align: top; padding-right: 20px;">
                         ${(bill.billNotes && bill.billNotes.length > 0) ? `
-                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px; margin-bottom: 25px;">
+                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
                             <p style="margin: 0 0 6px 0; font-size: 10.5px; font-weight: 700; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
                             ${bill.billNotes.map(n => `<p style="margin: 2px 0; font-size: 11.5px; color: #64748b; font-family: monospace;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
-                        </div>` : `<div style="min-height: 20px;"></div>`}
-
-                        <div style="margin-top: 35px; width: 200px;">
-                            <div style="border-bottom: 1px dashed #cbd5e1; height: 30px; margin-bottom: 4px;"></div>
-                            <p style="font-size: 11px; color: #94a3b8; margin: 0;">Customer Signature</p>
-                        </div>
+                        </div>` : ''}
                     </td>
 
-                    <!-- TOTALS TABLE -->
                     <td style="width: 52%; vertical-align: top;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
                             <tr>
@@ -1399,11 +1389,16 @@ function generatePreviewHTML(bill) {
                 </tr>
             </table>
 
-            <!-- AUTHORIZED SIGNATURE & STAMP -->
-            <table style="width: 100%; margin-top: 25px; border-collapse: collapse;">
+            <table style="width: 100%; margin-top: 40px; border-collapse: collapse;">
                 <tr>
-                    <td style="width: 50%;"></td>
-                    <td style="width: 50%; text-align: right;">
+                    <td style="width: 50%; vertical-align: bottom;">
+                        <div style="width: 200px; text-align: left;">
+                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 11px; color: #94a3b8;">
+                                Customer Signature
+                            </div>
+                        </div>
+                    </td>
+                    <td style="width: 50%; vertical-align: bottom; text-align: right;">
                         <div style="width: 240px; margin-left: auto; text-align: center;">
                             <img id="bill-sig-img" src="" style="width: 220px; height: 70px; object-fit: contain; display: none; margin-bottom: 2px;" />
                             <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 12px 0; border: 1.5px dashed #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; margin-bottom: 4px; color: #64748b; font-weight: 700; font-size: 12px; font-family: inherit;">✏️ Tap to Sign</button>
