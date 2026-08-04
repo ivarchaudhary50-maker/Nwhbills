@@ -990,7 +990,7 @@ function searchDB(){
   for(let name in cloudCustomers){
     const ph=(cloudCustomers[name].phone||'').toLowerCase();
     if(name.toLowerCase().includes(q)||ph.includes(q)){
-      const d=document.createElement('div');d.className='sr-item';
+      const d=document.className='sr-item';
       d.innerHTML=`<span><strong>${escapeHtmlAttr(name)}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
       d.onclick=()=>{
           document.getElementById('customer-name').value=name;
@@ -1204,7 +1204,6 @@ function previewPackingSlip() {
 function downloadCanvasImage(cloneElement, filename, callback) {
     document.body.appendChild(cloneElement);
     
-    // Position fixed at top-left, almost invisible, so Mobile Chrome DOM paints it properly
     cloneElement.style.position = 'fixed';
     cloneElement.style.left = '0';
     cloneElement.style.top = '0';
@@ -1296,7 +1295,7 @@ function generatePreviewHTML(bill) {
 
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 38px; margin: 0 auto; box-sizing: border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div id="actual-bill-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 38px; margin: 0 auto; box-sizing: border-box; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
             
             <!-- HEADER -->
             <table style="width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">
@@ -1820,6 +1819,9 @@ function openPayModal(key, cust, baki){
   document.getElementById('pay-modal').classList.add('open');
 }
 
+// ============================================================
+// CONFIRM PAYMENT WITH ACCURATE BALANCE DEDUCTION
+// ============================================================
 function confirmPayment(){
   const amount = parseFloat(document.getElementById('pay-amount-inp').value) || 0;
   const note = document.getElementById('pay-note-inp').value.trim();
@@ -1827,25 +1829,39 @@ function confirmPayment(){
   
   if(amount <= 0){ alert('Enter a valid amount'); return; }
   
+  // 1. Compute customer's balance BEFORE payment
+  const currentCustBal = getCustomerTrueBalance(_payCust);
+  const newCustBal = Math.max(0, currentCustBal - amount);
+
   let bill = allBills.find(b => b.key === _payKey);
   if(!bill && _payCust) {
       bill = allBills.find(b => b.customer === _payCust && (parseFloat(b.remaining) || 0) > 0);
   }
   
   if(bill) {
-      const newRem = Math.max(0, (parseFloat(bill.remaining) || 0) - amount);
+      const newBillRem = Math.max(0, (parseFloat(bill.remaining) || 0) - amount);
       const newPaid = (parseFloat(bill.paid) || 0) + amount;
       const entry = { amount, date: payDate, note }; 
       
-      queueDatabaseWrite('nwh/bills/' + bill.key + '/remaining', 'set', newRem.toString());
+      bill.remaining = newBillRem.toString();
+      bill.paid = newPaid.toString();
+
+      queueDatabaseWrite('nwh/bills/' + bill.key + '/remaining', 'set', newBillRem.toString());
       queueDatabaseWrite('nwh/bills/' + bill.key + '/paid', 'set', newPaid.toString());
       queueDatabaseWrite('nwh/bills/' + bill.key + '/payments', 'push', entry);
   }
   
   if(_payCust) {
-      const currentCustBal = getCustomerTrueBalance(_payCust);
-      const newCustBal = Math.max(0, currentCustBal - amount);
+      if (!cloudCustomers[_payCust]) cloudCustomers[_payCust] = {};
+      cloudCustomers[_payCust].balance = newCustBal.toString();
+
       queueDatabaseWrite('nwh/customers/' + _payCust + '/balance', 'set', newCustBal.toString());
+
+      const latestBill = allBills.find(b => b && b.customer === _payCust);
+      if (latestBill) {
+          latestBill.remaining = newCustBal.toString();
+          queueDatabaseWrite('nwh/bills/' + latestBill.key + '/remaining', 'set', newCustBal.toString());
+      }
       
       document.getElementById('rec-date').innerText = payDate;
       document.getElementById('rec-cust').innerText = _payCust;
