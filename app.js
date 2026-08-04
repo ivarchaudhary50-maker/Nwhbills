@@ -15,7 +15,6 @@ let editBillKey = null;
 let editInvoiceNum = null;
 let pendingBill = null;
 let lang = 'en';
-let pokaCounter = 0;
 let allPokas = [];
 let inventoryList = [];
 let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
@@ -677,36 +676,37 @@ function addNoteRow(dateVal = '', textVal = '') {
     container.appendChild(div);
 }
 
+// ============================================================
+// DYNAMIC POKA GROUPING & RE-NUMBERING
+// ============================================================
 function addPokaGroup(items = null) {
-    const existing = document.querySelectorAll('.poka-card-wrapper').length;
-    pokaCounter = existing + 1; 
-    
-    const currentId = pokaCounter;
     const container = document.getElementById('poka-groups-container');
     if(!container) return;
-    
+
+    const currentId = Date.now() + Math.random().toString(36).substring(2, 7);
+
     const div = document.createElement('div');
     div.className = 'poka-card-wrapper';
     div.style = 'background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.03);';
     div.id = `poka-wrapper-${currentId}`;
-    
+
     div.innerHTML = `
         <div style="background:var(--surface2); padding:10px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:800; font-size:0.95rem; color:var(--text)">📦 Poka #${currentId}</span>
-            <button class="del-row" onclick="removePokaGroup(${currentId})" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
+            <span class="poka-header-title" style="font-weight:800; font-size:0.95rem; color:var(--text)">📦 Poka #...</span>
+            <button class="del-row" onclick="removePokaGroup('${currentId}')" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
         </div>
         <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
         </div>
         <div style="padding:0 12px 12px 12px;">
-            <button class="btn btn-ghost" onclick="addPokaItemRow(${currentId})" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
+            <button class="btn btn-ghost" onclick="addPokaItemRow('${currentId}')" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
         </div>
     `;
     container.appendChild(div);
-    
+
     if (items && items.length > 0) {
         items.forEach(it => {
             let form = it.formula || '';
-            let mult = '10'; 
+            let mult = '10';
             if (form.includes('×')) {
                const parts = form.split('×');
                form = parts[0].replace(/[() ]/g, '');
@@ -715,9 +715,10 @@ function addPokaGroup(items = null) {
             addPokaItemRow(currentId, it.desc || '', form, mult);
         });
     } else {
-        addPokaGroup();
+        addPokaItemRow(currentId);
     }
-    syncPokaCountValue();
+
+    renumberPokaGroups();
     initSuggestionBar();
 }
 
@@ -769,6 +770,17 @@ function evaluatePokaRowSum(inputElement) {
 function removePokaGroup(id) {
     const el = document.getElementById(`poka-wrapper-${id}`);
     if(el) el.remove();
+    renumberPokaGroups();
+}
+
+function renumberPokaGroups() {
+    const wrappers = document.querySelectorAll('.poka-card-wrapper');
+    wrappers.forEach((wrapper, index) => {
+        const headerSpan = wrapper.querySelector('.poka-header-title');
+        if (headerSpan) {
+            headerSpan.innerText = `📦 Poka #${index + 1}`;
+        }
+    });
     syncPokaCountValue();
 }
 
@@ -810,7 +822,6 @@ function savePokaDraft() {
     alert(`✅ Packing Slip Draft saved!`);
     
     document.getElementById('poka-groups-container').innerHTML = '';
-    pokaCounter = 0;
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     document.getElementById('slip-customer').value = '';
     addPokaGroup();
@@ -849,7 +860,6 @@ function loadPokaDraft(key) {
     document.getElementById('slip-date').value = p.date || todayStr;
 
     document.getElementById('poka-groups-container').innerHTML = '';
-    pokaCounter = 0;
 
     if(p.pokaDetails && p.pokaDetails.length > 0) {
         p.pokaDetails.forEach(group => addPokaGroup(group.items));
@@ -964,7 +974,6 @@ function clearForm(){
   document.getElementById('invoice-items').innerHTML='';addRow();calc();
   document.getElementById('notes-container').innerHTML = '';
   document.getElementById('poka-groups-container').innerHTML = '';
-  pokaCounter = 0; 
   addNoteRow();
   
   editBillKey = null;
@@ -1317,7 +1326,7 @@ function generatePreviewHTML(bill) {
                         </div>
                     </td>
 
-                    <!-- TOTALS BREAKDOWN WITH PURPLE & RED ACCENTS -->
+                    <!-- TOTALS BREAKDOWN -->
                     <td style="width: 52%; vertical-align: top;">
                         <div style="border: 1.5px solid #e2e8f8; border-radius: 10px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(79,70,229,0.05);">
                             <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
@@ -1601,7 +1610,6 @@ function loadBillForEdit(key) {
     const pokaContainer = document.getElementById('poka-groups-container');
     if(pokaContainer) {
         pokaContainer.innerHTML = '';
-        pokaCounter = 0;
         if (bill.pokaDetails && bill.pokaDetails.length > 0) {
             bill.pokaDetails.forEach(group => addPokaGroup(group.items));
         }
