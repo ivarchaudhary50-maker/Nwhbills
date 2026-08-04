@@ -990,7 +990,8 @@ function searchDB(){
   for(let name in cloudCustomers){
     const ph=(cloudCustomers[name].phone||'').toLowerCase();
     if(name.toLowerCase().includes(q)||ph.includes(q)){
-      const d=document.className='sr-item';
+      const d=document.createElement('div');
+      d.className='sr-item';
       d.innerHTML=`<span><strong>${escapeHtmlAttr(name)}</strong> &nbsp;${cloudCustomers[name].phone||''}</span>`;
       d.onclick=()=>{
           document.getElementById('customer-name').value=name;
@@ -1199,32 +1200,36 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// BULLETPROOF CANVAS CAPTURE & DOWNLOAD ENGINE
+// DIRECT DOM CAPTURE & BLOB DOWNLOAD ENGINE (DIRECT FROM VISIBLE MODAL)
 // ============================================================
-function downloadCanvasImage(cloneElement, filename, callback) {
-    document.body.appendChild(cloneElement);
-    
-    cloneElement.style.position = 'fixed';
-    cloneElement.style.left = '0';
-    cloneElement.style.top = '0';
-    cloneElement.style.zIndex = '-9999';
-    cloneElement.style.opacity = '0.01';
-    cloneElement.style.pointerEvents = 'none';
+function downloadElementAsImage(targetElement, filename, callback) {
+    if (!targetElement) {
+        alert("Error: Element to capture was not found.");
+        if (callback) callback();
+        return;
+    }
 
-    html2canvas(cloneElement, {
+    const options = {
         scale: 3,
         useCORS: true,
+        allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false
-    }).then(function (canvas) {
-        if (document.body.contains(cloneElement)) {
-            document.body.removeChild(cloneElement);
+        logging: false,
+        width: targetElement.offsetWidth || targetElement.scrollWidth,
+        height: targetElement.offsetHeight || targetElement.scrollHeight
+    };
+
+    html2canvas(targetElement, options).then(function (canvas) {
+        if (canvas.width === 0 || canvas.height === 0) {
+            alert("Error: Generated image is empty.");
+            if (callback) callback();
+            return;
         }
 
         if (canvas.toBlob) {
             canvas.toBlob(function (blob) {
                 if (!blob) {
-                    alert("Error generating image blob.");
+                    alert("Error creating PNG blob.");
                     if (callback) callback();
                     return;
                 }
@@ -1249,24 +1254,22 @@ function downloadCanvasImage(cloneElement, filename, callback) {
             if (callback) callback();
         }
     }).catch(function (error) {
-        console.error("html2canvas error:", error);
-        if (document.body.contains(cloneElement)) {
-            document.body.removeChild(cloneElement);
-        }
-        alert("Error generating image: " + error.message);
+        console.error("Capture error:", error);
+        alert("Error saving image: " + error.message);
         if (callback) callback();
     });
 }
 
 function downloadSlipOnly() {
     const btn = document.getElementById('slip-dl-btn');
-    btn.innerHTML = '⏳ Processing...';
+    if (btn) btn.innerHTML = '⏳ Processing...';
 
-    const originalElement = document.getElementById('actual-slip-to-render');
-    const clone = originalElement.cloneNode(true);
+    const targetElement = document.getElementById('actual-slip-to-render');
+    const custName = document.getElementById('customer-name').value.trim() || 'Customer';
+    const safeCust = custName.replace(/[^a-zA-Z0-9]/g, '_');
 
-    downloadCanvasImage(clone, `PackingSlip-${document.getElementById('customer-name').value.trim() || 'Customer'}.png`, () => {
-        btn.innerHTML = '💾 Download Slip Image';
+    downloadElementAsImage(targetElement, `PackingSlip-${safeCust}.png`, () => {
+        if (btn) btn.innerHTML = '💾 Download Slip Image';
         closeModal('slip-modal');
     });
 }
@@ -1277,7 +1280,7 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT PROPORTION INVOICE GENERATOR (IMAGE 2 MATCH)
+// EXACT PROPORTION INVOICE GENERATOR (IMAGE 2 & 3 PROPORTIONS)
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -1531,12 +1534,20 @@ function confirmAndDownload() {
         queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', cloudNextInvoice+1);
     }
 
-    const originalElement = document.getElementById('actual-bill-to-render');
-    const clone = originalElement.cloneNode(true);
-    const signBtnNode = clone.querySelector('#sign-btn');
-    if(signBtnNode) signBtnNode.style.display = 'none';
+    const targetElement = document.getElementById('actual-bill-to-render');
+    const signBtnNode = targetElement ? targetElement.querySelector('#sign-btn') : null;
+    const prevSignBtnDisplay = signBtnNode ? signBtnNode.style.display : '';
+    
+    if (signBtnNode) signBtnNode.style.display = 'none';
 
-    downloadCanvasImage(clone, `Invoice-${pendingBill.invoiceNum}.png`, () => {
+    const confirmBtn = document.getElementById('confirm-btn-text');
+    if (confirmBtn) confirmBtn.innerText = '⏳ Saving...';
+
+    const safeCust = (pendingBill.customer || 'Invoice').replace(/[^a-zA-Z0-9]/g, '_');
+
+    downloadElementAsImage(targetElement, `Invoice-${pendingBill.invoiceNum}-${safeCust}.png`, () => {
+        if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
+        if (confirmBtn) confirmBtn.innerText = '💾 Confirm & Download';
         closeModal('preview-modal');
         clearForm();
         pendingBill = null;
@@ -1785,10 +1796,15 @@ function shareStatementWA() {
 }
 
 function downloadLedgerStatement() {
-    const originalElement = document.getElementById('ledger-statement-render');
-    const clone = originalElement.cloneNode(true);
+    const targetElement = document.getElementById('ledger-statement-render');
+    const custName = document.getElementById('ls-cust-name').innerText || 'Customer';
+    const safeCust = custName.replace(/[^a-zA-Z0-9]/g, '_');
+    const btn = document.getElementById('ls-download-btn');
+    if (btn) btn.innerText = '⏳ Saving...';
 
-    downloadCanvasImage(clone, `Statement-${document.getElementById('ls-cust-name').innerText}.png`);
+    downloadElementAsImage(targetElement, `Statement-${safeCust}.png`, () => {
+        if (btn) btn.innerText = '🖼️ Download Statement';
+    });
 }
 
 function payFromLedger(name, baki){
@@ -1829,7 +1845,6 @@ function confirmPayment(){
   
   if(amount <= 0){ alert('Enter a valid amount'); return; }
   
-  // 1. Compute customer's balance BEFORE payment
   const currentCustBal = getCustomerTrueBalance(_payCust);
   const newCustBal = Math.max(0, currentCustBal - amount);
 
@@ -1889,9 +1904,13 @@ function shareReceiptWA() {
 
 function downloadReceiptImage() {
     const targetElement = document.getElementById('thermal-receipt');
-    if(!targetElement) return;
-    const clone = targetElement.cloneNode(true);
-    downloadCanvasImage(clone, `Receipt-${_payCust}.png`);
+    const btn = document.querySelector('#receipt-modal .btn-primary');
+    if (btn) btn.innerText = '⏳ Saving...';
+
+    const safeCustName = (_payCust || 'Customer').replace(/[^a-zA-Z0-9]/g, '_');
+    downloadElementAsImage(targetElement, `Receipt-${safeCustName}.png`, () => {
+        if (btn) btn.innerText = '🖼️ Save Image';
+    });
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
