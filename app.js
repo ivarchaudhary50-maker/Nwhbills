@@ -715,7 +715,7 @@ function addPokaGroup(items = null) {
             addPokaItemRow(currentId, it.desc || '', form, mult);
         });
     } else {
-        addPokaItemRow(currentId);
+        addPokaGroup();
     }
     syncPokaCountValue();
     initSuggestionBar();
@@ -1224,18 +1224,18 @@ function previewBill(){
 }
 
 // ============================================================
-// EXECUTIVE INVOICE GENERATOR WITH WORKING SIGNATURE PAD
+// VIBRANT PURPLE BRAND INVOICE GENERATOR
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach((it, index) => {
         const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        rowsHtml += `<tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 9px 10px; font-size: 13px; color: #1e293b; font-weight: 500; word-break: break-word; width: 40%;">${it.desc}</td>
-            <td style="padding: 9px 6px; font-size: 12.5px; color: #64748b; text-align: center; width: 14%;">${it.code || '—'}</td>
-            <td style="padding: 9px 6px; font-size: 13px; color: #1e293b; text-align: right; width: 14%; font-weight: 500;">${it.qty}</td>
-            <td style="padding: 9px 6px; font-size: 13px; color: #1e293b; text-align: right; width: 16%; font-weight: 500;">${it.rate}</td>
-            <td style="padding: 9px 10px; font-size: 13px; color: #0f172a; text-align: right; font-weight: 500; width: 16%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+        rowsHtml += `<tr style="background: ${bg}; border-bottom: 1px solid #e2e8f8;">
+            <td style="padding: 10px 10px; font-size: 13.5px; color: #1a1f36; font-weight: 600; width: 40%; word-break: break-word;">${it.desc}</td>
+            <td style="padding: 10px 6px; font-size: 13px; color: #64748b; text-align: center; width: 14%;">${it.code || '—'}</td>
+            <td style="padding: 10px 6px; font-size: 13.5px; color: #1a1f36; text-align: right; width: 14%; font-weight: 600;">${it.qty}</td>
+            <td style="padding: 10px 6px; font-size: 13.5px; color: #1a1f36; text-align: right; width: 16%; font-weight: 600;">${it.rate}</td>
+            <td style="padding: 10px 10px; font-size: 13.5px; color: #4f46e5; text-align: right; font-weight: 700; width: 16%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1244,117 +1244,116 @@ function generatePreviewHTML(bill) {
 
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #cbd5e1; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 720px; min-width: 720px; background: #ffffff; color: #0f172a; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 36px 40px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <div id="actual-bill-to-render" style="width: 720px; min-width: 720px; background: #ffffff; color: #1a1f36; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 36px 40px; margin: 0 auto; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
             
-            <!-- TOP BRAND HEADER -->
-            <table style="width: 100%; border-bottom: 2px solid #334155; padding-bottom: 16px; margin-bottom: 20px;">
+            <!-- VIBRANT HEADER -->
+            <table style="width: 100%; border-bottom: 2px solid #e2e8f8; padding-bottom: 18px; margin-bottom: 22px;">
                 <tr>
                     <td style="vertical-align: top;">
-                        <h1 style="font-size: 26px; font-weight: 800; color: #1e293b; margin: 0; letter-spacing: -0.5px;">${bizName}</h1>
-                        <p style="font-size: 13px; font-weight: 600; color: #64748b; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 0.5px;">${bizSub}</p>
+                        <h1 style="font-size: 28px; font-weight: 800; color: #4f46e5; margin: 0; letter-spacing: -0.5px;">${bizName}</h1>
+                        <p style="font-size: 13px; font-weight: 700; color: #7c3aed; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 0.5px;">${bizSub}</p>
                     </td>
                     <td style="vertical-align: top; text-align: right;">
-                        <span style="font-size: 20px; font-weight: 800; color: #475569; letter-spacing: 2px;">INVOICE</span>
-                        <p style="font-size: 15px; font-weight: 600; color: #1e293b; margin: 4px 0 0 0;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 12.5px; color: #475569; margin: 2px 0 0 0;">${bill.date} &nbsp;|&nbsp; ${bill.dateBS || ""}</p>
+                        <span style="font-size: 22px; font-weight: 800; color: #7c3aed; letter-spacing: 2px;">INVOICE</span>
+                        <p style="font-size: 16px; font-weight: 800; color: #1a1f36; margin: 4px 0 0 0;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 12.5px; font-weight: 600; color: #64748b; margin: 2px 0 0 0;">${bill.date} &nbsp;|&nbsp; ${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
 
-            <!-- BILL TO & SUMMARY GRID -->
+            <!-- BILL TO & SUMMARY CARD -->
             <table style="width: 100%; margin-bottom: 22px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 60%; vertical-align: top; padding-right: 15px;">
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f8; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 12px 16px;">
-                            <p style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 4px 0;">BILL TO</p>
-                            <p style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0;">${bill.customer}</p>
-                            ${bill.phone ? `<p style="font-size: 12.5px; color: #475569; margin: 3px 0 0 0;">📞 ${bill.phone}</p>` : ''}
-                            ${bill.address ? `<p style="font-size: 12.5px; color: #475569; margin: 2px 0 0 0;">📍 ${bill.address}</p>` : ''}
+                        <div style="background: linear-gradient(135deg, #f7f9ff 0%, #f0f4ff 100%); border: 1px solid #e2e8f8; border-left: 5px solid #4f46e5; border-radius: 8px; padding: 14px 18px;">
+                            <p style="font-size: 11px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 4px 0;">BILL TO</p>
+                            <p style="font-size: 17px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                            ${bill.phone ? `<p style="font-size: 13px; font-weight: 600; color: #4a5280; margin: 4px 0 0 0;">📞 ${bill.phone}</p>` : ''}
+                            ${bill.address ? `<p style="font-size: 13px; font-weight: 600; color: #4a5280; margin: 2px 0 0 0;">📍 ${bill.address}</p>` : ''}
                         </div>
                     </td>
                     <td style="width: 40%; vertical-align: top;">
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f8; border-radius: 6px; padding: 12px 16px;">
-                            <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #475569; margin-bottom: 4px;">
-                                <span>Total Poka:</span>
-                                <strong style="color: #0f172a;">${bill.totalPoka || '0'} Bundles</strong>
+                        <div style="background: #f7f9ff; border: 1px solid #e2e8f8; border-radius: 8px; padding: 14px 18px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #4a5280; margin-bottom: 6px;">
+                                <span style="font-weight: 600;">Total Poka:</span>
+                                <strong style="color: #4f46e5; font-weight: 800;">${bill.totalPoka || '0'} Bundles</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #475569;">
-                                <span>Total Line Items:</span>
-                                <strong style="color: #0f172a;">${bill.items.length}</strong>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #4a5280;">
+                                <span style="font-weight: 600;">Total Items:</span>
+                                <strong style="color: #4f46e5; font-weight: 800;">${bill.items.length}</strong>
                             </div>
                         </div>
                     </td>
                 </tr>
             </table>
 
-            <!-- ITEMS TABLE -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; table-layout: fixed;">
+            <!-- VIBRANT TABLE HEADER -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; table-layout: fixed; border-radius: 8px; overflow: hidden;">
                 <thead>
-                    <tr style="background: #1e293b; color: #ffffff;">
-                        <th style="padding: 9px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; width: 40%; border-radius: 4px 0 0 0;">Description</th>
-                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; width: 14%;">Code</th>
-                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 14%;">Qty</th>
-                        <th style="padding: 9px 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%;">Rate</th>
-                        <th style="padding: 9px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%; border-radius: 0 4px 0 0;">Total (NRS)</th>
+                    <tr style="background: linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#c026d3 100%); color: #ffffff;">
+                        <th style="padding: 11px 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; width: 40%;">Description</th>
+                        <th style="padding: 11px 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; width: 14%;">Code</th>
+                        <th style="padding: 11px 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 14%;">Qty</th>
+                        <th style="padding: 11px 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%;">Rate</th>
+                        <th style="padding: 11px 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; width: 16%;">Total (NRS)</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
 
-            <!-- BOTTOM SECTION: NOTES, SIGNATURE & TOTALS -->
+            <!-- BOTTOM SECTION -->
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <tr>
-                    <td style="width: 48%; vertical-align: top; padding-right: 15px;">
+                    <td style="width: 48%; vertical-align: top; padding-right: 20px;">
                         ${bill.billNotes && bill.billNotes.length > 0 ? `
-                        <div style="padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 20px;">
-                            <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">REMARKS / NOTES</p>
-                            ${bill.billNotes.map(n => `<p style="margin: 3px 0; font-size: 12px; color: #334155;"><strong>${n.date}:</strong> ${n.text}</p>`).join('')}
+                        <div style="padding: 12px 14px; background: #f7f9ff; border: 1px solid #e2e8f8; border-left: 3px solid #7c3aed; border-radius: 6px; margin-bottom: 20px;">
+                            <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 800; color: #7c3aed; text-transform: uppercase;">REMARKS / NOTES</p>
+                            ${bill.billNotes.map(n => `<p style="margin: 3px 0; font-size: 12.5px; color: #1a1f36; font-weight: 600;"><strong>${n.date}:</strong> ${n.text}</p>`).join('')}
                         </div>` : ''}
 
-                        <!-- CUSTOMER SIGNATURE -->
                         <div style="margin-top: 20px; width: 200px;">
-                            <div style="border-bottom: 1px solid #94a3b8; height: 40px; margin-bottom: 4px;"></div>
-                            <p style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0;">Customer Signature</p>
+                            <div style="border-bottom: 1.5px dashed #94a3b8; height: 40px; margin-bottom: 4px;"></div>
+                            <p style="font-size: 11px; font-weight: 800; color: #4a5280; text-transform: uppercase; margin: 0;">Customer Signature</p>
                         </div>
                     </td>
 
-                    <!-- TOTALS BREAKDOWN -->
+                    <!-- TOTALS BREAKDOWN WITH PURPLE & RED ACCENTS -->
                     <td style="width: 52%; vertical-align: top;">
-                        <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; background: #ffffff;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <div style="border: 1.5px solid #e2e8f8; border-radius: 10px; overflow: hidden; background: #ffffff; box-shadow: 0 4px 12px rgba(79,70,229,0.05);">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
                                 <tr>
-                                    <td style="padding: 7px 12px; color: #475569;">Items Subtotal:</td>
-                                    <td style="padding: 7px 12px; text-align: right; font-weight: 600; color: #0f172a;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 8px 14px; color: #4a5280; font-weight: 600;">Items Subtotal:</td>
+                                    <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #1a1f36;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
                                 </tr>
                                 ${parseFloat(bill.transport) > 0 ? `
                                 <tr>
-                                    <td style="padding: 6px 12px; color: #475569;">Transport (+):</td>
-                                    <td style="padding: 6px 12px; text-align: right; color: #0f172a;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 7px 14px; color: #4a5280; font-weight: 600;">Transport (+):</td>
+                                    <td style="padding: 7px 14px; text-align: right; color: #1a1f36; font-weight: 700;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
                                 </tr>` : ''}
                                 ${parseFloat(bill.discount) > 0 ? `
                                 <tr>
-                                    <td style="padding: 6px 12px; color: #dc2626;">Discount (-):</td>
-                                    <td style="padding: 6px 12px; text-align: right; color: #dc2626;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 7px 14px; color: #dc2626; font-weight: 600;">Discount (-):</td>
+                                    <td style="padding: 7px 14px; text-align: right; color: #dc2626; font-weight: 700;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
                                 </tr>` : ''}
-                                <tr style="background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
-                                    <td style="padding: 8px 12px; font-weight: 600; color: #0f172a;">Today's Bill:</td>
-                                    <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: #0f172a;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
+                                <tr style="background: #f8fafc; border-top: 1px solid #e2e8f8; border-bottom: 1px solid #e2e8f8;">
+                                    <td style="padding: 9px 14px; font-weight: 700; color: #1a1f36;">Today's Bill:</td>
+                                    <td style="padding: 9px 14px; text-align: right; font-weight: 800; color: #1a1f36;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 6px 12px; color: #475569;">Purano Baki (+):</td>
-                                    <td style="padding: 6px 12px; text-align: right; color: #475569;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 7px 14px; color: #4a5280; font-weight: 600;">Purano Baki (+):</td>
+                                    <td style="padding: 7px 14px; text-align: right; color: #4a5280; font-weight: 700;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
                                 </tr>
-                                <tr style="background: #f1f5f9; font-weight: 600;">
-                                    <td style="padding: 8px 12px; color: #1e293b;">Jamma Total:</td>
-                                    <td style="padding: 8px 12px; text-align: right; color: #1e293b;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
+                                <tr style="background: #f3e8ff; border-top: 1px solid #d8b4fe; border-bottom: 1px solid #d8b4fe;">
+                                    <td style="padding: 9px 14px; color: #6b21a8; font-weight: 800;">Jamma Total:</td>
+                                    <td style="padding: 9px 14px; text-align: right; color: #6b21a8; font-weight: 800;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
                                 </tr>
-                                <tr>
-                                    <td style="padding: 6px 12px; color: #059669; font-weight: 600;">Nagad Paid (-):</td>
-                                    <td style="padding: 6px 12px; text-align: right; color: #059669; font-weight: 600;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                                <tr style="color: #059669;">
+                                    <td style="padding: 7px 14px; font-weight: 700;">Nagad Paid (-):</td>
+                                    <td style="padding: 7px 14px; text-align: right; font-weight: 800;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
                                 </tr>
-                                <tr style="background: #fee2e2; color: #dc2626; font-size: 14.5px; font-weight: 600; border-top: 1px solid #fca5a5;">
-                                    <td style="padding: 10px 12px;">Remaining Baki:</td>
-                                    <td style="padding: 10px 12px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
+                                <tr style="background: #fee2e2; color: #dc2626; font-size: 15px; font-weight: 800; border-top: 1.5px solid #fca5a5;">
+                                    <td style="padding: 11px 14px;">Remaining Baki:</td>
+                                    <td style="padding: 11px 14px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
                                 </tr>
                             </table>
                         </div>
@@ -1369,8 +1368,8 @@ function generatePreviewHTML(bill) {
                     <td style="width: 50%; text-align: right;">
                         <div style="width: 260px; margin-left: auto; text-align: center;">
                             <img id="bill-sig-img" src="" style="width: 260px; height: 90px; object-fit: contain; display: none; margin-bottom: 2px;" />
-                            <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 20px 0; border: 1.5px dashed #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; margin-bottom: 2px; color: #475569; font-weight: 600; font-size: 12.5px; font-family: inherit;">✏️ Tap to Sign</button>
-                            <div style="border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 18px 0; border: 1.5px dashed #a7f3d0; background: #f0fdf4; border-radius: 8px; cursor: pointer; margin-bottom: 4px; color: #047857; font-weight: 700; font-size: 13px; font-family: inherit;">✏️ Tap to Sign</button>
+                            <div style="border-top: 1.5px solid #4f46e5; padding-top: 6px; font-size: 11px; font-weight: 800; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.5px;">
                                 Authorized Signature & Stamp
                             </div>
                         </div>
