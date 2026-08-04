@@ -125,7 +125,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .ti{width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:.83rem;color:var(--text);}
 .ti.r{text-align:right;}
 
-/* CLEAN UNIFORM TOTAL COLUMN TYPOGRAPHY */
 .amount {
   text-align: right;
   font-weight: 500;
@@ -383,7 +382,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="totals-box">
       <div class="t-row"><label><span class="L" data-k="Items Subtotal">Items Subtotal</span></label><span class="t-val" id="items-total">0</span></div>
       <div class="t-row"><label>📦 <span class="L" data-k="Total Poka">Total Poka</span></label><input type="number" class="t-inp" id="total-poka" placeholder="0" min="0"></div>
-      <div class="t-row"><label><span class="L" data-k="Transport (+)">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
+      <div class="t-row"><label><span class="L" data-k="Transport (+) p">Transport (+)</span></label><input type="number" class="t-inp" id="transport-expense" placeholder="0" min="0" oninput="calc()"></div>
       <div class="t-row"><label><span class="L" data-k="Discount (-)">Discount (-)</span></label><input type="number" class="t-inp" id="discount-amount" placeholder="0" min="0" oninput="calc()" style="color:var(--red);"></div>
       <div class="t-row" style="font-weight:600;"><label><span class="L" data-k="Today's Bill NRS">Today's Bill NRS</span></label><span class="t-val" id="current-bill">0</span></div>
       <div class="t-row r-row"><label><span class="L" data-k="Purano Baki (+)">Purano Baki (+)</span></label><input type="number" class="t-inp" id="prev-balance" placeholder="0" min="0" oninput="calc()" style="color:#9a3412;"></div>
@@ -608,6 +607,20 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
             <button class="btn btn-ghost" onclick="closeModal('preview-modal')">Cancel</button>
             <button class="btn btn-primary" onclick="confirmAndDownload()" id="confirm-btn-text">💾 Confirm & Download</button>
         </div>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNATURE PAD MODAL -->
+<div class="modal-overlay" id="sig-pad-modal" style="z-index: 500;">
+  <div class="modal" style="max-width:450px;">
+    <div class="modal-header"><div class="modal-title">✍️ Draw Signature</div><button class="close-btn" onclick="closeModal('sig-pad-modal')">✕</button></div>
+    <div class="modal-body" style="text-align:center;">
+      <canvas id="large-sig-canvas" style="width:100%; height:200px; border:2px dashed var(--border); border-radius:8px; background:#f8fafc; touch-action:none; cursor:crosshair;"></canvas>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="clearLargeSignature()">Clear</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="saveLargeSignature()">Done</button>
+      </div>
     </div>
   </div>
 </div>
