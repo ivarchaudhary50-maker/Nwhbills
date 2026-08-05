@@ -34,19 +34,16 @@ function pinPress(num) {
   }
 
   if (pinCode.length === 4) {
-    // Check PIN match
     if (pinCode === CORRECT_PIN) {
       const pw = document.getElementById('pw-screen');
       if (pw) {
-        pw.style.display = 'none'; // Unlocks the screen instantly
+        pw.style.display = 'none'; 
       }
       resetPinState();
     } else {
-      // Show error feedback on wrong PIN
       const err = document.getElementById('pw-err');
       if (err) err.innerText = 'Incorrect PIN';
 
-      // Clear dots after brief delay
       setTimeout(() => {
         resetPinState();
         if (err) err.innerText = '';
@@ -485,6 +482,7 @@ function switchTab(name){
     if(name==='ledger') renderLedger(true);
     if(name==='history') renderHistory();
     if(name==='packing') renderPokaHistory();
+    if(name==='inventory') renderInventoryCatalog();
 }
 
 function filterHistory(){
@@ -581,6 +579,7 @@ function startDatabaseListeners() {
       if(Array.isArray(val)) inventoryList = val;
       else if(val && typeof val === 'object') inventoryList = Object.values(val);
       renderInventory();
+      renderInventoryCatalog();
       safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 }
@@ -627,6 +626,7 @@ function saveNewItems(itemsArray) {
         safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
         queueDatabaseWrite('nwh/inventory', 'set', inventoryList);
         renderInventory();
+        renderInventoryCatalog();
     }
 }
 
@@ -689,6 +689,88 @@ function addNoteRow(dateVal = '', textVal = '') {
         <button class="del-row" onclick="this.parentElement.remove()" style="padding:6px 10px;">✕</button>
     `;
     container.appendChild(div);
+}
+
+// ============================================================
+// PRODUCT CATALOG MANAGEMENT
+// ============================================================
+function renderInventoryCatalog() {
+  const container = document.getElementById('catalog-list-container');
+  if (!container) return;
+
+  if (!inventoryList || inventoryList.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">🏷️</div><div>No items saved in catalog</div></div>`;
+    return;
+  }
+
+  let html = `<table class="h-table">
+    <thead>
+      <tr>
+        <th style="text-align:left;">Garment Description</th>
+        <th style="text-align:right; width:90px;">Action</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  inventoryList.forEach((item) => {
+    const safeItem = escapeHtmlAttr(item);
+    const safeJsItem = escapeJsStr(item);
+    html += `<tr>
+      <td><strong>${safeItem}</strong></td>
+      <td style="text-align:right;">
+        <button class="btn btn-red btn-sm" onclick="removeItemFromCatalog('${safeJsItem}')">🗑️ Delete</button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+function addItemToCatalogFromUI() {
+  const input = document.getElementById('new-item-catalog-input');
+  if (!input) return;
+  const val = input.value.trim();
+
+  if (!val) {
+    alert("Please enter a garment description.");
+    return;
+  }
+
+  if (inventoryList.includes(val)) {
+    alert("This item is already in your catalog.");
+    return;
+  }
+
+  inventoryList.push(val);
+  safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+  queueDatabaseWrite('nwh/inventory', 'set', inventoryList);
+
+  input.value = '';
+  renderInventory();
+  renderInventoryCatalog();
+  alert(`✅ Added "${val}" to product catalog!`);
+}
+
+function removeItemFromCatalog(itemName) {
+  if (confirm(`Delete "${itemName}" from your product catalog?`)) {
+    inventoryList = inventoryList.filter(i => i !== itemName);
+    safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+    queueDatabaseWrite('nwh/inventory', 'set', inventoryList);
+
+    renderInventory();
+    renderInventoryCatalog();
+  }
+}
+
+function filterInventoryList() {
+  const qEl = document.getElementById('inventory-search');
+  if (!qEl) return;
+  const q = qEl.value.toLowerCase();
+  const rows = document.querySelectorAll('#catalog-list-container table tbody tr');
+  rows.forEach(r => {
+    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
 // ============================================================
