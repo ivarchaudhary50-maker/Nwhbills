@@ -325,6 +325,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="tab" onclick="switchTab('packing')" id="tab-packing">📦 <span class="L" data-k="Packing Slips">Packing Slips</span></div>
   <div class="tab" onclick="switchTab('history')" id="tab-history">📋 <span class="L" data-k="Bill History">Bill History</span></div>
   <div class="tab" onclick="switchTab('ledger')" id="tab-ledger">👥 <span class="L" data-k="Customer Ledger">Customer Ledger</span></div>
+  <div class="tab" onclick="switchTab('inventory')" id="tab-inventory">🏷️ <span>Item Catalog</span></div>
 </div>
 
 <div class="main">
@@ -479,6 +480,23 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
+<!-- PRODUCT CATALOG PANEL -->
+<div class="panel" id="panel-inventory">
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap; gap:8px;">
+      <div class="card-title">🏷️ Product Catalog & Stock List</div>
+      <input type="text" class="inp no-print" id="inventory-search" placeholder="Search item..." oninput="filterInventoryList()" style="width:170px;">
+    </div>
+    <div class="card-body">
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <input type="text" class="inp" id="new-item-catalog-input" placeholder="Type new garment name..." style="flex:1;">
+        <button class="btn btn-primary" onclick="addItemToCatalogFromUI()">+ Add Item</button>
+      </div>
+      <div id="catalog-list-container"></div>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <!-- MODALS -->
@@ -533,24 +551,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<div class="modal-overlay" id="price-book-modal">
-  <div class="modal" style="max-width:450px;">
-    <div class="modal-header"><div class="modal-title" id="pb-title">📕 Price Book</div><button class="close-btn" onclick="closeModal('price-book-modal')">✕</button></div>
-    <div class="modal-body" style="padding:0;">
-        <table class="items-table" style="width:100%; border-top:none;">
-            <thead style="background:var(--surface2); color:var(--text2);">
-                <tr>
-                    <th style="padding:10px 18px;">Item Description</th>
-                    <th style="text-align:right; padding:10px 18px;">Last Rate Paid</th>
-                </tr>
-            </thead>
-            <tbody id="price-book-list"></tbody>
-        </table>
-    </div>
-  </div>
-</div>
-
-<!-- STATEMENT OF ACCOUNT MODAL -->
 <div class="modal-overlay" id="ledger-statement-modal" style="z-index: 350;">
   <div class="modal" style="max-width:900px; width:95%; height:90vh; display:flex; flex-direction:column; padding:0;">
     <div class="modal-header">
@@ -594,24 +594,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<div class="modal-overlay" id="edit-cust-modal">
-  <div class="modal" style="max-width:340px;">
-    <div class="modal-header"><div class="modal-title">✏️ Edit Customer</div><button class="close-btn" onclick="closeModal('edit-cust-modal')">✕</button></div>
-    <div class="modal-body">
-      <input type="hidden" id="edit-cust-oldname">
-      <div class="sec-div">Customer Name</div>
-      <input type="text" class="inp" id="edit-cust-name" style="margin-bottom:10px;">
-      <div class="sec-div">Phone</div>
-      <input type="text" class="inp" id="edit-cust-phone" style="margin-bottom:10px;">
-      <div class="sec-div">Address</div>
-      <input type="text" class="inp" id="edit-cust-address" style="margin-bottom:10px;">
-      <div class="sec-div">Baki (Dues)</div>
-      <input type="number" class="inp" id="edit-cust-baki" style="margin-bottom:14px;" readonly>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveEditedCustomer()">💾 Save Changes</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="preview-modal" style="z-index: 300;">
   <div class="modal" style="max-width:900px; width:95%; height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
     <div class="modal-header" style="border-radius:16px 16px 0 0;">
@@ -629,7 +611,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<!-- ENLARGED SIGNATURE PAD MODAL WITH STABLE CANVAS -->
 <div class="modal-overlay" id="sig-pad-modal" style="z-index: 500;">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">
@@ -670,95 +651,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         for(let registration of registrations) { registration.unregister(); }
     });
   }
-
-  // --- SIGNATURE CANVAS SCALING & RESIZING FIX ---
-  const sigCanvas = document.getElementById('large-sig-canvas');
-  let sigCtx = null;
-  let isSigDrawing = false;
-  let hasSigDrawn = false;
-
-  function setupSignatureCanvas() {
-    if (!sigCanvas) return;
-    sigCtx = sigCanvas.getContext('2d');
-    const rect = sigCanvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    sigCanvas.width = rect.width * dpr;
-    sigCanvas.height = rect.height * dpr;
-    sigCtx.scale(dpr, dpr);
-    
-    sigCtx.lineWidth = 3;
-    sigCtx.lineCap = 'round';
-    sigCtx.strokeStyle = '#000000';
-  }
-
-  function getSigCoords(e) {
-    const rect = sigCanvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
-    };
-  }
-
-  function startSigDraw(e) {
-    isSigDrawing = true;
-    hasSigDrawn = true;
-    const pos = getSigCoords(e);
-    sigCtx.beginPath();
-    sigCtx.moveTo(pos.x, pos.y);
-    e.preventDefault();
-  }
-
-  function doSigDraw(e) {
-    if (!isSigDrawing) return;
-    const pos = getSigCoords(e);
-    sigCtx.lineTo(pos.x, pos.y);
-    sigCtx.stroke();
-    e.preventDefault();
-  }
-
-  function stopSigDraw() {
-    isSigDrawing = false;
-  }
-
-  if (sigCanvas) {
-    sigCanvas.addEventListener('mousedown', startSigDraw);
-    sigCanvas.addEventListener('mousemove', doSigDraw);
-    sigCanvas.addEventListener('mouseup', stopSigDraw);
-
-    sigCanvas.addEventListener('touchstart', startSigDraw, { passive: false });
-    sigCanvas.addEventListener('touchmove', doSigDraw, { passive: false });
-    sigCanvas.addEventListener('touchend', stopSigDraw);
-  }
-
-  window.clearLargeSignature = function() {
-    if (sigCtx && sigCanvas) {
-      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-      hasSigDrawn = false;
-    }
-  };
-
-  window.saveLargeSignature = function() {
-    if (!hasSigDrawn) {
-      alert("Please draw a signature first.");
-      return;
-    }
-    const dataUrl = sigCanvas.toDataURL('image/png');
-    if (typeof window.attachSignatureToBill === 'function') {
-      window.attachSignatureToBill(dataUrl);
-    } else {
-      const sigImg = document.getElementById('bill-signature-img');
-      if (sigImg) {
-        sigImg.src = dataUrl;
-        sigImg.style.display = 'block';
-      }
-    }
-    closeModal('sig-pad-modal');
-  };
-
-  window.addEventListener('resize', setupSignatureCanvas);
 </script>
 
 </body>
