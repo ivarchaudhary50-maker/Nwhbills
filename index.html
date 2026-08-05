@@ -11,11 +11,12 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 
-<!-- Firebase Libraries -->
+<!-- Firebase & PDF Rendering Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -232,6 +233,23 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     margin: 0 auto;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* SIGNATURE MODAL CANVAS RESIZING FIX */
+.sig-canvas-container {
+    width: 100%;
+    height: 260px;
+    touch-action: none;
+    position: relative;
+    margin-top: 8px;
+}
+#large-sig-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    border: 2px dashed var(--accent) !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    display: block;
 }
 </style>
 </head>
@@ -611,15 +629,20 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   </div>
 </div>
 
-<!-- SIGNATURE PAD MODAL -->
+<!-- ENLARGED SIGNATURE PAD MODAL WITH STABLE CANVAS -->
 <div class="modal-overlay" id="sig-pad-modal" style="z-index: 500;">
-  <div class="modal" style="max-width:450px;">
-    <div class="modal-header"><div class="modal-title">✍️ Draw Signature</div><button class="close-btn" onclick="closeModal('sig-pad-modal')">✕</button></div>
-    <div class="modal-body" style="text-align:center;">
-      <canvas id="large-sig-canvas" style="width:100%; height:200px; border:2px dashed var(--border); border-radius:8px; background:#f8fafc; touch-action:none; cursor:crosshair;"></canvas>
-      <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="btn btn-ghost" style="flex:1;" onclick="clearLargeSignature()">Clear</button>
-        <button class="btn btn-primary" style="flex:1;" onclick="saveLargeSignature()">Done</button>
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">✍️ Draw Signature</div>
+      <button class="close-btn" onclick="closeModal('sig-pad-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center; padding: 16px;">
+      <div class="sig-canvas-container">
+        <canvas id="large-sig-canvas"></canvas>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-ghost" style="flex:1; padding: 12px;" onclick="clearLargeSignature()">Clear</button>
+        <button class="btn btn-primary" style="flex:1; padding: 12px;" onclick="saveLargeSignature()">Done</button>
       </div>
     </div>
   </div>
@@ -647,6 +670,95 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         for(let registration of registrations) { registration.unregister(); }
     });
   }
+
+  // --- SIGNATURE CANVAS SCALING & RESIZING FIX ---
+  const sigCanvas = document.getElementById('large-sig-canvas');
+  let sigCtx = null;
+  let isSigDrawing = false;
+  let hasSigDrawn = false;
+
+  function setupSignatureCanvas() {
+    if (!sigCanvas) return;
+    sigCtx = sigCanvas.getContext('2d');
+    const rect = sigCanvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    sigCanvas.width = rect.width * dpr;
+    sigCanvas.height = rect.height * dpr;
+    sigCtx.scale(dpr, dpr);
+    
+    sigCtx.lineWidth = 3;
+    sigCtx.lineCap = 'round';
+    sigCtx.strokeStyle = '#000000';
+  }
+
+  function getSigCoords(e) {
+    const rect = sigCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  }
+
+  function startSigDraw(e) {
+    isSigDrawing = true;
+    hasSigDrawn = true;
+    const pos = getSigCoords(e);
+    sigCtx.beginPath();
+    sigCtx.moveTo(pos.x, pos.y);
+    e.preventDefault();
+  }
+
+  function doSigDraw(e) {
+    if (!isSigDrawing) return;
+    const pos = getSigCoords(e);
+    sigCtx.lineTo(pos.x, pos.y);
+    sigCtx.stroke();
+    e.preventDefault();
+  }
+
+  function stopSigDraw() {
+    isSigDrawing = false;
+  }
+
+  if (sigCanvas) {
+    sigCanvas.addEventListener('mousedown', startSigDraw);
+    sigCanvas.addEventListener('mousemove', doSigDraw);
+    sigCanvas.addEventListener('mouseup', stopSigDraw);
+
+    sigCanvas.addEventListener('touchstart', startSigDraw, { passive: false });
+    sigCanvas.addEventListener('touchmove', doSigDraw, { passive: false });
+    sigCanvas.addEventListener('touchend', stopSigDraw);
+  }
+
+  window.clearLargeSignature = function() {
+    if (sigCtx && sigCanvas) {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      hasSigDrawn = false;
+    }
+  };
+
+  window.saveLargeSignature = function() {
+    if (!hasSigDrawn) {
+      alert("Please draw a signature first.");
+      return;
+    }
+    const dataUrl = sigCanvas.toDataURL('image/png');
+    if (typeof window.attachSignatureToBill === 'function') {
+      window.attachSignatureToBill(dataUrl);
+    } else {
+      const sigImg = document.getElementById('bill-signature-img');
+      if (sigImg) {
+        sigImg.src = dataUrl;
+        sigImg.style.display = 'block';
+      }
+    }
+    closeModal('sig-pad-modal');
+  };
+
+  window.addEventListener('resize', setupSignatureCanvas);
 </script>
 
 </body>
