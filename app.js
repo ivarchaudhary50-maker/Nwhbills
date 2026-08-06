@@ -21,7 +21,7 @@ let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=fals
 let _payKey='', _payCust='';
 
 // ============================================================
-// PIN LOCK LOGIC (FIXED)
+// PIN LOCK LOGIC (UNLOCKS WITH 8860)
 // ============================================================
 let pinCode = '';
 const CORRECT_PIN = '8860'; 
@@ -502,7 +502,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// FIREBASE CONNECTION & DATA FETCHING
+// FIREBASE CONNECTION
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -594,7 +594,7 @@ function startFirebase() {
 setTimeout(startFirebase, 100);
 
 // ============================================================
-// ITEM CATALOG & AUTO-FILL RATE MEMORY
+// CATALOG & MEMORY
 // ============================================================
 try {
     let saved = safeGetLocal('nwh_inventory');
@@ -692,7 +692,7 @@ function addNoteRow(dateVal = '', textVal = '') {
 }
 
 // ============================================================
-// PRODUCT CATALOG MANAGEMENT
+// PRODUCT CATALOG UI MANAGEMENT
 // ============================================================
 function renderInventoryCatalog() {
   const container = document.getElementById('catalog-list-container');
@@ -774,7 +774,7 @@ function filterInventoryList() {
 }
 
 // ============================================================
-// DYNAMIC POKA GROUPING & RE-NUMBERING
+// POKA BUNDLING
 // ============================================================
 function addPokaGroup(items = null) {
     const container = document.getElementById('poka-groups-container');
@@ -1297,7 +1297,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// NON-BLOCKING DOM CAPTURE & DOWNLOAD ENGINE (PDF & IMAGE)
+// SEAMLESS PNG IMAGE CAPTURE (NO GRAY MARGINS)
 // ============================================================
 function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
@@ -1307,7 +1307,7 @@ function downloadElementAsImage(targetElement, filename, callback) {
     }
 
     const options = {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -1323,42 +1323,23 @@ function downloadElementAsImage(targetElement, filename, callback) {
             return;
         }
 
-        if (filename.toLowerCase().endsWith('.pdf') && window.jspdf) {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-            
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
-            
-            const pdfBlob = pdf.output('blob');
-            const url = URL.createObjectURL(pdfBlob);
+        canvas.toBlob(function (blob) {
+            if (!blob) {
+                alert("Error creating PNG blob.");
+                if (callback) callback();
+                return;
+            }
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.download = filename;
+            link.download = filename.replace(/\.pdf$/i, '.png');
             link.href = url;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(url), 10000);
             if (callback) callback();
-        } else {
-            canvas.toBlob(function (blob) {
-                if (!blob) {
-                    alert("Error creating PNG blob.");
-                    if (callback) callback();
-                    return;
-                }
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.download = filename;
-                link.href = url;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                setTimeout(() => URL.revokeObjectURL(url), 10000);
-                if (callback) callback();
-            }, 'image/png');
-        }
+        }, 'image/png');
+
     }).catch(function (error) {
         console.error("Capture error:", error);
         alert("Error saving document: " + error.message);
@@ -1386,17 +1367,17 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT PROPORTION INVOICE GENERATOR
+// EXACT MATCH INVOICE GENERATOR
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach((it) => {
-        rowsHtml += `<tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 7px 8px; font-size: 12.5px; color: #1a1f36; font-weight: 500; width: 42%; word-break: break-word;">${it.desc}</td>
-            <td style="padding: 7px 6px; font-size: 12px; color: #4a5280; text-align: center; width: 13%;">${it.code || '—'}</td>
-            <td style="padding: 7px 6px; font-size: 12.5px; color: #1a1f36; text-align: right; width: 13%;">${it.qty}</td>
-            <td style="padding: 7px 6px; font-size: 12.5px; color: #1a1f36; text-align: right; width: 14%;">${it.rate}</td>
-            <td style="padding: 7px 8px; font-size: 12.5px; color: #000000; text-align: right; font-weight: 800; width: 18%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+        rowsHtml += `<tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 12px; font-size: 13px; color: #1a1f36; font-weight: 600; width: 45%; text-align: left;">${it.desc}</td>
+            <td style="padding: 10px 8px; font-size: 12.5px; color: #8892b0; text-align: center; width: 10%;">${it.code || '—'}</td>
+            <td style="padding: 10px 8px; font-size: 13px; color: #1a1f36; text-align: right; width: 13%;">${it.qty}</td>
+            <td style="padding: 10px 8px; font-size: 13px; color: #1a1f36; text-align: right; width: 14%;">${it.rate}</td>
+            <td style="padding: 10px 12px; font-size: 13px; color: #000000; text-align: right; font-weight: 800; width: 18%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1404,36 +1385,36 @@ function generatePreviewHTML(bill) {
 
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 38px; margin: 0 auto; box-sizing: border-box; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div id="actual-bill-to-render" style="width: 680px; min-width: 680px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 40px 42px; margin: 0 auto; box-sizing: border-box; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
             
-            <table style="width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">
+            <table style="width: 100%; border-bottom: 2px solid #f8fafc; padding-bottom: 16px; margin-bottom: 24px;">
                 <tr>
                     <td style="vertical-align: top;">
-                        <h1 style="font-size: 24px; font-weight: 800; color: #1a1f36; margin: 0; letter-spacing: -0.3px;">${bizName}</h1>
+                        <h1 style="font-size: 26px; font-weight: 800; color: #1a1f36; margin: 0; letter-spacing: -0.5px;">${bizName}</h1>
                     </td>
                     <td style="vertical-align: top; text-align: right;">
-                        <h2 style="font-size: 20px; color: #a0aec0; margin: 0; letter-spacing: 1px; font-weight: 700;">INVOICE</h2>
-                        <p style="font-size: 14px; font-weight: 800; color: #1a1f36; margin: 2px 0 0 0;">#${bill.invoiceNum}</p>
-                        <p style="font-size: 12px; color: #4a5280; margin: 2px 0 0 0;">${bill.date}</p>
-                        <p style="font-size: 11px; color: #64748b; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
+                        <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1.5px; font-weight: 800;">INVOICE</h2>
+                        <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 3px 0 0 0;">#${bill.invoiceNum}</p>
+                        <p style="font-size: 12.5px; color: #64748b; margin: 2px 0 0 0;">${bill.date}</p>
+                        <p style="font-size: 11.5px; color: #8892b0; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
                     </td>
                 </tr>
             </table>
 
-            <div style="background: #f7f9ff; padding: 12px 16px; border-left: 4px solid #8b5cf6; margin-bottom: 22px; border-radius: 4px;">
-                <p style="font-size: 10px; font-weight: 700; color: #8892b0; margin: 0 0 4px 0; text-transform: uppercase;">BILL TO:</p>
-                <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
-                ${bill.phone ? `<p style="font-size: 12.5px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+            <div style="background: #f7f5ff; padding: 14px 18px; border-left: 4px solid #7c3aed; margin-bottom: 24px; border-radius: 6px;">
+                <p style="font-size: 10px; font-weight: 800; color: #8b5cf6; margin: 0 0 4px 0; letter-spacing: 0.8px; text-transform: uppercase;">BILL TO:</p>
+                <p style="font-size: 15.5px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                ${bill.phone ? `<p style="font-size: 13px; color: #64748b; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; table-layout: fixed;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 28px; table-layout: fixed;">
                 <thead>
                     <tr style="background: #8b5cf6; color: #ffffff;">
-                        <th style="padding: 8px 8px; font-size: 12.5px; font-weight: 700; text-align: left; width: 42%;">Description</th>
-                        <th style="padding: 8px 6px; font-size: 12.5px; font-weight: 700; text-align: center; width: 13%;">Code</th>
-                        <th style="padding: 8px 6px; font-size: 12.5px; font-weight: 700; text-align: right; width: 13%;">Qty</th>
-                        <th style="padding: 8px 6px; font-size: 12.5px; font-weight: 700; text-align: right; width: 14%;">Rate</th>
-                        <th style="padding: 8px 8px; font-size: 12.5px; font-weight: 700; text-align: right; width: 18%;">Total (NRS)</th>
+                        <th style="padding: 10px 12px; font-size: 12.5px; font-weight: 700; text-align: left; width: 45%; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Description</th>
+                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: center; width: 10%;">Code</th>
+                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: right; width: 13%;">Qty</th>
+                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: right; width: 14%;">Rate</th>
+                        <th style="padding: 10px 12px; font-size: 12.5px; font-weight: 700; text-align: right; width: 18%; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Total (NRS)</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
@@ -1441,65 +1422,65 @@ function generatePreviewHTML(bill) {
 
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <tr>
-                    <td style="width: 48%; vertical-align: top; padding-right: 20px;">
+                    <td style="width: 45%; vertical-align: top; padding-right: 20px;">
                         ${(bill.billNotes && bill.billNotes.length > 0) ? `
-                        <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
-                            <p style="margin: 0 0 6px 0; font-size: 10.5px; font-weight: 700; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
-                            ${bill.billNotes.map(n => `<p style="margin: 2px 0; font-size: 11.5px; color: #64748b; font-family: monospace;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
+                        <div style="padding: 12px 14px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 6px;">
+                            <p style="margin: 0 0 6px 0; font-size: 10.5px; font-weight: 800; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
+                            ${bill.billNotes.map(n => `<p style="margin: 3px 0; font-size: 12px; color: #4a5280;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
                         </div>` : ''}
                     </td>
 
-                    <td style="width: 52%; vertical-align: top;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                    <td style="width: 55%; vertical-align: top;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                             <tr>
-                                <td style="padding: 4px 0; color: #4a5280;">Items Subtotal:</td>
-                                <td style="padding: 4px 0; text-align: right; font-weight: 700; color: #1a1f36;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Items Subtotal:</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 700; color: #1a1f36;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
                             </tr>
                             ${parseFloat(bill.transport) > 0 ? `
                             <tr>
-                                <td style="padding: 4px 0; color: #4a5280;">Transport (+):</td>
-                                <td style="padding: 4px 0; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Transport (+):</td>
+                                <td style="padding: 5px 0; text-align: right; color: #1a1f36; font-weight: 600;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
                             </tr>` : ''}
                             ${parseFloat(bill.discount) > 0 ? `
                             <tr>
-                                <td style="padding: 4px 0; color: #dc2626;">Discount (-):</td>
-                                <td style="padding: 4px 0; text-align: right; color: #dc2626;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 5px 0; color: #dc2626; font-weight: 500;">Discount (-):</td>
+                                <td style="padding: 5px 0; text-align: right; color: #dc2626; font-weight: 700;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
                             </tr>` : ''}
                             <tr style="background: #f8fafc; font-weight: 700;">
-                                <td style="padding: 6px 4px; color: #1a1f36;">Today's Bill:</td>
-                                <td style="padding: 6px 4px; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 7px 6px; color: #1a1f36;">Today's Bill:</td>
+                                <td style="padding: 7px 6px; text-align: right; color: #1a1f36; font-weight: 800;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr>
-                                <td style="padding: 4px 0; color: #4a5280;">Purano Baki (+):</td>
-                                <td style="padding: 4px 0; text-align: right; color: #4a5280;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Purano Baki (+):</td>
+                                <td style="padding: 5px 0; text-align: right; color: #64748b; font-weight: 600;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
                             </tr>
                             ${parseFloat(bill.totalPoka) > 0 ? `
                             <tr>
-                                <td style="padding: 4px 0; font-weight: 700; color: #4a5280;">📦 Total Poka:</td>
-                                <td style="padding: 4px 0; text-align: right; font-weight: 800; color: #dc2626;">${bill.totalPoka}</td>
+                                <td style="padding: 5px 0; font-weight: 700; color: #1a1f36;">📦 Total Poka:</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 800; color: #dc2626;">${bill.totalPoka}</td>
                             </tr>` : ''}
-                            <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: 700;">
-                                <td style="padding: 6px 4px;">Jamma Total:</td>
-                                <td style="padding: 6px 4px; text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
+                            <tr style="background: #f5f3ff; color: #7c3aed; font-weight: 700; border-radius: 4px;">
+                                <td style="padding: 7px 6px;">Jamma Total:</td>
+                                <td style="padding: 7px 6px; text-align: right; font-weight: 800;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
                             </tr>
                             <tr style="color: #059669;">
-                                <td style="padding: 4px 0; font-weight: 600;">Nagad Paid (-):</td>
-                                <td style="padding: 4px 0; text-align: right; font-weight: 700;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                                <td style="padding: 5px 0; font-weight: 600;">Nagad Paid (-):</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 700;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
                             </tr>
-                            <tr style="background: #fee2e2; color: #dc2626; font-size: 14px; font-weight: 800;">
-                                <td style="padding: 7px 4px;">Remaining Baki:</td>
-                                <td style="padding: 7px 4px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
+                            <tr style="background: #fee2e2; color: #dc2626; font-size: 14.5px; font-weight: 800; border-radius: 4px;">
+                                <td style="padding: 8px 6px;">Remaining Baki:</td>
+                                <td style="padding: 8px 6px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
                             </tr>
                         </table>
                     </td>
                 </tr>
             </table>
 
-            <table style="width: 100%; margin-top: 40px; border-collapse: collapse;">
+            <table style="width: 100%; margin-top: 45px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 50%; vertical-align: bottom;">
                         <div style="width: 200px; text-align: left;">
-                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 11px; color: #94a3b8;">
+                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 11px; color: #94a3b8; text-transform: uppercase;">
                                 Customer Signature
                             </div>
                         </div>
@@ -1524,7 +1505,7 @@ function generatePreviewHTML(bill) {
 }
 
 // ============================================================
-// HIGH-DPI ACCURATE SIGNATURE PAD LOGIC
+// SIGNATURE PAD
 // ============================================================
 let isDrawing = false;
 let sigCtx = null;
@@ -1652,7 +1633,7 @@ function confirmAndDownload() {
 
     const safeCust = (pendingBill.customer || 'Invoice').replace(/[^a-zA-Z0-9]/g, '_');
 
-    downloadElementAsImage(targetElement, `Invoice-${pendingBill.invoiceNum}-${safeCust}.pdf`, () => {
+    downloadElementAsImage(targetElement, `Invoice-${pendingBill.invoiceNum}-${safeCust}.png`, () => {
         if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
         if (confirmBtn) confirmBtn.innerText = '💾 Confirm & Download';
         closeModal('preview-modal');
@@ -1665,21 +1646,17 @@ function deleteBill(key) {
   const b = allBills.find(x => x.key === key);
   if (!b) return;
 
-  if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum} for ${b.customer}? This will permanently remove it and fix the customer's balance.`)) {
+  if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum} for ${b.customer}?`)) {
     queueDatabaseWrite('nwh/bills/' + key, 'remove', null);
     closeModal('bill-modal');
     renderHistory();
     renderLedger();
-    alert(`✅ Invoice #${b.invoiceNum} deleted successfully!`);
   }
 }
 
-// ============================================================
-// DELETE CUSTOMER & ALL ASSOCIATED RECORDS
-// ============================================================
 function deleteCustomer(name) {
     if(!name) return;
-    if(confirm(`⚠️ Are you sure you want to delete customer "${name}" and all associated records from your ledger?`)) {
+    if(confirm(`⚠️ Are you sure you want to delete customer "${name}"?`)) {
         const safePathName = name.replace(/[.#$\[\]]/g, ' ').trim();
 
         queueDatabaseWrite('nwh/customers/' + safePathName, 'remove', null);
@@ -1698,7 +1675,6 @@ function deleteCustomer(name) {
         closeModal('bill-modal');
         renderLedger();
         renderHistory();
-        alert(`✅ Customer "${name}" deleted successfully.`);
     }
 }
 
@@ -1806,7 +1782,7 @@ function showCustDetail(name){
 }
 
 // ============================================================
-// STATEMENT OF ACCOUNT GENERATOR
+// STATEMENT OF ACCOUNT
 // ============================================================
 function showLedgerStatement(custName) {
     document.getElementById('ls-cust-name').innerText = custName;
@@ -1909,7 +1885,7 @@ function downloadLedgerStatement() {
     const btn = document.getElementById('ls-download-btn');
     if (btn) btn.innerText = '⏳ Saving...';
 
-    downloadElementAsImage(targetElement, `Statement-${safeCust}.pdf`, () => {
+    downloadElementAsImage(targetElement, `Statement-${safeCust}.png`, () => {
         if (btn) btn.innerText = '🖼️ Download Statement';
     });
 }
@@ -1943,7 +1919,7 @@ function openPayModal(key, cust, baki){
 }
 
 // ============================================================
-// CONFIRM PAYMENT WITH ACCURATE BALANCE DEDUCTION
+// CONFIRM PAYMENT
 // ============================================================
 function confirmPayment(){
   const amount = parseFloat(document.getElementById('pay-amount-inp').value) || 0;
@@ -2056,11 +2032,4 @@ function renderLedger(resetLimit = false){
     html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${cu.phone||'—'}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
   c.innerHTML = html;
-}
-
-// SERVICE WORKER CLEANUP
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-      for(let registration of registrations) { registration.unregister(); }
-  });
 }
