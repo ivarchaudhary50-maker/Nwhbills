@@ -1301,7 +1301,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// SEAMLESS PNG CAPTURE (DOWNLOAD FIX)
+// MOBILE-SAFE DOWNLOAD ENGINE (BYPASSES POPUP/BLOB BLOCKS)
 // ============================================================
 function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
@@ -1310,8 +1310,13 @@ function downloadElementAsImage(targetElement, filename, callback) {
         return;
     }
 
+    const imgWindow = window.open('', '_blank');
+    if (imgWindow) {
+        imgWindow.document.write('<h3 style="font-family:sans-serif; text-align:center; margin-top:40px; color:#4f46e5;">Generating Bill Image...</h3>');
+    }
+
     const options = {
-        scale: 3,
+        scale: 2.5,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -1323,29 +1328,34 @@ function downloadElementAsImage(targetElement, filename, callback) {
     html2canvas(targetElement, options).then(function (canvas) {
         if (canvas.width === 0 || canvas.height === 0) {
             alert("Error: Generated image is empty.");
+            if (imgWindow) imgWindow.close();
             if (callback) callback();
             return;
         }
 
-        canvas.toBlob(function (blob) {
-            if (!blob) {
-                alert("Error creating PNG blob.");
-                if (callback) callback();
-                return;
-            }
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = filename.replace(/\.pdf$/i, '.png');
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 10000);
-            if (callback) callback();
-        }, 'image/png');
+        const dataUrl = canvas.toDataURL('image/png');
+
+        const link = document.createElement('a');
+        link.download = filename.replace(/\.pdf$/i, '.png');
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        if (imgWindow) {
+            imgWindow.document.body.innerHTML = `
+                <div style="text-align:center; padding:15px; background:#f1f5f9; font-family:sans-serif;">
+                    <p style="margin:0 0 10px 0; font-size:14px; color:#334155;"><strong>Long-press the bill image below to Save or Share:</strong></p>
+                    <img src="${dataUrl}" style="max-width:100%; height:auto; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15);" />
+                </div>
+            `;
+        }
+
+        if (callback) callback();
 
     }).catch(function (error) {
         console.error("Capture error:", error);
+        if (imgWindow) imgWindow.close();
         alert("Error saving document: " + error.message);
         if (callback) callback();
     });
@@ -1480,7 +1490,6 @@ function generatePreviewHTML(bill) {
                 </tr>
             </table>
 
-            <!-- SIGNATURE SECTION -->
             <table style="width: 100%; margin-top: 45px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 50%; vertical-align: bottom;">
@@ -1611,7 +1620,7 @@ function clearSignature() {
 }
 
 // ============================================================
-// FIXED CONFIRM & DOWNLOAD (NO DIALOG BLOCKS)
+// CONFIRM AND DOWNLOAD
 // ============================================================
 function confirmAndDownload() {
     if(!pendingBill) return;
@@ -1646,7 +1655,6 @@ function confirmAndDownload() {
         if (confirmBtn) confirmBtn.innerText = '💾 Confirm & Download';
         closeModal('preview-modal');
         
-        // Reset inputs silently without triggering confirm dialog
         resetFormInputsSilently();
         pendingBill = null;
     });
