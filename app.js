@@ -1057,6 +1057,10 @@ function calc(){
 
 function clearForm(){
   if(!confirm('Clear all form data?')) return;
+  resetFormInputsSilently();
+}
+
+function resetFormInputsSilently() {
   ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
       let el = document.getElementById(id);
       if(el) el.value = '';
@@ -1068,7 +1072,7 @@ function clearForm(){
   document.getElementById('slip-date').value = todayStr;
   document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
   
-  document.getElementById('invoice-items').innerHTML='';addRow();calc();
+  document.getElementById('invoice-items').innerHTML=''; addRow(); calc();
   document.getElementById('notes-container').innerHTML = '';
   document.getElementById('poka-groups-container').innerHTML = '';
   addNoteRow();
@@ -1297,7 +1301,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// SEAMLESS PNG IMAGE CAPTURE (NO GRAY MARGINS)
+// SEAMLESS PNG CAPTURE (DOWNLOAD FIX)
 // ============================================================
 function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
@@ -1476,6 +1480,7 @@ function generatePreviewHTML(bill) {
                 </tr>
             </table>
 
+            <!-- SIGNATURE SECTION -->
             <table style="width: 100%; margin-top: 45px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 50%; vertical-align: bottom;">
@@ -1605,6 +1610,9 @@ function clearSignature() {
     clearLargeSignature();
 }
 
+// ============================================================
+// FIXED CONFIRM & DOWNLOAD (NO DIALOG BLOCKS)
+// ============================================================
 function confirmAndDownload() {
     if(!pendingBill) return;
 
@@ -1637,7 +1645,9 @@ function confirmAndDownload() {
         if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
         if (confirmBtn) confirmBtn.innerText = '💾 Confirm & Download';
         closeModal('preview-modal');
-        clearForm();
+        
+        // Reset inputs silently without triggering confirm dialog
+        resetFormInputsSilently();
         pendingBill = null;
     });
 }
