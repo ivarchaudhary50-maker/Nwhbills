@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -15,7 +16,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.8.1/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -70,9 +70,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .inv-label{font-size:1.5rem;font-weight:800;opacity:.2;letter-spacing:4px;text-transform:uppercase;}
 .inv-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
 
-.date-dual{display:flex;flex-direction:column;gap:8px;margin-top:8px;align-items:flex-end;}
+.date-dual{display:flex;flex-direction:column;gap:6px;margin-top:8px;align-items:flex-end;}
 .date-ad{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Plus Jakarta Sans',sans-serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:160px;text-align:center;}
 .bs-pill{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;cursor:pointer;}
+.vat-pill{font-size:.85rem;font-weight:700;color:#4f46e5;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;}
 
 .np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.3); padding:12px; display:none; width:280px; text-align:left; z-index:9999; }
 .np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
@@ -273,6 +274,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="date-dual">
         <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
         <input type="text" id="bs-date-inp" class="bs-pill" readonly onclick="toggleNpCal()" placeholder="नेपाली मिति">
+        <input type="text" id="vat-bill-no" class="vat-pill" placeholder="VAT Bill # (Optional)" autocomplete="off">
       </div>
     </div>
   </div>
@@ -367,6 +369,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         <input type="text" class="inp" id="slip-customer" placeholder="Customer / Ref Name" autocomplete="off" style="width:160px; padding:6px 10px; font-size:0.85rem;">
         <input type="text" class="inp" id="slip-ref" placeholder="Slip #" style="width:90px; padding:6px 10px; font-size:0.85rem;">
         <input type="date" class="inp" id="slip-date" style="width:130px; padding:6px 10px; font-size:0.85rem;">
+        <input type="text" class="inp" id="slip-vat" placeholder="VAT Bill #" style="width:110px; padding:6px 10px; font-size:0.85rem;">
       </div>
     </div>
     <div class="card-body" id="poka-groups-container" style="background:var(--bg); padding:12px; display:flex; flex-direction:column; gap:16px;"></div>
