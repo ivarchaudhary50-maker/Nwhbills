@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -71,9 +70,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .inv-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:700;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:6px;display:inline-block;margin-top:4px;}
 
 .date-dual{display:flex;flex-direction:column;gap:6px;margin-top:8px;align-items:flex-end;}
-.date-ad{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Plus Jakarta Sans',sans-serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:160px;text-align:center;}
-.bs-pill{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;cursor:pointer;}
-.vat-pill{font-size:.85rem;font-weight:700;color:#4f46e5;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:160px;text-align:center;border:none;outline:none;}
+.date-ad{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Plus Jakarta Sans',sans-serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;border:none;outline:none;cursor:pointer;width:170px;text-align:center;}
+.bs-pill{font-size:.9rem;font-weight:600;color:#1a1f36;font-family:'Tiro Devanagari Hindi',serif;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:170px;text-align:center;border:none;outline:none;cursor:pointer;}
+.vat-pill{font-size:.85rem;font-weight:700;color:#4f46e5;background:rgba(255,255,255,.95);padding:6px 10px;border-radius:7px;width:170px;text-align:center;border:none;outline:none;}
 
 .np-cal-popup { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,.3); padding:12px; display:none; width:280px; text-align:left; z-index:9999; }
 .np-cal-header { display:flex; justify-content:space-between; margin-bottom:12px; gap:8px; }
@@ -274,7 +273,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="date-dual">
         <input type="date" class="date-ad" id="current-date-ad" onchange="updateBSDate()">
         <input type="text" id="bs-date-inp" class="bs-pill" readonly onclick="toggleNpCal()" placeholder="नेपाली मिति">
-        <input type="text" id="vat-bill-no" class="vat-pill" placeholder="VAT Bill # (Optional)" autocomplete="off">
+        <input type="text" id="vat-bill-no" class="vat-pill" placeholder="🧾 VAT Bill No (Optional)" autocomplete="off">
       </div>
     </div>
   </div>
