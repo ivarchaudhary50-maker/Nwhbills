@@ -774,9 +774,9 @@ function filterInventoryList() {
 }
 
 // ============================================================
-// POKA BUNDLING
+// POKA BUNDLING (WITH PER-POKA VAT INPUT)
 // ============================================================
-function addPokaGroup(items = null) {
+function addPokaGroup(items = null, vatVal = '') {
     const container = document.getElementById('poka-groups-container');
     if(!container) return;
 
@@ -788,9 +788,12 @@ function addPokaGroup(items = null) {
     div.id = `poka-wrapper-${currentId}`;
 
     div.innerHTML = `
-        <div style="background:var(--surface2); padding:10px 16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="background:var(--surface2); padding:10px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="poka-header-title" style="font-weight:800; font-size:0.95rem; color:var(--text)">📦 Poka #...</span>
-            <button class="del-row" onclick="removePokaGroup('${currentId}')" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:6px 10px; border-radius:6px;">✕ Remove Poka</button>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <input type="text" class="inp poka-vat-inp" placeholder="VAT #" value="${vatVal}" style="width:85px; padding:5px 8px; font-size:0.8rem; font-weight:700; text-align:center; color:#7c3aed; background:var(--surface);">
+                <button class="del-row" onclick="removePokaGroup('${currentId}')" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:5px 9px; border-radius:6px;">✕ Remove</button>
+            </div>
         </div>
         <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
         </div>
@@ -896,6 +899,8 @@ function savePokaDraft() {
     const structuredPokas = [];
     document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
         const pItems = [];
+        const pVat = group.querySelector('.poka-vat-inp')?.value.trim() || '';
+
         group.querySelectorAll('.poka-item-row').forEach(row => {
             const desc = row.querySelector('.poka-desc-inp').value.trim();
             const formula = row.querySelector('.poka-formula-inp').value.trim();
@@ -908,7 +913,7 @@ function savePokaDraft() {
                 pItems.push({ desc: desc || 'Garment Item', formula: displayFormula, total: sum });
             }
         });
-        if(pItems.length > 0) structuredPokas.push({ pokaNum: index + 1, items: pItems });
+        if(pItems.length > 0) structuredPokas.push({ pokaNum: index + 1, vat: pVat, items: pItems });
     });
 
     if(structuredPokas.length === 0) {
@@ -962,7 +967,7 @@ function loadPokaDraft(key) {
     document.getElementById('poka-groups-container').innerHTML = '';
 
     if(p.pokaDetails && p.pokaDetails.length > 0) {
-        p.pokaDetails.forEach(group => addPokaGroup(group.items));
+        p.pokaDetails.forEach(group => addPokaGroup(group.items, group.vat || ''));
     } else {
         addPokaGroup();
     }
@@ -978,8 +983,14 @@ function deletePokaDraft(key) {
 
 function syncPokasToInvoice() {
     let addedCount = 0;
+    const vatList = [];
     
-    document.querySelectorAll('.poka-card-wrapper').forEach(group => {
+    document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
+        const pVat = group.querySelector('.poka-vat-inp')?.value.trim() || '';
+        if (pVat) {
+            vatList.push({ pNum: index + 1, vat: pVat });
+        }
+
         group.querySelectorAll('.poka-item-row').forEach(row => {
             const desc = row.querySelector('.poka-desc-inp').value.trim();
             const sum = parseInt(row.querySelector('.poka-row-sum-output').innerText.replace(/,/g, '')) || 0;
@@ -1012,9 +1023,19 @@ function syncPokasToInvoice() {
         });
     });
     
-    const slipVat = document.getElementById('slip-vat') ? document.getElementById('slip-vat').value.trim() : '';
-    if (slipVat && document.getElementById('vat-bill-no')) {
-        document.getElementById('vat-bill-no').value = slipVat;
+    // Multi-VAT formatting logic for main invoice
+    if (document.getElementById('vat-bill-no')) {
+        if (vatList.length > 0) {
+            const uniqueVats = [...new Set(vatList.map(v => v.vat))];
+            if (uniqueVats.length === 1 && vatList.length === document.querySelectorAll('.poka-card-wrapper').length) {
+                document.getElementById('vat-bill-no').value = uniqueVats[0];
+            } else {
+                document.getElementById('vat-bill-no').value = vatList.map(v => `${v.vat} (P${v.pNum})`).join(', ');
+            }
+        } else {
+            const slipVat = document.getElementById('slip-vat') ? document.getElementById('slip-vat').value.trim() : '';
+            if (slipVat) document.getElementById('vat-bill-no').value = slipVat;
+        }
     }
 
     if (addedCount > 0) {
@@ -1202,6 +1223,7 @@ function extractPendingBillData() {
   const structuredPokas = [];
   document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
       const pNum = index + 1;
+      const pVat = group.querySelector('.poka-vat-inp')?.value.trim() || '';
       const pItems = [];
       group.querySelectorAll('.poka-item-row').forEach(row => {
           const desc = row.querySelector('.poka-desc-inp').value.trim();
@@ -1216,7 +1238,7 @@ function extractPendingBillData() {
           }
       });
       if(pItems.length > 0) {
-          structuredPokas.push({ pokaNum: pNum, items: pItems });
+          structuredPokas.push({ pokaNum: pNum, vat: pVat, items: pItems });
       }
   });
 
@@ -1283,8 +1305,9 @@ function previewPackingSlip() {
         bill.pokaDetails.forEach(p => {
             htmlString += `
             <div style="margin-bottom: 16px; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
-                <div style="background: #f1f5f9; padding: 8px 12px; font-size: 12.5px; font-weight: 800;">
+                <div style="background: #f1f5f9; padding: 8px 12px; font-size: 12.5px; font-weight: 800; display:flex; justify-content:space-between; align-items:center;">
                     <span>📦 Poka #${p.pokaNum}</span>
+                    ${p.vat ? `<span style="color:#7c3aed; font-size:12px; font-weight:700;">VAT Bill #: ${p.vat}</span>` : ''}
                 </div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
                     <thead>
@@ -1771,7 +1794,7 @@ function loadBillForEdit(key) {
     if(pokaContainer) {
         pokaContainer.innerHTML = '';
         if (bill.pokaDetails && bill.pokaDetails.length > 0) {
-            bill.pokaDetails.forEach(group => addPokaGroup(group.items));
+            bill.pokaDetails.forEach(group => addPokaGroup(group.items, group.vat || ''));
         }
     }
 
