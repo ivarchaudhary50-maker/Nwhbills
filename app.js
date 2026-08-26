@@ -1296,7 +1296,7 @@ function previewPackingSlip() {
                     <td style="width: 45%; vertical-align: top; text-align: right;">
                         <p style="font-size: 12px; color: #4a5280; margin: 0 0 3px 0;"><strong>Date:</strong> ${slipDate}</p>
                         <p style="font-size: 12px; color: #4a5280; margin: 0 0 3px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
-                        ${activeVat ? `<p style="font-size: 12px; color: #7c3aed; font-weight: 700; margin: 0 0 3px 0;"><strong>VAT Bill #:</strong> ${activeVat}</p>` : ''}
+                        ${activeVat ? `<p style="font-size: 12px; color: #7c3aed; font-weight: 700; margin: 0 0 3px 0;"><strong>VAT Bill No.</strong> ${activeVat}</p>` : ''}
                         <p style="font-size: 12px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
@@ -1307,7 +1307,7 @@ function previewPackingSlip() {
             <div style="margin-bottom: 16px; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
                 <div style="background: #f1f5f9; padding: 8px 12px; font-size: 12.5px; font-weight: 800; display:flex; justify-content:space-between; align-items:center;">
                     <span>📦 Poka #${p.pokaNum}</span>
-                    ${p.vat ? `<span style="color:#7c3aed; font-size:12px; font-weight:700;">VAT Bill #: ${p.vat}</span>` : ''}
+                    ${p.vat ? `<span style="color:#7c3aed; font-size:12px; font-weight:700;">VAT Bill No. ${p.vat}</span>` : ''}
                 </div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
                     <thead>
@@ -1431,7 +1431,7 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT MATCH TALL PORTRAIT INVOICE GENERATOR
+// EXACT MATCH TALL PORTRAIT INVOICE GENERATOR (WITH VAT BILL NO.)
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -1462,7 +1462,7 @@ function generatePreviewHTML(bill) {
                         <td style="vertical-align: top; text-align: right;">
                             <h2 style="font-size: 19px; color: #a0aec0; margin: 0; letter-spacing: 1px; font-weight: 700;">INVOICE</h2>
                             <p style="font-size: 14px; font-weight: 800; color: #1a1f36; margin: 2px 0 0 0;">#${bill.invoiceNum}</p>
-                            ${bill.vatBillNo ? `<p style="font-size: 12px; font-weight: 700; color: #7c3aed; margin: 2px 0 0 0;">VAT Bill #: ${bill.vatBillNo}</p>` : ''}
+                            ${bill.vatBillNo ? `<p style="font-size: 12px; font-weight: 700; color: #7c3aed; margin: 2px 0 0 0;">VAT Bill No. ${bill.vatBillNo}</p>` : ''}
                             <p style="font-size: 12px; color: #4a5280; margin: 2px 0 0 0;">${bill.date}</p>
                             <p style="font-size: 11px; color: #64748b; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
                         </td>
