@@ -891,6 +891,7 @@ function savePokaDraft() {
     const customer = document.getElementById('slip-customer').value.trim() || 'Walk-in / Unknown';
     const ref = document.getElementById('slip-ref').value || 'PK-N/A';
     const date = document.getElementById('slip-date').value || todayStr;
+    const vatBillNo = document.getElementById('slip-vat') ? document.getElementById('slip-vat').value.trim() : '';
 
     const structuredPokas = [];
     document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
@@ -915,12 +916,13 @@ function savePokaDraft() {
         return;
     }
 
-    queueDatabaseWrite('nwh/pokas', 'push', { customer, ref, date, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
+    queueDatabaseWrite('nwh/pokas', 'push', { customer, ref, date, vatBillNo, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
     alert(`✅ Packing Slip Draft saved!`);
     
     document.getElementById('poka-groups-container').innerHTML = '';
     document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     document.getElementById('slip-customer').value = '';
+    if (document.getElementById('slip-vat')) document.getElementById('slip-vat').value = '';
     addPokaGroup();
 }
 
@@ -955,6 +957,7 @@ function loadPokaDraft(key) {
     document.getElementById('slip-customer').value = p.customer !== 'Walk-in / Unknown' ? p.customer : '';
     document.getElementById('slip-ref').value = p.ref || '';
     document.getElementById('slip-date').value = p.date || todayStr;
+    if (document.getElementById('slip-vat')) document.getElementById('slip-vat').value = p.vatBillNo || '';
 
     document.getElementById('poka-groups-container').innerHTML = '';
 
@@ -1009,6 +1012,11 @@ function syncPokasToInvoice() {
         });
     });
     
+    const slipVat = document.getElementById('slip-vat') ? document.getElementById('slip-vat').value.trim() : '';
+    if (slipVat && document.getElementById('vat-bill-no')) {
+        document.getElementById('vat-bill-no').value = slipVat;
+    }
+
     if (addedCount > 0) {
         calc();
         alert(`✅ Successfully appended ${addedCount} Poka entries to the main invoice!`);
@@ -1061,7 +1069,7 @@ function clearForm(){
 }
 
 function resetFormInputsSilently() {
-  ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer'].forEach(id=>{
+  ['customer-name','customer-phone','customer-address','total-poka','transport-expense','discount-amount','prev-balance','cash-paid','db-search', 'slip-customer', 'vat-bill-no', 'slip-vat'].forEach(id=>{
       let el = document.getElementById(id);
       if(el) el.value = '';
   });
@@ -1214,6 +1222,7 @@ function extractPendingBillData() {
 
   return {
       invoiceNum: editInvoiceNum || cloudNextInvoice,
+      vatBillNo: document.getElementById('vat-bill-no') ? document.getElementById('vat-bill-no').value.trim() : '',
       date:billDate, dateBS:billDateBS, customer:safeName,
       phone:document.getElementById('customer-phone').value||'',
       address:document.getElementById('customer-address').value||'',
@@ -1233,6 +1242,9 @@ function extractPendingBillData() {
 
 function previewPackingSlip() {
     const bill = extractPendingBillData();
+    const slipVat = document.getElementById('slip-vat') ? document.getElementById('slip-vat').value.trim() : '';
+    const activeVat = bill.vatBillNo || slipVat;
+
     if (!bill.pokaDetails || bill.pokaDetails.length === 0) {
         alert("No Poka bundle details have been added. Please add packing details first.");
         return;
@@ -1260,8 +1272,9 @@ function previewPackingSlip() {
                         </div>
                     </td>
                     <td style="width: 50%; vertical-align: top; text-align: right;">
-                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 4px 0;"><strong>Date:</strong> ${slipDate}</p>
-                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 4px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
+                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        ${activeVat ? `<p style="font-size: 12.5px; color: #7c3aed; font-weight: 700; margin: 0 0 5px 0;"><strong>VAT Bill #:</strong> ${activeVat}</p>` : ''}
                         <p style="font-size: 12.5px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
@@ -1301,7 +1314,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// MOBILE-SAFE DOWNLOAD ENGINE (BYPASSES POPUP/BLOB BLOCKS)
+// DIRECT-RENDER MOBILE CAPTURE ENGINE
 // ============================================================
 function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
@@ -1310,10 +1323,22 @@ function downloadElementAsImage(targetElement, filename, callback) {
         return;
     }
 
-    const imgWindow = window.open('', '_blank');
-    if (imgWindow) {
-        imgWindow.document.write('<h3 style="font-family:sans-serif; text-align:center; margin-top:40px; color:#4f46e5;">Generating Bill Image...</h3>');
-    }
+    const originalParent = targetElement.parentNode;
+    const nextSibling = targetElement.nextSibling;
+
+    const renderHolder = document.createElement('div');
+    renderHolder.style.position = 'fixed';
+    renderHolder.style.left = '0';
+    renderHolder.style.top = '0';
+    renderHolder.style.zIndex = '999999';
+    renderHolder.style.background = '#ffffff';
+    renderHolder.style.width = (targetElement.offsetWidth || 650) + 'px';
+    renderHolder.style.boxSizing = 'border-box';
+    renderHolder.style.padding = '0';
+    renderHolder.style.margin = '0';
+
+    renderHolder.appendChild(targetElement);
+    document.body.appendChild(renderHolder);
 
     const options = {
         scale: 2.5,
@@ -1321,41 +1346,43 @@ function downloadElementAsImage(targetElement, filename, callback) {
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        width: targetElement.offsetWidth || targetElement.scrollWidth,
-        height: targetElement.offsetHeight || targetElement.scrollHeight
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: document.documentElement.offsetWidth,
+        windowHeight: document.documentElement.offsetHeight
     };
 
     html2canvas(targetElement, options).then(function (canvas) {
+        if (originalParent) {
+            originalParent.insertBefore(targetElement, nextSibling);
+        }
+        if (document.body.contains(renderHolder)) {
+            document.body.removeChild(renderHolder);
+        }
+
         if (canvas.width === 0 || canvas.height === 0) {
             alert("Error: Generated image is empty.");
-            if (imgWindow) imgWindow.close();
             if (callback) callback();
             return;
         }
 
         const dataUrl = canvas.toDataURL('image/png');
-
         const link = document.createElement('a');
-        link.download = filename.replace(/\.pdf$/i, '.png');
+        link.download = filename;
         link.href = dataUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        if (imgWindow) {
-            imgWindow.document.body.innerHTML = `
-                <div style="text-align:center; padding:15px; background:#f1f5f9; font-family:sans-serif;">
-                    <p style="margin:0 0 10px 0; font-size:14px; color:#334155;"><strong>Long-press the bill image below to Save or Share:</strong></p>
-                    <img src="${dataUrl}" style="max-width:100%; height:auto; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15);" />
-                </div>
-            `;
-        }
-
         if (callback) callback();
-
     }).catch(function (error) {
         console.error("Capture error:", error);
-        if (imgWindow) imgWindow.close();
+        if (originalParent) {
+            originalParent.insertBefore(targetElement, nextSibling);
+        }
+        if (document.body.contains(renderHolder)) {
+            document.body.removeChild(renderHolder);
+        }
         alert("Error saving document: " + error.message);
         if (callback) callback();
     });
@@ -1381,7 +1408,7 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT MATCH INVOICE GENERATOR
+// EXACT MATCH INVOICE GENERATOR (WITH TOP-RIGHT VAT BILL NO.)
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -1409,6 +1436,7 @@ function generatePreviewHTML(bill) {
                     <td style="vertical-align: top; text-align: right;">
                         <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1.5px; font-weight: 800;">INVOICE</h2>
                         <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 3px 0 0 0;">#${bill.invoiceNum}</p>
+                        ${bill.vatBillNo ? `<p style="font-size: 12.5px; font-weight: 700; color: #7c3aed; margin: 2px 0 0 0;">VAT Bill #: ${bill.vatBillNo}</p>` : ''}
                         <p style="font-size: 12.5px; color: #64748b; margin: 2px 0 0 0;">${bill.date}</p>
                         <p style="font-size: 11.5px; color: #8892b0; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
                     </td>
@@ -1706,6 +1734,7 @@ function loadBillForEdit(key) {
     document.getElementById('customer-name').value = bill.customer || '';
     document.getElementById('customer-phone').value = bill.phone || '';
     document.getElementById('customer-address').value = bill.address || '';
+    if (document.getElementById('vat-bill-no')) document.getElementById('vat-bill-no').value = bill.vatBillNo || '';
     
     document.getElementById('current-date-ad').value = bill.date || todayStr;
     updateBSDate();
@@ -1766,6 +1795,7 @@ function showBillDetail(key){
   
   document.getElementById('modal-body').innerHTML=`
     <div class="d-row"><span class="d-label">Date</span><span class="d-val">${b.date} / ${b.dateBS||''}</span></div>
+    ${b.vatBillNo ? `<div class="d-row"><span class="d-label" style="color:var(--accent);">VAT Bill #</span><span class="d-val" style="color:var(--accent);">${b.vatBillNo}</span></div>` : ''}
     ${iHtml}
     <div class="d-row"><span class="d-label">Bill Amount</span><span class="d-val">NRS ${parseInt(b.billAmount).toLocaleString('en-IN')}</span></div>
     <div class="d-row"><span class="d-label">Purano Baki</span><span class="d-val">NRS ${parseInt(b.prevBalance || 0).toLocaleString('en-IN')}</span></div>
@@ -1827,7 +1857,7 @@ function showLedgerStatement(custName) {
         events.push({ 
             date: b.date || '—', 
             time: timeBase, 
-            desc: `Invoice #${b.invoiceNum || 'N/A'}`, 
+            desc: `Invoice #${b.invoiceNum || 'N/A'}${b.vatBillNo ? ' (VAT: ' + b.vatBillNo + ')' : ''}`, 
             debit: billTotal, 
             credit: 0 
         });
@@ -2050,4 +2080,11 @@ function renderLedger(resetLimit = false){
     html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${cu.phone||'—'}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
   });
   c.innerHTML = html;
+}
+
+// SERVICE WORKER CLEANUP
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for(let registration of registrations) { registration.unregister(); }
+  });
 }
