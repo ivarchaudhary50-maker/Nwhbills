@@ -1256,50 +1256,50 @@ function previewPackingSlip() {
     
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-slip-to-render" style="width: 650px; min-width: 650px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; padding: 30px;">
-            <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px;">
-                <h1 style="font-size: 24px; color: #1a1f36; margin: 0; text-transform: uppercase;">PACKING SLIP (POKA DETAILS)</h1>
-                <h2 style="font-size: 16px; color: #4a5280; margin: 5px 0 0 0;">${bizName}</h2>
+        <div id="actual-slip-to-render" style="width: 560px; min-width: 560px; min-height: 750px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; box-sizing: border-box; margin: 0 auto; padding: 30px;">
+            <div style="text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px;">
+                <h1 style="font-size: 22px; color: #1a1f36; margin: 0; text-transform: uppercase;">PACKING SLIP (POKA DETAILS)</h1>
+                <h2 style="font-size: 15px; color: #4a5280; margin: 4px 0 0 0;">${bizName}</h2>
             </div>
 
-            <table style="width: 100%; margin-bottom: 30px;">
+            <table style="width: 100%; margin-bottom: 24px;">
                 <tr>
-                    <td style="width: 50%; vertical-align: top;">
-                        <div style="background: #f7f9ff; padding: 12px 15px; border-left: 4px solid #8b5cf6;">
-                            <p style="font-size: 10px; font-weight: bold; color: #8892b0; margin: 0 0 4px 0;">SHIP TO:</p>
-                            <p style="font-size: 15px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                    <td style="width: 55%; vertical-align: top;">
+                        <div style="background: #f7f9ff; padding: 10px 14px; border-left: 4px solid #8b5cf6; border-radius: 4px;">
+                            <p style="font-size: 10px; font-weight: bold; color: #8892b0; margin: 0 0 3px 0;">SHIP TO:</p>
+                            <p style="font-size: 14.5px; font-weight: bold; color: #1a1f36; margin: 0;">${bill.customer}</p>
                             ${bill.phone ? `<p style="font-size: 12px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
                         </div>
                     </td>
-                    <td style="width: 50%; vertical-align: top; text-align: right;">
-                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 5px 0;"><strong>Date:</strong> ${slipDate}</p>
-                        <p style="font-size: 12.5px; color: #4a5280; margin: 0 0 5px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
-                        ${activeVat ? `<p style="font-size: 12.5px; color: #7c3aed; font-weight: 700; margin: 0 0 5px 0;"><strong>VAT Bill #:</strong> ${activeVat}</p>` : ''}
-                        <p style="font-size: 12.5px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
+                    <td style="width: 45%; vertical-align: top; text-align: right;">
+                        <p style="font-size: 12px; color: #4a5280; margin: 0 0 3px 0;"><strong>Date:</strong> ${slipDate}</p>
+                        <p style="font-size: 12px; color: #4a5280; margin: 0 0 3px 0;"><strong>Slip Ref:</strong> ${slipRef}</p>
+                        ${activeVat ? `<p style="font-size: 12px; color: #7c3aed; font-weight: 700; margin: 0 0 3px 0;"><strong>VAT Bill #:</strong> ${activeVat}</p>` : ''}
+                        <p style="font-size: 12px; color: #4a5280; margin: 0;"><strong>Total Bundles:</strong> ${bill.totalPoka}</p>
                     </td>
                 </tr>
             </table>`;
 
         bill.pokaDetails.forEach(p => {
             htmlString += `
-            <div style="margin-bottom: 20px; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
-                <div style="background: #f1f5f9; padding: 8px 12px; font-size: 13px; font-weight: 800;">
+            <div style="margin-bottom: 16px; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+                <div style="background: #f1f5f9; padding: 8px 12px; font-size: 12.5px; font-weight: 800;">
                     <span>📦 Poka #${p.pokaNum}</span>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
                     <thead>
                         <tr style="background: #f8fafc; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                            <th style="padding: 10px 12px;">Garment Description</th>
-                            <th style="padding: 10px 12px;">Breakdown</th>
-                            <th style="padding: 10px 12px; text-align: right;">Total Pcs</th>
+                            <th style="padding: 8px 12px;">Garment Description</th>
+                            <th style="padding: 8px 12px;">Breakdown</th>
+                            <th style="padding: 8px 12px; text-align: right;">Total Pcs</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${p.items.map(it => `
                             <tr style="border-bottom: 1px solid #e2e8f0;">
-                                <td style="padding: 10px 12px; font-weight: bold;">${it.desc}</td>
-                                <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif;">${it.formula || '—'}</td>
-                                <td style="padding: 10px 12px; text-align: right; font-weight: bold;">${it.total}</td>
+                                <td style="padding: 8px 12px; font-weight: bold;">${it.desc}</td>
+                                <td style="padding: 8px 12px; font-family: 'Plus Jakarta Sans', sans-serif;">${it.formula || '—'}</td>
+                                <td style="padding: 8px 12px; text-align: right; font-weight: bold;">${it.total}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1332,7 +1332,7 @@ function downloadElementAsImage(targetElement, filename, callback) {
     renderHolder.style.top = '0';
     renderHolder.style.zIndex = '999999';
     renderHolder.style.background = '#ffffff';
-    renderHolder.style.width = (targetElement.offsetWidth || 650) + 'px';
+    renderHolder.style.width = (targetElement.offsetWidth || 560) + 'px';
     renderHolder.style.boxSizing = 'border-box';
     renderHolder.style.padding = '0';
     renderHolder.style.margin = '0';
@@ -1408,17 +1408,17 @@ function previewBill(){
 }
 
 // ============================================================
-// EXACT MATCH INVOICE GENERATOR (WITH TOP-RIGHT VAT BILL NO.)
+// EXACT MATCH TALL PORTRAIT INVOICE GENERATOR
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
     bill.items.forEach((it) => {
         rowsHtml += `<tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 12px; font-size: 13px; color: #1a1f36; font-weight: 600; width: 45%; text-align: left;">${it.desc}</td>
-            <td style="padding: 10px 8px; font-size: 12.5px; color: #8892b0; text-align: center; width: 10%;">${it.code || '—'}</td>
-            <td style="padding: 10px 8px; font-size: 13px; color: #1a1f36; text-align: right; width: 13%;">${it.qty}</td>
-            <td style="padding: 10px 8px; font-size: 13px; color: #1a1f36; text-align: right; width: 14%;">${it.rate}</td>
-            <td style="padding: 10px 12px; font-size: 13px; color: #000000; text-align: right; font-weight: 800; width: 18%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
+            <td style="padding: 8px 6px; font-size: 12.5px; color: #1a1f36; font-weight: 500; width: 44%; word-break: break-word;">${it.desc}</td>
+            <td style="padding: 8px 4px; font-size: 12px; color: #8892b0; text-align: center; width: 10%;">${it.code || '—'}</td>
+            <td style="padding: 8px 4px; font-size: 12.5px; color: #1a1f36; text-align: right; width: 13%;">${it.qty}</td>
+            <td style="padding: 8px 4px; font-size: 12.5px; color: #1a1f36; text-align: right; width: 14%;">${it.rate}</td>
+            <td style="padding: 8px 6px; font-size: 12.5px; color: #000000; text-align: right; font-weight: 800; width: 19%;">${parseInt(it.amount).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
@@ -1426,112 +1426,121 @@ function generatePreviewHTML(bill) {
 
     let htmlString = `
     <div style="padding: 10px; width: 100%; overflow-x: auto; background: #e2e8f0; -webkit-overflow-scrolling: touch;">
-        <div id="actual-bill-to-render" style="width: 680px; min-width: 680px; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 40px 42px; margin: 0 auto; box-sizing: border-box; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+        <div id="actual-bill-to-render" style="width: 560px; min-width: 560px; min-height: 820px; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; color: #000000; font-family: 'Plus Jakarta Sans', Arial, sans-serif; padding: 35px 30px; margin: 0 auto; box-sizing: border-box; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
             
-            <table style="width: 100%; border-bottom: 2px solid #f8fafc; padding-bottom: 16px; margin-bottom: 24px;">
-                <tr>
-                    <td style="vertical-align: top;">
-                        <h1 style="font-size: 26px; font-weight: 800; color: #1a1f36; margin: 0; letter-spacing: -0.5px;">${bizName}</h1>
-                    </td>
-                    <td style="vertical-align: top; text-align: right;">
-                        <h2 style="font-size: 22px; color: #a0aec0; margin: 0; letter-spacing: 1.5px; font-weight: 800;">INVOICE</h2>
-                        <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 3px 0 0 0;">#${bill.invoiceNum}</p>
-                        ${bill.vatBillNo ? `<p style="font-size: 12.5px; font-weight: 700; color: #7c3aed; margin: 2px 0 0 0;">VAT Bill #: ${bill.vatBillNo}</p>` : ''}
-                        <p style="font-size: 12.5px; color: #64748b; margin: 2px 0 0 0;">${bill.date}</p>
-                        <p style="font-size: 11.5px; color: #8892b0; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
-                    </td>
-                </tr>
-            </table>
+            <!-- TOP MAIN CONTENT -->
+            <div>
+                <!-- HEADER -->
+                <table style="width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px;">
+                    <tr>
+                        <td style="vertical-align: top;">
+                            <h1 style="font-size: 23px; font-weight: 800; color: #1a1f36; margin: 0; letter-spacing: -0.3px;">${bizName}</h1>
+                        </td>
+                        <td style="vertical-align: top; text-align: right;">
+                            <h2 style="font-size: 19px; color: #a0aec0; margin: 0; letter-spacing: 1px; font-weight: 700;">INVOICE</h2>
+                            <p style="font-size: 14px; font-weight: 800; color: #1a1f36; margin: 2px 0 0 0;">#${bill.invoiceNum}</p>
+                            ${bill.vatBillNo ? `<p style="font-size: 12px; font-weight: 700; color: #7c3aed; margin: 2px 0 0 0;">VAT Bill #: ${bill.vatBillNo}</p>` : ''}
+                            <p style="font-size: 12px; color: #4a5280; margin: 2px 0 0 0;">${bill.date}</p>
+                            <p style="font-size: 11px; color: #64748b; margin: 1px 0 0 0;">${bill.dateBS || ""}</p>
+                        </td>
+                    </tr>
+                </table>
 
-            <div style="background: #f7f5ff; padding: 14px 18px; border-left: 4px solid #7c3aed; margin-bottom: 24px; border-radius: 6px;">
-                <p style="font-size: 10px; font-weight: 800; color: #8b5cf6; margin: 0 0 4px 0; letter-spacing: 0.8px; text-transform: uppercase;">BILL TO:</p>
-                <p style="font-size: 15.5px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
-                ${bill.phone ? `<p style="font-size: 13px; color: #64748b; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+                <!-- BILL TO CARD -->
+                <div style="background: #f7f9ff; padding: 12px 14px; border-left: 4px solid #8b5cf6; margin-bottom: 20px; border-radius: 4px;">
+                    <p style="font-size: 10px; font-weight: 700; color: #8892b0; margin: 0 0 3px 0; text-transform: uppercase;">BILL TO:</p>
+                    <p style="font-size: 15px; font-weight: 800; color: #1a1f36; margin: 0;">${bill.customer}</p>
+                    ${bill.phone ? `<p style="font-size: 12.5px; color: #4a5280; margin: 2px 0 0 0;">${bill.phone}</p>` : ''}
+                </div>
+
+                <!-- TABLE -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;">
+                    <thead>
+                        <tr style="background: #8b5cf6; color: #ffffff;">
+                            <th style="padding: 8px 6px; font-size: 12px; font-weight: 700; text-align: left; width: 44%;">Description</th>
+                            <th style="padding: 8px 4px; font-size: 12px; font-weight: 700; text-align: center; width: 10%;">Code</th>
+                            <th style="padding: 8px 4px; font-size: 12px; font-weight: 700; text-align: right; width: 13%;">Qty</th>
+                            <th style="padding: 8px 4px; font-size: 12px; font-weight: 700; text-align: right; width: 14%;">Rate</th>
+                            <th style="padding: 8px 6px; font-size: 12px; font-weight: 700; text-align: right; width: 19%;">Total (NRS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+
+                <!-- MIDDLE SECTION: NOTES & TOTALS -->
+                <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+                    <tr>
+                        <td style="width: 44%; vertical-align: top; padding-right: 14px;">
+                            ${(bill.billNotes && bill.billNotes.length > 0) ? `
+                            <div style="padding: 10px 12px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 4px;">
+                                <p style="margin: 0 0 4px 0; font-size: 10px; font-weight: 700; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
+                                ${bill.billNotes.map(n => `<p style="margin: 2px 0; font-size: 11.5px; color: #4a5280; font-family: monospace;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
+                            </div>` : ''}
+                        </td>
+
+                        <!-- TOTALS TABLE -->
+                        <td style="width: 56%; vertical-align: top;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                                <tr>
+                                    <td style="padding: 4px 0; color: #4a5280;">Items Subtotal:</td>
+                                    <td style="padding: 4px 0; text-align: right; font-weight: 700; color: #1a1f36;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                ${parseFloat(bill.transport) > 0 ? `
+                                <tr>
+                                    <td style="padding: 4px 0; color: #4a5280;">Transport (+):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
+                                </tr>` : ''}
+                                ${parseFloat(bill.discount) > 0 ? `
+                                <tr>
+                                    <td style="padding: 4px 0; color: #dc2626;">Discount (-):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #dc2626;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
+                                </tr>` : ''}
+                                <tr style="background: #f8fafc; font-weight: 700;">
+                                    <td style="padding: 6px 4px; color: #1a1f36;">Today's Bill:</td>
+                                    <td style="padding: 6px 4px; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 0; color: #4a5280;">Purano Baki (+):</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #4a5280;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                ${parseFloat(bill.totalPoka) > 0 ? `
+                                <tr>
+                                    <td style="padding: 4px 0; font-weight: 700; color: #4a5280;">📦 Total Poka:</td>
+                                    <td style="padding: 4px 0; text-align: right; font-weight: 800; color: #dc2626;">${bill.totalPoka}</td>
+                                </tr>` : ''}
+                                <tr style="background: #f5f3ff; color: #8b5cf6; font-weight: 700;">
+                                    <td style="padding: 6px 4px;">Jamma Total:</td>
+                                    <td style="padding: 6px 4px; text-align: right;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr style="color: #059669;">
+                                    <td style="padding: 4px 0; font-weight: 600;">Nagad Paid (-):</td>
+                                    <td style="padding: 4px 0; text-align: right; font-weight: 700;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                                <tr style="background: #fee2e2; color: #dc2626; font-size: 14px; font-weight: 800;">
+                                    <td style="padding: 7px 4px;">Remaining Baki:</td>
+                                    <td style="padding: 7px 4px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 28px; table-layout: fixed;">
-                <thead>
-                    <tr style="background: #8b5cf6; color: #ffffff;">
-                        <th style="padding: 10px 12px; font-size: 12.5px; font-weight: 700; text-align: left; width: 45%; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Description</th>
-                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: center; width: 10%;">Code</th>
-                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: right; width: 13%;">Qty</th>
-                        <th style="padding: 10px 8px; font-size: 12.5px; font-weight: 700; text-align: right; width: 14%;">Rate</th>
-                        <th style="padding: 10px 12px; font-size: 12.5px; font-weight: 700; text-align: right; width: 18%; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Total (NRS)</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                <tr>
-                    <td style="width: 45%; vertical-align: top; padding-right: 20px;">
-                        ${(bill.billNotes && bill.billNotes.length > 0) ? `
-                        <div style="padding: 12px 14px; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 6px;">
-                            <p style="margin: 0 0 6px 0; font-size: 10.5px; font-weight: 800; color: #8892b0; text-transform: uppercase;">REMARKS / NOTES:</p>
-                            ${bill.billNotes.map(n => `<p style="margin: 3px 0; font-size: 12px; color: #4a5280;">${n.date ? n.date + ' ' : ''}${n.text}</p>`).join('')}
-                        </div>` : ''}
-                    </td>
-
-                    <td style="width: 55%; vertical-align: top;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                            <tr>
-                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Items Subtotal:</td>
-                                <td style="padding: 5px 0; text-align: right; font-weight: 700; color: #1a1f36;">NRS ${parseInt(document.getElementById('items-total').innerText.replace(/,/g,'') || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            ${parseFloat(bill.transport) > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Transport (+):</td>
-                                <td style="padding: 5px 0; text-align: right; color: #1a1f36; font-weight: 600;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
-                            </tr>` : ''}
-                            ${parseFloat(bill.discount) > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; color: #dc2626; font-weight: 500;">Discount (-):</td>
-                                <td style="padding: 5px 0; text-align: right; color: #dc2626; font-weight: 700;">NRS ${parseInt(bill.discount || 0).toLocaleString('en-IN')}</td>
-                            </tr>` : ''}
-                            <tr style="background: #f8fafc; font-weight: 700;">
-                                <td style="padding: 7px 6px; color: #1a1f36;">Today's Bill:</td>
-                                <td style="padding: 7px 6px; text-align: right; color: #1a1f36; font-weight: 800;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 5px 0; color: #64748b; font-weight: 500;">Purano Baki (+):</td>
-                                <td style="padding: 5px 0; text-align: right; color: #64748b; font-weight: 600;">NRS ${parseInt(bill.prevBalance || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            ${parseFloat(bill.totalPoka) > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; font-weight: 700; color: #1a1f36;">📦 Total Poka:</td>
-                                <td style="padding: 5px 0; text-align: right; font-weight: 800; color: #dc2626;">${bill.totalPoka}</td>
-                            </tr>` : ''}
-                            <tr style="background: #f5f3ff; color: #7c3aed; font-weight: 700; border-radius: 4px;">
-                                <td style="padding: 7px 6px;">Jamma Total:</td>
-                                <td style="padding: 7px 6px; text-align: right; font-weight: 800;">NRS ${parseInt(bill.grandTotal || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            <tr style="color: #059669;">
-                                <td style="padding: 5px 0; font-weight: 600;">Nagad Paid (-):</td>
-                                <td style="padding: 5px 0; text-align: right; font-weight: 700;">NRS ${parseInt(bill.paid || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                            <tr style="background: #fee2e2; color: #dc2626; font-size: 14.5px; font-weight: 800; border-radius: 4px;">
-                                <td style="padding: 8px 6px;">Remaining Baki:</td>
-                                <td style="padding: 8px 6px; text-align: right;">NRS ${parseInt(bill.remaining || 0).toLocaleString('en-IN')}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-
-            <table style="width: 100%; margin-top: 45px; border-collapse: collapse;">
+            <!-- PINNED BOTTOM FOOTER SIGNATURE ROW -->
+            <table style="width: 100%; margin-top: 35px; border-collapse: collapse;">
                 <tr>
                     <td style="width: 50%; vertical-align: bottom;">
-                        <div style="width: 200px; text-align: left;">
-                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 11px; color: #94a3b8; text-transform: uppercase;">
+                        <div style="width: 170px; text-align: left;">
+                            <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; font-size: 10.5px; color: #94a3b8; text-transform: uppercase;">
                                 Customer Signature
                             </div>
                         </div>
                     </td>
                     <td style="width: 50%; vertical-align: bottom; text-align: right;">
-                        <div style="width: 240px; margin-left: auto; text-align: center;">
-                            <img id="bill-sig-img" src="" style="width: 220px; height: 70px; object-fit: contain; display: none; margin-bottom: 2px;" />
-                            <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 12px 0; border: 1.5px dashed #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; margin-bottom: 4px; color: #64748b; font-weight: 700; font-size: 12px; font-family: inherit;">✏️ Tap to Sign</button>
-                            <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 11px; color: #64748b; text-transform: uppercase;">
+                        <div style="width: 210px; margin-left: auto; text-align: center;">
+                            <img id="bill-sig-img" src="" style="width: 190px; height: 60px; object-fit: contain; display: none; margin-bottom: 2px;" />
+                            <button id="sign-btn" onclick="openSignaturePad()" style="width: 100%; padding: 10px 0; border: 1.5px dashed #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; margin-bottom: 4px; color: #64748b; font-weight: 700; font-size: 11.5px; font-family: inherit;">✏️ Tap to Sign</button>
+                            <div style="border-top: 1px solid #cbd5e1; padding-top: 4px; font-size: 10.5px; color: #64748b; text-transform: uppercase;">
                                 Authorized Signature & Stamp
                             </div>
                         </div>
