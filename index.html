@@ -431,9 +431,17 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
+      <div style="display:flex; gap:5px;">
+        <input type="text" class="inp no-print" id="history-search" placeholder="Search..." oninput="filterHistoryLocal()" style="width:120px; padding:6px 10px; font-size:0.85rem;">
+        <button class="btn btn-primary btn-sm no-print" onclick="performCloudSearch()">☁️ Cloud Find</button>
+      </div>
     </div>
-    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div></div>
+    <div id="history-container" style="overflow-x:auto;">
+      <div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div>
+    </div>
+    <div id="load-more-container" class="no-print" style="padding:15px; text-align:center; border-top:1px solid var(--border); display:none;">
+      <button class="btn btn-ghost" id="load-more-btn" onclick="loadMoreBills()" style="width:100%;">⬇️ Load 50 More Bills</button>
+    </div>
   </div>
 </div>
 
