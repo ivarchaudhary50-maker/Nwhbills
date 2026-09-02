@@ -72,6 +72,7 @@ let inventoryList = [];
 let cloudCustomers = {}, cloudNextInvoice = 1001, allBills = [], db = null, fbReady = false;
 let _payKey = '', _payCust = '';
 
+// Load local cache immediately for instant startup
 try {
     const cachedBills = safeGetLocal('nwh_bills_cache');
     if (cachedBills) allBills = JSON.parse(cachedBills) || [];
@@ -415,6 +416,7 @@ function toggleNpCal() {
 
         popup.style.left = calcLeft + 'px';
         popup.style.zIndex = '9999';
+
         popup.style.display = 'block';
     }
 }
@@ -565,6 +567,7 @@ function startDatabaseListeners() {
         renderLedger();
     });
 
+    // High performance query: only sync recent 50 bills over network
     db.ref('nwh/bills').limitToLast(50).on('value', s => {
         const v = s.val();
         if (v && typeof v === 'object') {
@@ -1035,6 +1038,7 @@ function syncPokasToInvoice() {
         });
     });
     
+    // Multi-VAT formatting logic for main invoice
     if (document.getElementById('vat-bill-no')) {
         if (vatList.length > 0) {
             const uniqueVats = [...new Set(vatList.map(v => v.vat))];
@@ -1526,7 +1530,7 @@ function generatePreviewHTML(bill) {
                                 ${parseFloat(bill.transport) > 0 ? `
                                 <tr>
                                     <td style="padding: 4px 0; color: #4a5280;">Transport (+):</td>
-                                    <td style="padding: 4px 0; text-align: right; color: #1a1f36; font-weight: 600;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 4px 0; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.transport || 0).toLocaleString('en-IN')}</td>
                                 </tr>` : ''}
                                 ${parseFloat(bill.discount) > 0 ? `
                                 <tr>
@@ -1535,7 +1539,7 @@ function generatePreviewHTML(bill) {
                                 </tr>` : ''}
                                 <tr style="background: #f8fafc; font-weight: 700;">
                                     <td style="padding: 6px 4px; color: #1a1f36;">Today's Bill:</td>
-                                    <td style="padding: 6px 4px; text-align: right; color: #1a1f36; font-weight: 800;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
+                                    <td style="padding: 6px 4px; text-align: right; color: #1a1f36;">NRS ${parseInt(bill.billAmount || 0).toLocaleString('en-IN')}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 4px 0; color: #4a5280;">Purano Baki (+):</td>
