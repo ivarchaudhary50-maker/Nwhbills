@@ -72,6 +72,11 @@ let inventoryList = [];
 let cloudCustomers = {}, cloudNextInvoice = 1001, allBills = [], db = null, fbReady = false;
 let _payKey = '', _payCust = '';
 
+// Pagination state variables
+let historyLimit = 50;
+let billListenerRef = null;
+let isCloudSearching = false;
+
 // Load local cache immediately for instant startup
 try {
     const cachedBills = safeGetLocal('nwh_bills_cache');
@@ -480,8 +485,6 @@ window.onload = function() {
     if(document.getElementById('slip-ref')) document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
     addRow();
-    renderHistory();
-    renderLedger();
 };
 
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
@@ -497,12 +500,23 @@ function switchTab(name){
     if(name==='inventory') renderInventoryCatalog();
 }
 
-function filterHistory(){
-  const qEl = document.getElementById('history-search');
-  if(!qEl) return;
-  const q = qEl.value.toLowerCase();
-  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
-  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+function filterHistoryLocal() {
+    const qEl = document.getElementById('history-search');
+    if(!qEl) return;
+    const q = qEl.value.toLowerCase().trim();
+    
+    if(q === '') {
+        if (isCloudSearching) {
+            isCloudSearching = false;
+            attachBillListener();
+        } else {
+            renderHistory();
+        }
+        return;
+    }
+    
+    const rows = document.querySelectorAll('#history-container .h-table tbody tr');
+    rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 function filterLedger(){
@@ -514,7 +528,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// HIGH-PERFORMANCE FIREBASE SYNC (LIMIT QUERY + DELTA UPDATES)
+// HIGH-PERFORMANCE FIREBASE SYNC (LIMIT QUERY + CLOUD SEARCH)
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -567,21 +581,7 @@ function startDatabaseListeners() {
         renderLedger();
     });
 
-    // High performance query: only sync recent 50 bills over network
-    db.ref('nwh/bills').limitToLast(50).on('value', s => {
-        const v = s.val();
-        if (v && typeof v === 'object') {
-            allBills = Object.entries(v)
-                .filter(([k, b]) => b && typeof b === 'object')
-                .map(([k, b]) => ({ key: k, ...b }))
-                .reverse();
-            safeSetLocal('nwh_bills_cache', JSON.stringify(allBills));
-        } else {
-            allBills = [];
-        }
-        renderHistory();
-        renderLedger();
-    });
+    attachBillListener();
 
     db.ref('nwh/pokas').limitToLast(20).on('value', s => {
         const v = s.val();
@@ -599,13 +599,90 @@ function startDatabaseListeners() {
     });
 }
 
-function startFirebase() {
-  if (typeof firebase !== 'undefined' && firebase.apps) {
-    initFB();
-  } else {
-    setTimeout(startFirebase, 150);
-  }
+function attachBillListener() {
+    if (billListenerRef) {
+        db.ref('nwh/bills').off('value', billListenerRef);
+    }
+    
+    billListenerRef = db.ref('nwh/bills').limitToLast(historyLimit).on('value', s => {
+        if (isCloudSearching) return; 
+        
+        const v = s.val();
+        if (v && typeof v === 'object') {
+            allBills = Object.entries(v)
+                .filter(([k, b]) => b && typeof b === 'object')
+                .map(([k, b]) => ({ key: k, ...b }))
+                .reverse();
+            safeSetLocal('nwh_bills_cache', JSON.stringify(allBills));
+        } else {
+            allBills = [];
+        }
+        renderHistory();
+        renderLedger();
+        
+        const lmc = document.getElementById('load-more-container');
+        if(lmc) lmc.style.display = 'block';
+    });
 }
+
+function loadMoreBills() {
+    const btn = document.getElementById('load-more-btn');
+    if (btn) btn.innerText = '⏳ Loading...';
+    historyLimit += 50;
+    attachBillListener();
+    setTimeout(() => {
+        if (btn) btn.innerText = '⬇️ Load 50 More Bills';
+    }, 1000);
+}
+
+async function performCloudSearch() {
+    const qEl = document.getElementById('history-search');
+    if(!qEl) return;
+    const q = qEl.value.toLowerCase().trim();
+    
+    const c = document.getElementById('history-container');
+    const lmc = document.getElementById('load-more-container');
+    
+    if (!q) {
+        isCloudSearching = false;
+        if(lmc) lmc.style.display = 'block';
+        attachBillListener(); 
+        return;
+    }
+
+    isCloudSearching = true;
+    if(lmc) lmc.style.display = 'none'; 
+    c.innerHTML = `<div class="empty-state"><div class="icon">☁️</div><div class="L">Searching entire cloud archive...</div></div>`;
+
+    try {
+        const snapshot = await db.ref('nwh/bills').once('value');
+        const v = snapshot.val();
+        let searchResults = [];
+        if (v && typeof v === 'object') {
+            const fullHistory = Object.entries(v)
+                .filter(([k, b]) => b && typeof b === 'object')
+                .map(([k, b]) => ({ key: k, ...b }))
+                .reverse();
+            
+            allBills = fullHistory; 
+
+            searchResults = fullHistory.filter(b => 
+                (b.customer || '').toLowerCase().includes(q) || 
+                (b.invoiceNum || '').toString().includes(q)
+            );
+        }
+        
+        if (searchResults.length === 0) {
+            c.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div class="L">No matches found in cloud.</div></div>`;
+        } else {
+            renderHistory(searchResults); 
+        }
+    } catch (err) {
+        console.error(err);
+        c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><div class="L">Search failed. Check connection.</div></div>`;
+    }
+}
+
 setTimeout(startFirebase, 100);
 
 // ============================================================
@@ -2097,13 +2174,19 @@ function downloadReceiptImage() {
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-function renderHistory(){
+function renderHistory(customData = null){
   const c=document.getElementById('history-container');
   if(!c) return;
-  if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
+  
+  const dataToRender = customData || allBills;
+  
+  if(!dataToRender || !dataToRender.length) {
+      c.innerHTML=`<div class="empty-state">No bills found</div>`;
+      return;
+  }
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  allBills.forEach(b=>{
+  dataToRender.forEach(b=>{
     const baki=parseInt(b.remaining)||0;
     html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${escapeHtmlAttr(b.customer)}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
