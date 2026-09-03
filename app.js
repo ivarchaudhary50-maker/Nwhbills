@@ -72,7 +72,7 @@ let inventoryList = [];
 let cloudCustomers = {}, cloudNextInvoice = 1001, allBills = [], db = null, fbReady = false;
 let _payKey = '', _payCust = '';
 
-// Pagination state variables
+// Pagination & Search State
 let historyLimit = 50;
 let billListenerRef = null;
 let isCloudSearching = false;
@@ -485,6 +485,8 @@ window.onload = function() {
     if(document.getElementById('slip-ref')) document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
     addRow();
+    renderHistory();
+    renderLedger();
 };
 
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
@@ -543,14 +545,11 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
+    // Start listeners instantly so it doesn't wait for auth network lag
+    startDatabaseListeners();
+
     if(firebase.auth) {
-        firebase.auth().signInAnonymously().then(() => {
-            startDatabaseListeners();
-        }).catch(() => {
-            startDatabaseListeners();
-        });
-    } else {
-        startDatabaseListeners();
+        firebase.auth().signInAnonymously().catch(e => console.log("Auth warning:", e));
     }
 
   }catch(e){ console.error(e); }
