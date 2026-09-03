@@ -74,7 +74,6 @@ let _payKey = '', _payCust = '';
 
 // Pagination & Search State
 let historyLimit = 50;
-let billListenerRef = null;
 let isCloudSearching = false;
 
 // Load local cache immediately for instant startup
@@ -599,11 +598,11 @@ function startDatabaseListeners() {
 }
 
 function attachBillListener() {
-    if (billListenerRef) {
-        db.ref('nwh/bills').off('value', billListenerRef);
+    if (db) {
+        db.ref('nwh/bills').off();
     }
     
-    billListenerRef = db.ref('nwh/bills').limitToLast(historyLimit).on('value', s => {
+    db.ref('nwh/bills').limitToLast(historyLimit).on('value', s => {
         if (isCloudSearching) return; 
         
         const v = s.val();
@@ -682,6 +681,22 @@ async function performCloudSearch() {
     }
 }
 
+let fbLoadAttempts = 0;
+function startFirebase() {
+  if (typeof firebase !== 'undefined' && firebase.apps) {
+    initFB();
+  } else {
+    fbLoadAttempts++;
+    if (fbLoadAttempts > 30) {
+        const syncEl = document.getElementById('sync-status');
+        if (syncEl && !fbReady) {
+            syncEl.innerHTML = '🟡 Offline';
+            syncEl.className = 'sync-badge';
+        }
+    }
+    setTimeout(startFirebase, 150);
+  }
+}
 setTimeout(startFirebase, 100);
 
 // ============================================================
@@ -1428,7 +1443,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// STABLE MOBILE CAPTURE ENGINE (WITH ASYNC FONT READY CHECK)
+// STABLE MOBILE CAPTURE ENGINE
 // ============================================================
 async function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
@@ -2221,3 +2236,22 @@ if ('serviceWorker' in navigator) {
       for(let registration of registrations) { registration.unregister(); }
   });
 }
+
+// LAUNCH FIREBASE
+let fbLoadAttempts = 0;
+function startFirebase() {
+  if (typeof firebase !== 'undefined' && firebase.apps) {
+    initFB();
+  } else {
+    fbLoadAttempts++;
+    if (fbLoadAttempts > 30) {
+        const syncEl = document.getElementById('sync-status');
+        if (syncEl && !fbReady) {
+            syncEl.innerHTML = '🟡 Offline';
+            syncEl.className = 'sync-badge';
+        }
+    }
+    setTimeout(startFirebase, 150);
+  }
+}
+setTimeout(startFirebase, 100);
