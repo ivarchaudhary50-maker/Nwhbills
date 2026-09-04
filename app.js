@@ -1,56 +1,4 @@
 // ============================================================
-// GLOBAL PIN LOCK (INSTANT RESPONSE FOR MOBILE)
-// ============================================================
-let pinCode = '';
-const CORRECT_PIN = '8860';
-
-function resetPinState() {
-  pinCode = '';
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('d' + i);
-    if (dot) dot.classList.remove('filled');
-  }
-}
-
-function pinPress(num) {
-  if (pinCode.length < 4) {
-    pinCode += String(num);
-    const dot = document.getElementById('d' + (pinCode.length - 1));
-    if (dot) dot.classList.add('filled');
-  }
-
-  if (pinCode.length === 4) {
-    if (pinCode === CORRECT_PIN) {
-      const pw = document.getElementById('pw-screen');
-      if (pw) pw.style.display = 'none';
-      resetPinState();
-    } else {
-      const err = document.getElementById('pw-err');
-      if (err) err.innerText = 'Incorrect PIN';
-      setTimeout(() => {
-        resetPinState();
-        if (err) err.innerText = '';
-      }, 500);
-    }
-  }
-}
-
-function pinDel() {
-  if (pinCode.length > 0) {
-    const dot = document.getElementById('d' + (pinCode.length - 1));
-    if (dot) dot.classList.remove('filled');
-    pinCode = pinCode.slice(0, -1);
-  }
-  const err = document.getElementById('pw-err');
-  if (err) err.innerText = '';
-}
-
-// Bind directly to window scope so mobile taps register immediately
-window.pinPress = pinPress;
-window.pinDel = pinDel;
-window.resetPinState = resetPinState;
-
-// ============================================================
 // SAFE STORAGE & ESCAPING UTILITIES
 // ============================================================
 function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
@@ -74,6 +22,7 @@ let _payKey = '', _payCust = '';
 
 // Pagination & Search State
 let historyLimit = 50;
+let billListenerRef = null;
 let isCloudSearching = false;
 
 // Load local cache immediately for instant startup
