@@ -17,26 +17,63 @@ let pendingBill = null;
 let lang = 'en';
 let allPokas = [];
 let inventoryList = [];
-let cloudCustomers = {}, cloudNextInvoice = 1001, allBills = [], db = null, fbReady = false;
-let _payKey = '', _payCust = '';
+let cloudCustomers={}, cloudNextInvoice=1001, allBills=[], db=null, fbReady=false;
+let _payKey='', _payCust='';
 
-// Pagination & Search State
-let historyLimit = 50;
-let billListenerRef = null;
-let isCloudSearching = false;
+// ============================================================
+// PIN LOCK LOGIC (UNLOCKS WITH 8860)
+// ============================================================
+let pinCode = '';
+const CORRECT_PIN = '8860'; 
 
-// Load local cache immediately for instant startup
-try {
-    const cachedBills = safeGetLocal('nwh_bills_cache');
-    if (cachedBills) allBills = JSON.parse(cachedBills) || [];
-    const cachedCust = safeGetLocal('nwh_customers_cache');
-    if (cachedCust) cloudCustomers = JSON.parse(cachedCust) || {};
-} catch(e) {}
+function pinPress(num) {
+  if (pinCode.length < 4) {
+    pinCode += num;
+    const dot = document.getElementById('d' + (pinCode.length - 1));
+    if (dot) dot.classList.add('filled');
+  }
+
+  if (pinCode.length === 4) {
+    if (pinCode === CORRECT_PIN) {
+      const pw = document.getElementById('pw-screen');
+      if (pw) {
+        pw.style.display = 'none'; 
+      }
+      resetPinState();
+    } else {
+      const err = document.getElementById('pw-err');
+      if (err) err.innerText = 'Incorrect PIN';
+
+      setTimeout(() => {
+        resetPinState();
+        if (err) err.innerText = '';
+      }, 600);
+    }
+  }
+}
+
+function pinDel() {
+  if (pinCode.length > 0) {
+    const dot = document.getElementById('d' + (pinCode.length - 1));
+    if (dot) dot.classList.remove('filled');
+    pinCode = pinCode.slice(0, -1);
+  }
+  const err = document.getElementById('pw-err');
+  if (err) err.innerText = '';
+}
+
+function resetPinState() {
+  pinCode = '';
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('d' + i);
+    if (dot) dot.classList.remove('filled');
+  }
+}
 
 // ============================================================
 // DEBOUNCE LOGIC
 // ============================================================
-function debounce(func, delay = 250) {
+function debounce(func, delay = 300) {
   let timeout;
   return function(...args) {
     clearTimeout(timeout);
@@ -433,8 +470,6 @@ window.onload = function() {
     if(document.getElementById('slip-ref')) document.getElementById('slip-ref').value = 'PK-' + Math.floor(1000 + Math.random() * 9000);
     updateBSDate();
     addRow();
-    renderHistory();
-    renderLedger();
 };
 
 function toggleDark(){const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('dark-btn').innerText=d?'🌙':'☀️';}
@@ -450,23 +485,12 @@ function switchTab(name){
     if(name==='inventory') renderInventoryCatalog();
 }
 
-function filterHistoryLocal() {
-    const qEl = document.getElementById('history-search');
-    if(!qEl) return;
-    const q = qEl.value.toLowerCase().trim();
-    
-    if(q === '') {
-        if (isCloudSearching) {
-            isCloudSearching = false;
-            attachBillListener();
-        } else {
-            renderHistory();
-        }
-        return;
-    }
-    
-    const rows = document.querySelectorAll('#history-container .h-table tbody tr');
-    rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
+function filterHistory(){
+  const qEl = document.getElementById('history-search');
+  if(!qEl) return;
+  const q = qEl.value.toLowerCase();
+  const rows = document.querySelectorAll('#history-container .h-table tbody tr');
+  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 function filterLedger(){
@@ -478,7 +502,7 @@ function filterLedger(){
 }
 
 // ============================================================
-// HIGH-PERFORMANCE FIREBASE SYNC (LIMIT QUERY + CLOUD SEARCH)
+// FIREBASE CONNECTION
 // ============================================================
 const fbConfig={
   apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
@@ -493,156 +517,77 @@ function initFB(){
     if(!firebase.apps.length) firebase.initializeApp(fbConfig);
     db=firebase.database();
 
-    // Start listeners instantly so it doesn't wait for auth network lag
-    startDatabaseListeners();
-
     if(firebase.auth) {
-        firebase.auth().signInAnonymously().catch(e => console.log("Auth warning:", e));
+        firebase.auth().signInAnonymously().then(() => {
+            startDatabaseListeners();
+        }).catch(() => {
+            startDatabaseListeners();
+        });
+    } else {
+        startDatabaseListeners();
     }
 
   }catch(e){ console.error(e); }
 }
 
 function startDatabaseListeners() {
-    db.ref('.info/connected').on('value', s => {
-      if (s.val() === true) {
-        fbReady = true;
+    db.ref('.info/connected').on('value',s=>{
+      if(s.val()===true){
+        fbReady=true;
         processSyncQueue();
-      } else {
-        fbReady = false;
+      }else{
+        fbReady=false;
         updateSyncBadge();
       }
     });
 
-    db.ref('nwh/nextInvoiceNumber').on('value', s => {
-      const v = s.val();
-      if (v) { cloudNextInvoice = v; if (!editBillKey) document.getElementById('invoice-number').innerText = v; }
+    db.ref('nwh/nextInvoiceNumber').on('value',s=>{
+      const v=s.val();
+      if(v){ cloudNextInvoice=v; if(!editBillKey) document.getElementById('invoice-number').innerText=v; }
       else queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', 1001);
     });
 
-    db.ref('nwh/customers').on('value', s => {
+    db.ref('nwh/customers').on('value',s=>{
         const val = s.val();
         cloudCustomers = (val && typeof val === 'object') ? val : {};
-        safeSetLocal('nwh_customers_cache', JSON.stringify(cloudCustomers));
         populateCustomerList();
         renderLedger();
     });
 
-    attachBillListener();
-
-    db.ref('nwh/pokas').limitToLast(20).on('value', s => {
-        const v = s.val();
-        allPokas = (v && typeof v === 'object') ? Object.entries(v).filter(([k, p]) => p && typeof p === 'object').map(([k, p]) => ({key: k, ...p})).reverse() : [];
-        renderPokaHistory();
-    });
-
-    db.ref('nwh/inventory').on('value', s => {
-      const val = s.val();
-      if (Array.isArray(val)) inventoryList = val;
-      else if (val && typeof val === 'object') inventoryList = Object.values(val);
-      renderInventory();
-      renderInventoryCatalog();
-      safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
-    });
-}
-
-function attachBillListener() {
-    if (db) {
-        db.ref('nwh/bills').off();
-    }
-    
-    db.ref('nwh/bills').limitToLast(historyLimit).on('value', s => {
-        if (isCloudSearching) return; 
-        
+    db.ref('nwh/bills').on('value',s=>{
         const v = s.val();
         if (v && typeof v === 'object') {
             allBills = Object.entries(v)
                 .filter(([k, b]) => b && typeof b === 'object')
                 .map(([k, b]) => ({ key: k, ...b }))
                 .reverse();
-            safeSetLocal('nwh_bills_cache', JSON.stringify(allBills));
         } else {
             allBills = [];
         }
         renderHistory();
         renderLedger();
-        
-        const lmc = document.getElementById('load-more-container');
-        if(lmc) lmc.style.display = 'block';
+    });
+
+    db.ref('nwh/pokas').on('value', s => {
+        const v = s.val();
+        allPokas = (v && typeof v === 'object') ? Object.entries(v).filter(([k, p]) => p && typeof p === 'object').map(([k, p]) => ({key: k, ...p})).reverse() : [];
+        renderPokaHistory();
+    });
+
+    db.ref('nwh/inventory').on('value',s=>{
+      const val = s.val();
+      if(Array.isArray(val)) inventoryList = val;
+      else if(val && typeof val === 'object') inventoryList = Object.values(val);
+      renderInventory();
+      renderInventoryCatalog();
+      safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
     });
 }
 
-function loadMoreBills() {
-    const btn = document.getElementById('load-more-btn');
-    if (btn) btn.innerText = '⏳ Loading...';
-    historyLimit += 50;
-    attachBillListener();
-    setTimeout(() => {
-        if (btn) btn.innerText = '⬇️ Load 50 More Bills';
-    }, 1000);
-}
-
-async function performCloudSearch() {
-    const qEl = document.getElementById('history-search');
-    if(!qEl) return;
-    const q = qEl.value.toLowerCase().trim();
-    
-    const c = document.getElementById('history-container');
-    const lmc = document.getElementById('load-more-container');
-    
-    if (!q) {
-        isCloudSearching = false;
-        if(lmc) lmc.style.display = 'block';
-        attachBillListener(); 
-        return;
-    }
-
-    isCloudSearching = true;
-    if(lmc) lmc.style.display = 'none'; 
-    c.innerHTML = `<div class="empty-state"><div class="icon">☁️</div><div class="L">Searching entire cloud archive...</div></div>`;
-
-    try {
-        const snapshot = await db.ref('nwh/bills').once('value');
-        const v = snapshot.val();
-        let searchResults = [];
-        if (v && typeof v === 'object') {
-            const fullHistory = Object.entries(v)
-                .filter(([k, b]) => b && typeof b === 'object')
-                .map(([k, b]) => ({ key: k, ...b }))
-                .reverse();
-            
-            allBills = fullHistory; 
-
-            searchResults = fullHistory.filter(b => 
-                (b.customer || '').toLowerCase().includes(q) || 
-                (b.invoiceNum || '').toString().includes(q)
-            );
-        }
-        
-        if (searchResults.length === 0) {
-            c.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div class="L">No matches found in cloud.</div></div>`;
-        } else {
-            renderHistory(searchResults); 
-        }
-    } catch (err) {
-        console.error(err);
-        c.innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><div class="L">Search failed. Check connection.</div></div>`;
-    }
-}
-
-let fbLoadAttempts = 0;
 function startFirebase() {
   if (typeof firebase !== 'undefined' && firebase.apps) {
     initFB();
   } else {
-    fbLoadAttempts++;
-    if (fbLoadAttempts > 30) {
-        const syncEl = document.getElementById('sync-status');
-        if (syncEl && !fbReady) {
-            syncEl.innerHTML = '🟡 Offline';
-            syncEl.className = 'sync-badge';
-        }
-    }
     setTimeout(startFirebase, 150);
   }
 }
@@ -846,7 +791,7 @@ function addPokaGroup(items = null, vatVal = '') {
         <div style="background:var(--surface2); padding:10px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
             <span class="poka-header-title" style="font-weight:800; font-size:0.95rem; color:var(--text)">📦 Poka #...</span>
             <div style="display:flex; align-items:center; gap:6px;">
-                <input type="text" class="inp poka-vat-inp" placeholder="VAT Bill #" value="${vatVal}" style="width:95px; padding:5px 8px; font-size:0.8rem; font-weight:700; text-align:center; color:#7c3aed; background:var(--surface);">
+                <input type="text" class="inp poka-vat-inp" placeholder="VAT #" value="${vatVal}" style="width:85px; padding:5px 8px; font-size:0.8rem; font-weight:700; text-align:center; color:#7c3aed; background:var(--surface);">
                 <button class="del-row" onclick="removePokaGroup('${currentId}')" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:5px 9px; border-radius:6px;">✕ Remove</button>
             </div>
         </div>
@@ -1392,18 +1337,14 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// STABLE MOBILE CAPTURE ENGINE
+// DIRECT-RENDER MOBILE CAPTURE ENGINE
 // ============================================================
-async function downloadElementAsImage(targetElement, filename, callback) {
+function downloadElementAsImage(targetElement, filename, callback) {
     if (!targetElement) {
         alert("Error: Element to capture was not found.");
         if (callback) callback();
         return;
     }
-
-    try {
-        if (document.fonts) await document.fonts.ready;
-    } catch(e) {}
 
     const originalParent = targetElement.parentNode;
     const nextSibling = targetElement.nextSibling;
@@ -2137,19 +2078,13 @@ function downloadReceiptImage() {
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
-function renderHistory(customData = null){
+function renderHistory(){
   const c=document.getElementById('history-container');
   if(!c) return;
-  
-  const dataToRender = customData || allBills;
-  
-  if(!dataToRender || !dataToRender.length) {
-      c.innerHTML=`<div class="empty-state">No bills found</div>`;
-      return;
-  }
+  if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
 
   let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  dataToRender.forEach(b=>{
+  allBills.forEach(b=>{
     const baki=parseInt(b.remaining)||0;
     html+=`<tr onclick="showBillDetail('${b.key}')"><td><span style="font-weight:700;color:var(--accent)">#${b.invoiceNum}</span><br><span style="font-size:10px">${b.date}</span></td><td><strong>${escapeHtmlAttr(b.customer)}</strong></td><td>NRS ${parseInt(b.billAmount || 0).toLocaleString('en-IN')}</td><td style="color:var(--green)">${parseInt(b.paid || 0).toLocaleString('en-IN')}</td><td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td></tr>`;
   });
@@ -2185,22 +2120,3 @@ if ('serviceWorker' in navigator) {
       for(let registration of registrations) { registration.unregister(); }
   });
 }
-
-// LAUNCH FIREBASE
-let fbLoadAttempts = 0;
-function startFirebase() {
-  if (typeof firebase !== 'undefined' && firebase.apps) {
-    initFB();
-  } else {
-    fbLoadAttempts++;
-    if (fbLoadAttempts > 30) {
-        const syncEl = document.getElementById('sync-status');
-        if (syncEl && !fbReady) {
-            syncEl.innerHTML = '🟡 Offline';
-            syncEl.className = 'sync-badge';
-        }
-    }
-    setTimeout(startFirebase, 150);
-  }
-}
-setTimeout(startFirebase, 100);
