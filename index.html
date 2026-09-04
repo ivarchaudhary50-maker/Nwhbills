@@ -163,50 +163,15 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .empty-state{text-align:center;padding:40px;color:var(--text3);}
 .empty-state .icon{font-size:2.5rem;margin-bottom:10px;}
 
-/* PIN LOCK SCREEN (TOUCH SAFE & STABLE) */
-#pw-screen{
-  position:fixed;
-  inset:0;
-  background:var(--bg);
-  z-index:99999;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  touch-action:manipulation;
-}
-#pw-box{
-  background:var(--surface);
-  border-radius:20px;
-  padding:36px 28px;
-  max-width:320px;
-  width:90%;
-  text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.15);
-  position:relative;
-  z-index:100000;
-  pointer-events:auto;
-}
+/* PIN LOCK SCREEN */
+#pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+#pw-box{background:var(--surface);border-radius:20px;padding:36px 28px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15);}
 #pw-logo{font-size:44px;margin-bottom:10px;}
 #pw-title{font-size:1.2rem;font-weight:800;color:var(--text);margin-bottom:3px;}
 #pw-sub{font-size:.82rem;color:var(--text3);margin-bottom:20px;}
 .pin-dot{width:15px;height:15px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .15s;}
 .pin-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.15);}
-.pin-btn{
-  padding:13px;
-  border-radius:12px;
-  border:2px solid var(--border);
-  background:var(--surface2);
-  font-size:1.2rem;
-  font-weight:700;
-  font-family:inherit;
-  cursor:pointer;
-  transition:all .15s;
-  color:var(--text);
-  touch-action:manipulation;
-  -webkit-tap-highlight-color:transparent;
-  pointer-events:auto;
-  user-select:none;
-}
+.pin-btn{padding:13px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);font-size:1.2rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;color:var(--text);}
 .pin-btn:active{background:var(--border);border-color:var(--accent);transform:scale(.93);}
 .pin-del{font-size:1rem;color:var(--text3);}
 #pw-err{color:var(--red);font-size:.82rem;margin-top:12px;min-height:18px;}
@@ -430,17 +395,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="card">
     <div class="card-header" style="flex-wrap:wrap;gap:8px;">
       <div class="card-title">📋 <span class="L" data-k="Bill History">Bill History</span></div>
-      <div style="display:flex; gap:5px;">
-        <input type="text" class="inp no-print" id="history-search" placeholder="Search..." oninput="filterHistoryLocal()" style="width:120px; padding:6px 10px; font-size:0.85rem;">
-        <button class="btn btn-primary btn-sm no-print" onclick="performCloudSearch()">☁️ Cloud Find</button>
-      </div>
+      <input type="text" class="inp no-print" id="history-search" placeholder="Search customer..." oninput="filterHistory()" style="width:150px;">
     </div>
-    <div id="history-container" style="overflow-x:auto;">
-      <div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div>
-    </div>
-    <div id="load-more-container" class="no-print" style="padding:15px; text-align:center; border-top:1px solid var(--border); display:none;">
-      <button class="btn btn-ghost" id="load-more-btn" onclick="loadMoreBills()" style="width:100%;">⬇️ Load 50 More Bills</button>
-    </div>
+    <div id="history-container" style="overflow-x:auto;"><div class="empty-state"><div class="icon">📂</div><div class="L" data-k="Loading...">Syncing records...</div></div></div>
   </div>
 </div>
 
@@ -616,52 +573,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     </div>
   </div>
 </div>
-
-<!-- INLINE PIN LOCK SCRIPT (Fail-safe for mobile cache) -->
-<script>
-  let pinCode = '';
-  const CORRECT_PIN = '8860';
-  function resetPinState() {
-    pinCode = '';
-    for (let i = 0; i < 4; i++) {
-      const dot = document.getElementById('d' + i);
-      if (dot) dot.classList.remove('filled');
-    }
-  }
-  function pinPress(num) {
-    if (pinCode.length < 4) {
-      pinCode += String(num);
-      const dot = document.getElementById('d' + (pinCode.length - 1));
-      if (dot) dot.classList.add('filled');
-    }
-    if (pinCode.length === 4) {
-      if (pinCode === CORRECT_PIN) {
-        const pw = document.getElementById('pw-screen');
-        if (pw) pw.style.display = 'none';
-        resetPinState();
-      } else {
-        const err = document.getElementById('pw-err');
-        if (err) err.innerText = 'Incorrect PIN';
-        setTimeout(() => {
-          resetPinState();
-          if (err) err.innerText = '';
-        }, 500);
-      }
-    }
-  }
-  function pinDel() {
-    if (pinCode.length > 0) {
-      const dot = document.getElementById('d' + (pinCode.length - 1));
-      if (dot) dot.classList.remove('filled');
-      pinCode = pinCode.slice(0, -1);
-    }
-    const err = document.getElementById('pw-err');
-    if (err) err.innerText = '';
-  }
-  window.pinPress = pinPress;
-  window.pinDel = pinDel;
-  window.resetPinState = resetPinState;
-</script>
 
 <script src="app.js"></script>
 
