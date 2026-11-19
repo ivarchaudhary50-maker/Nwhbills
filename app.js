@@ -385,6 +385,55 @@ function recalculateCustomerLedger(custName) {
 }
 
 // ============================================================
+// HISTORICAL LEDGER ADJUSTMENT / SETTLEMENT HELPER
+// ============================================================
+function openLedgerAdjustmentModal(custName) {
+    const currentStmtBal = getCustomerTrueBalance(custName);
+    const actualStr = prompt(
+        `Current calculated balance for ${custName}: NRS ${currentStmtBal.toLocaleString('en-IN')}\n\n` +
+        `Enter the ACTUAL true balance (e.g., 54440):`
+    );
+    if (actualStr === null) return;
+    const targetBal = Math.round(parseFloat(actualStr.replace(/,/g, '')));
+    if (isNaN(targetBal) || targetBal < 0) {
+        alert("Please enter a valid number.");
+        return;
+    }
+
+    const diff = currentStmtBal - targetBal;
+    if (diff === 0) {
+        alert("Balance already matches!");
+        return;
+    }
+
+    const custBills = getCustomerBillsChronological(custName);
+    if (custBills.length > 0 && diff > 0) {
+        const oldestBill = custBills[0];
+        applyPaymentToSingleBill(
+            oldestBill,
+            diff,
+            oldestBill.date || todayStr,
+            'Adjustment',
+            'Historical Ledger Settlement / Pre-July Cleared'
+        );
+        recalculateCustomerLedger(custName);
+    } else {
+        if (!cloudCustomers[custName]) cloudCustomers[custName] = {};
+        const currentOpen = getCustomerOpeningBalance(custName, custBills);
+        const newOpen = Math.max(0, currentOpen - diff);
+        cloudCustomers[custName].openingBalance = newOpen.toString();
+        cloudCustomers[custName].balance = targetBal.toString();
+        queueDatabaseWrite('nwh/customers/' + custName, 'set', cloudCustomers[custName]);
+        recalculateCustomerLedger(custName);
+    }
+
+    closeModal('bill-modal');
+    renderLedger();
+    renderHistory();
+    alert(`✅ Ledger reconciled! ${custName} balance is now NRS ${targetBal.toLocaleString('en-IN')}.`);
+}
+
+// ============================================================
 // CUSTOMER AUTO-FILL & CATALOG NORMALIZATION
 // ============================================================
 function triggerCustomerAutoFill() {
@@ -1141,7 +1190,7 @@ function filterInventoryList() {
 }
 
 // ============================================================
-// CAMERA BARCODE & QR SCANNER FOR S23 ULTRA
+// CAMERA BARCODE SCANNER
 // ============================================================
 let scannerStream = null;
 let scannerInterval = null;
@@ -1844,7 +1893,7 @@ function previewPackingSlip() {
 }
 
 // ============================================================
-// DIRECT-RENDER GPU-SAFE CAPTURE ENGINE (PNG + NATIVE WA + PDF)
+// DIRECT-RENDER GPU-SAFE CAPTURE ENGINE
 // ============================================================
 function captureElementToCanvas(targetElement, callback) {
     if (!targetElement) {
@@ -2007,7 +2056,7 @@ function previewBill(){
 }
 
 // ============================================================
-// TALL PORTRAIT INVOICE GENERATOR
+// INVOICE GENERATOR
 // ============================================================
 function generatePreviewHTML(bill) {
     let rowsHtml = "";
@@ -2452,7 +2501,15 @@ function loadBillForEdit(key) {
     document.getElementById('transport-expense').value = bill.transport || '';
     document.getElementById('discount-amount').value = bill.discount || '';
     document.getElementById('prev-balance').value = bill.prevBalance || '';
-    document.getElementById('cash-paid').value = bill.paid || '';
+
+    let editModalPaymentsSum = 0;
+    if (bill.payments && typeof bill.payments === 'object') {
+        Object.values(bill.payments).forEach(p => {
+            if (p) editModalPaymentsSum += (parseFloat(p.amount) || 0);
+        });
+    }
+    const initialCashPaid = Math.max(0, (parseFloat(bill.paid) || 0) - editModalPaymentsSum);
+    document.getElementById('cash-paid').value = initialCashPaid || '';
 
     document.getElementById('invoice-number').innerText = bill.invoiceNum;
     document.getElementById('tab-invoice').innerHTML = `🧾 <span style="color:var(--red);">Editing #${bill.invoiceNum}</span>`;
@@ -2568,6 +2625,7 @@ function showCustDetail(name){
     <div class="d-row" style="font-size:.92rem;font-weight:700"><span class="d-label" style="color:${baki>0?'var(--red)':'var(--green)'}">🔴 Total Baki</span><span class="d-val" style="color:${baki>0?'var(--red)':'var(--green)'}">NRS ${baki.toLocaleString('en-IN')}</span></div>
     ${custPaymentsHtml}
     <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:12px; border-color:var(--accent); color:var(--accent);" onclick="showLedgerStatement('${safeName}')">📜 View Statement of Account</button>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:8px;" onclick="openLedgerAdjustmentModal('${safeName}')">⚖️ Adjust / Fix Legacy Baki</button>
     ${baki>0?`<button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px;" onclick="payFromLedger('${safeName}',${baki})">💰 Record Payment (FIFO)</button>`:''}
     <button class="btn btn-red" style="width:100%;justify-content:center;margin-top:8px;" onclick="deleteCustomer('${safeName}')">🗑️ Delete Customer</button>
   `;
@@ -2575,18 +2633,57 @@ function showCustDetail(name){
 }
 
 // ============================================================
-// CHRONOLOGICAL STATEMENT OF ACCOUNT
+// CHRONOLOGICAL STATEMENT OF ACCOUNT (UPGRADED)
 // ============================================================
+let _activeStatementCust = '';
+
+function refreshCurrentStatement() {
+    if (_activeStatementCust) {
+        showLedgerStatement(_activeStatementCust);
+    }
+}
+
+function formatDualDateCell(adDateStr) {
+    if (!adDateStr || adDateStr === '—') return '—';
+    const parts = adDateStr.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0])) {
+        const bs = adToBS(parts[0], parts[1], parts[2]);
+        if (bs) {
+            return `<div style="font-weight:600;color:#1a1f36;">${escapeHtmlAttr(adDateStr)}</div><div style="font-size:10px;color:#64748b;font-family:'Tiro Devanagari Hindi',serif;">${bs.day} ${bs.monthName} ${bs.year}</div>`;
+        }
+    }
+    return escapeHtmlAttr(adDateStr);
+}
+
 function showLedgerStatement(custName) {
+    _activeStatementCust = custName;
     document.getElementById('ls-cust-name').innerText = custName;
     const cu = cloudCustomers[custName] || {};
     let subInfo = [];
-    if(cu.address) subInfo.push(cu.address);
-    if(cu.phone) subInfo.push(cu.phone);
+    if (cu.address) subInfo.push(cu.address);
+    if (cu.phone) subInfo.push('📞 ' + cu.phone);
     document.getElementById('ls-cust-sub').innerText = subInfo.join(' • ');
 
+    const rangeMode = document.getElementById('ls-range-filter') ? document.getElementById('ls-range-filter').value : 'all';
+    let cutoffDate = '';
+    let periodText = 'Period: All Time';
+
+    if (rangeMode === '30d') {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        cutoffDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        periodText = `From ${cutoffDate} to Today`;
+    } else if (rangeMode === 'month') {
+        const d = new Date();
+        cutoffDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+        periodText = `This Month (${cutoffDate} – Today)`;
+    }
+
+    const periodEl = document.getElementById('ls-period-label');
+    if (periodEl) periodEl.innerText = periodText;
+
     const list = document.getElementById('ledger-statement-list');
-    if(!list) return;
+    if (!list) return;
     list.innerHTML = '';
 
     let events = [];
@@ -2598,14 +2695,14 @@ function showLedgerStatement(custName) {
         const totalPaidOnBill = parseFloat(b.paid) || 0;
         const billInvSeq = parseInt(b.invoiceNum, 10) || (idx + 1);
 
-        let detailsLabel = `Invoice #${b.invoiceNum || 'N/A'}`;
-        if (b.vatBillNo) detailsLabel += ` (VAT: ${b.vatBillNo})`;
-        if (b.transportName) detailsLabel += ` [${b.transportName}]`;
+        let detailsLabel = `<strong>Invoice #${escapeHtmlAttr(b.invoiceNum || 'N/A')}</strong>`;
+        if (b.vatBillNo) detailsLabel += ` <span style="color:#7c3aed;font-size:10.5px;">(VAT: ${escapeHtmlAttr(b.vatBillNo)})</span>`;
+        if (b.transportName) detailsLabel += `<div style="font-size:10px;color:#64748b;">🚚 ${escapeHtmlAttr(b.transportName)}${b.biltiNo ? ' • Bilti: ' + escapeHtmlAttr(b.biltiNo) : ''}</div>`;
 
         events.push({
             date: b.date || '—',
             seq: billInvSeq * 1000,
-            desc: detailsLabel,
+            descHtml: detailsLabel,
             debit: billTotal,
             credit: 0
         });
@@ -2613,7 +2710,7 @@ function showLedgerStatement(custName) {
         let modalPaymentsSum = 0;
         if (b.payments && typeof b.payments === 'object') {
             Object.values(b.payments).forEach((p, pIdx) => {
-                if(!p) return;
+                if (!p) return;
                 const amt = parseFloat(p.amount) || 0;
                 modalPaymentsSum += amt;
                 const pDate = p.date || b.date || '—';
@@ -2624,19 +2721,19 @@ function showLedgerStatement(custName) {
                 events.push({
                     date: pDate,
                     seq: seqNum,
-                    desc: `Payment (${p.mode || 'Cash'}${p.note ? ' - ' + p.note : ''})`,
+                    descHtml: `Payment Received <span style="color:#059669;font-weight:600;">(${escapeHtmlAttr(p.mode || 'Cash')})</span>${p.note ? `<div style="font-size:10px;color:#64748b;">${escapeHtmlAttr(p.note)}</div>` : ''}`,
                     debit: 0,
                     credit: amt
                 });
             });
         }
 
-        const initialPaid = Math.round(totalPaidOnBill - modalPaymentsSum);
+        const initialPaid = Math.max(0, Math.round(totalPaidOnBill - modalPaymentsSum));
         if (initialPaid > 0) {
             events.push({
                 date: b.cashPaidDate || b.date || '—',
                 seq: billInvSeq * 1000 + 100,
-                desc: `Nagad Paid on Bill #${b.invoiceNum || ''}`,
+                descHtml: `Cash Paid on Bill #${escapeHtmlAttr(b.invoiceNum || '')}`,
                 debit: 0,
                 credit: initialPaid
             });
@@ -2649,30 +2746,56 @@ function showLedgerStatement(custName) {
         return a.seq - b.seq;
     });
 
-    let bal = openingBal;
-    let listHtml = `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
-        <td style="padding:10px;">—</td>
-        <td style="padding:10px; font-weight:600;">Opening Balance (Purano Baki)</td>
-        <td style="text-align:right; padding:10px;">${openingBal > 0 ? Math.round(openingBal).toLocaleString('en-IN') : ''}</td>
-        <td></td>
-        <td style="text-align:right; font-weight:700; padding:10px;">${Math.round(bal).toLocaleString('en-IN')}</td>
-    </tr>`;
+    let runningBal = openingBal;
+    const visibleEvents = [];
 
     events.forEach(e => {
-        bal += e.debit;
-        bal -= e.credit;
-        listHtml += `<tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:10px;">${escapeHtmlAttr(e.date)}</td>
-            <td style="padding:10px;">${escapeHtmlAttr(e.desc)}</td>
-            <td style="text-align:right; padding:10px;">${e.debit > 0 ? Math.round(e.debit).toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; padding:10px; color:#059669; font-weight:600;">${e.credit > 0 ? Math.round(e.credit).toLocaleString('en-IN') : ''}</td>
-            <td style="text-align:right; font-weight:700; padding:10px;">${Math.round(bal).toLocaleString('en-IN')}</td>
+        if (cutoffDate && e.date !== '—' && e.date < cutoffDate) {
+            runningBal += e.debit;
+            runningBal -= e.credit;
+        } else {
+            visibleEvents.push(e);
+        }
+    });
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    let listHtml = `<tr style="border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+        <td style="padding:8px;">—</td>
+        <td style="padding:8px; font-weight:700; color:#4a5280;">${cutoffDate ? 'Balance Brought Forward (B/F)' : 'Opening Balance (Purano Baki)'}</td>
+        <td style="text-align:right; padding:8px;">${runningBal > 0 ? Math.round(runningBal).toLocaleString('en-IN') : '—'}</td>
+        <td style="text-align:right; padding:8px;">—</td>
+        <td style="text-align:right; font-weight:800; padding:8px; color:#1a1f36;">${Math.round(runningBal).toLocaleString('en-IN')}</td>
+    </tr>`;
+
+    visibleEvents.forEach((e, i) => {
+        runningBal += e.debit;
+        runningBal -= e.credit;
+        totalDebit += e.debit;
+        totalCredit += e.credit;
+        const rowBg = i % 2 === 1 ? '#fafbff' : '#ffffff';
+
+        listHtml += `<tr style="border-bottom:1px solid #f1f5f9; background:${rowBg};">
+            <td style="padding:8px; vertical-align:top;">${formatDualDateCell(e.date)}</td>
+            <td style="padding:8px; vertical-align:top;">${e.descHtml}</td>
+            <td style="text-align:right; padding:8px; vertical-align:top; font-weight:600; color:#1a1f36;">${e.debit > 0 ? Math.round(e.debit).toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; padding:8px; vertical-align:top; color:#059669; font-weight:700;">${e.credit > 0 ? Math.round(e.credit).toLocaleString('en-IN') : ''}</td>
+            <td style="text-align:right; padding:8px; vertical-align:top; font-weight:800; color:${runningBal > 0 ? '#dc2626' : '#059669'};">${Math.round(runningBal).toLocaleString('en-IN')}</td>
         </tr>`;
     });
 
     list.innerHTML = listHtml;
+
+    const netBal = Math.round(runningBal);
     const closingEl = document.getElementById('ls-closing-bal');
-    if (closingEl) closingEl.innerText = `NRS ${Math.round(bal).toLocaleString('en-IN')}`;
+    if (closingEl) {
+        closingEl.innerText = `NRS ${netBal.toLocaleString('en-IN')}`;
+        closingEl.style.color = netBal > 0 ? '#dc2626' : '#059669';
+    }
+    if (document.getElementById('ls-sum-debit')) document.getElementById('ls-sum-debit').innerText = `NRS ${Math.round(totalDebit).toLocaleString('en-IN')}`;
+    if (document.getElementById('ls-sum-credit')) document.getElementById('ls-sum-credit').innerText = `NRS ${Math.round(totalCredit).toLocaleString('en-IN')}`;
+    if (document.getElementById('ls-sum-net')) document.getElementById('ls-sum-net').innerText = `NRS ${netBal.toLocaleString('en-IN')}`;
 
     closeModal('bill-modal');
     document.getElementById('ledger-statement-modal').classList.add('open');
@@ -2695,7 +2818,7 @@ function downloadLedgerStatement() {
     if (btn) btn.innerText = '⏳ Saving...';
 
     downloadElementAsImage(targetElement, `Statement-${safeCust}.png`, () => {
-        if (btn) btn.innerText = '🖼️ Download PNG';
+        if (btn) btn.innerText = '🖼️ Save PNG';
     });
 }
 
