@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Rabi Kapada Pasal - Cloud Billing v43</title>
+<title>Rabi Kapada Pasal - Cloud Billing v43.2</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
@@ -258,7 +258,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="nav-logo">🏪</div>
     <div>
       <div class="nav-title">Rabi Kapada Pasal</div>
-      <div class="nav-sub" id="nav-sub">Cloud Billing System v43</div>
+      <div class="nav-sub" id="nav-sub">Cloud Billing System v43.2</div>
     </div>
   </div>
   <div class="nav-actions">
@@ -521,51 +521,91 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 </div>
 
 <div class="modal-overlay" id="ledger-statement-modal" style="z-index: 350;">
-  <div class="modal" style="max-width:900px; width:95%; height:90vh; display:flex; flex-direction:column; padding:0;">
-    <div class="modal-header">
+  <div class="modal" style="max-width:640px; width:96%; height:92vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+    <div class="modal-header" style="flex-wrap:wrap; gap:8px;">
         <div class="modal-title" id="ls-title">📜 Statement of Account</div>
-        <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
+        <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+            <select id="ls-range-filter" class="inp" style="padding:5px 8px; font-size:0.78rem; width:auto;" onchange="refreshCurrentStatement()">
+                <option value="all">All Time</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="month">This Month</option>
+            </select>
+            <button class="close-btn" onclick="closeModal('ledger-statement-modal')">✕</button>
+        </div>
     </div>
-    
-    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow-x:auto; background:#94a3b8; padding:10px;">
-        <div id="ledger-statement-render" style="width:800px; min-width:800px; background:#ffffff; padding:40px; margin:0;">
-            <div style="text-align:center; margin-bottom:25px;">
-                <h2 style="margin:0; font-size:24px; color:#1a1f36;">Rabi Kapada Pasal</h2>
-                <p style="margin:5px 0 0 0; font-size:14px; color:#4a5280;">Statement of Account</p>
-                <div style="margin-top:20px; padding:15px; background:#f7f9ff; border-left:4px solid #8b5cf6; text-align:left; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <p style="margin:0; font-size:12px; font-weight:bold; color:#8892b0;">CUSTOMER:</p>
-                        <p style="margin:2px 0 0 0; font-size:18px; font-weight:bold; color:#1a1f36;" id="ls-cust-name"></p>
-                        <p style="margin:2px 0 0 0; font-size:14px; color:#4a5280;" id="ls-cust-sub"></p>
-                    </div>
-                    <div style="text-align:right;">
-                        <p style="margin:0; font-size:11px; font-weight:bold; color:#8892b0;">NET CLOSING BAKI</p>
-                        <p style="margin:2px 0 0 0; font-size:20px; font-weight:800; color:#dc2626;" id="ls-closing-bal">NRS 0</p>
-                    </div>
+
+    <div class="modal-body" id="ls-modal-body" style="flex:1; overflow:auto; background:#e2e8f0; padding:12px;">
+        <div id="ledger-statement-render" style="width:560px; min-width:560px; background:#ffffff; color:#1a1f36; padding:28px 24px; margin:0 auto; box-sizing:border-box; border-radius:6px; box-shadow:0 4px 15px rgba(0,0,0,0.08); font-family:'Plus Jakarta Sans', Arial, sans-serif;">
+            
+            <!-- HEADER -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #f1f5f9; padding-bottom:14px; margin-bottom:16px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px; font-weight:800; color:#1a1f36;">Rabi Kapada Pasal</h2>
+                    <p style="margin:2px 0 0 0; font-size:11.5px; color:#64748b;">Wholesale Garment Manufacturer & Distributor</p>
+                </div>
+                <div style="text-align:right;">
+                    <span style="background:#f5f3ff; color:#6d28d9; font-size:10.5px; font-weight:800; padding:4px 10px; border-radius:20px; letter-spacing:0.5px;">ACCOUNT STATEMENT</span>
+                    <p style="margin:5px 0 0 0; font-size:11px; color:#64748b;" id="ls-period-label">Period: All Time</p>
                 </div>
             </div>
-            <table class="items-table" style="width:100%; border-collapse:collapse;">
-                <thead style="background:var(--grad); color:#fff;">
-                    <tr>
-                        <th style="padding:12px; font-size:13px; text-align:left;">Date</th>
-                        <th style="padding:12px; font-size:13px; text-align:left;">Details</th>
-                        <th style="text-align:right; padding:12px; font-size:13px;">Bill (+)</th>
-                        <th style="text-align:right; padding:12px; font-size:13px;">Paid (-)</th>
-                        <th style="text-align:right; padding:12px; font-size:13px;">Balance</th>
+
+            <!-- CUSTOMER & SUMMARY STRIP -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-left:4px solid #4f46e5; border-radius:6px; padding:12px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <p style="margin:0; font-size:9.5px; font-weight:700; color:#8892b0; text-transform:uppercase;">STATEMENT FOR:</p>
+                    <p style="margin:2px 0 0 0; font-size:16px; font-weight:800; color:#1a1f36;" id="ls-cust-name"></p>
+                    <p style="margin:2px 0 0 0; font-size:12px; color:#4a5280;" id="ls-cust-sub"></p>
+                </div>
+                <div style="text-align:right;">
+                    <p style="margin:0; font-size:9.5px; font-weight:700; color:#8892b0; text-transform:uppercase;">NET CLOSING BAKI</p>
+                    <p style="margin:2px 0 0 0; font-size:18px; font-weight:800; color:#dc2626;" id="ls-closing-bal">NRS 0</p>
+                </div>
+            </div>
+
+            <!-- 3-COLUMN KPI TOTALS -->
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:16px;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px;">
+                    <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Billed (+)</div>
+                    <div style="font-size:13.5px; font-weight:800; color:#1a1f36; margin-top:2px;" id="ls-sum-debit">NRS 0</div>
+                </div>
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; padding:8px 10px;">
+                    <div style="font-size:9.5px; font-weight:700; color:#065f46; text-transform:uppercase;">Total Paid (-)</div>
+                    <div style="font-size:13.5px; font-weight:800; color:#059669; margin-top:2px;" id="ls-sum-credit">NRS 0</div>
+                </div>
+                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:8px 10px;">
+                    <div style="font-size:9.5px; font-weight:700; color:#991b1b; text-transform:uppercase;">Balance Due</div>
+                    <div style="font-size:13.5px; font-weight:800; color:#dc2626; margin-top:2px;" id="ls-sum-net">NRS 0</div>
+                </div>
+            </div>
+
+            <!-- LEDGER TABLE -->
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+                <thead>
+                    <tr style="background:#4f46e5; color:#ffffff;">
+                        <th style="padding:8px 8px; text-align:left; width:21%;">Date</th>
+                        <th style="padding:8px 8px; text-align:left; width:35%;">Particulars</th>
+                        <th style="padding:8px 8px; text-align:right; width:14%;">Bill (+)</th>
+                        <th style="padding:8px 8px; text-align:right; width:14%;">Paid (-)</th>
+                        <th style="padding:8px 8px; text-align:right; width:16%;">Balance</th>
                     </tr>
                 </thead>
                 <tbody id="ledger-statement-list"></tbody>
             </table>
+
+            <div style="margin-top:24px; padding-top:10px; border-top:1px dashed #cbd5e1; display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
+                <span>Generated by Rabi Kapada Pasal Cloud Billing</span>
+                <span>E. & O.E.</span>
+            </div>
         </div>
     </div>
-    
-    <div style="padding:15px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; background:var(--surface);">
-        <button class="btn btn-ghost" onclick="closeModal('ledger-statement-modal')">Cancel</button>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-wa" onclick="shareStatementWA()">💬 WA Text</button>
-            <button class="btn btn-green" onclick="shareStatementImageNative()">📤 Share PNG</button>
-            <button class="btn btn-ghost" onclick="downloadLedgerStatementPDF()">📄 PDF</button>
-            <button class="btn btn-primary" onclick="downloadLedgerStatement()" id="ls-download-btn">🖼️ Download PNG</button>
+
+    <div style="padding:12px 16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; background:var(--surface);">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('ledger-statement-modal')">Close</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-wa btn-sm" onclick="shareStatementWA()">💬 WA Text</button>
+            <button class="btn btn-green btn-sm" onclick="shareStatementImageNative()">📤 Share PNG</button>
+            <button class="btn btn-ghost btn-sm" onclick="downloadLedgerStatementPDF()">📄 PDF</button>
+            <button class="btn btn-primary btn-sm" onclick="downloadLedgerStatement()" id="ls-download-btn">🖼️ Save PNG</button>
         </div>
     </div>
   </div>
