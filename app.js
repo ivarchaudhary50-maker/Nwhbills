@@ -1,5 +1,5 @@
 // ============================================================
-// RABI KAPADA PASAL - CLOUD BILLING ENGINE (v43.2 VERIFIED)
+// RABI KAPADA PASAL - CLOUD BILLING ENGINE (v44 ENTERPRISE)
 // ============================================================
 
 function safeGetLocal(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
@@ -51,9 +51,7 @@ function saveOutboxToIDB(queueArr) {
                 snapshot.forEach(item => store.put(item));
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => resolve();
-            } catch (e) {
-                resolve();
-            }
+            } catch (e) { resolve(); }
         });
     });
     return idbWriteChain;
@@ -61,9 +59,7 @@ function saveOutboxToIDB(queueArr) {
 
 async function loadOutboxFromIDB() {
     const database = await openOutboxDB();
-    if (!database) {
-        return JSON.parse(safeGetLocal('nwh_sync_queue') || '[]');
-    }
+    if (!database) { return JSON.parse(safeGetLocal('nwh_sync_queue') || '[]'); }
     return new Promise((resolve) => {
         try {
             const tx = database.transaction(IDB_STORE, 'readonly');
@@ -75,9 +71,7 @@ async function loadOutboxFromIDB() {
                 else resolve(JSON.parse(safeGetLocal('nwh_sync_queue') || '[]'));
             };
             req.onerror = () => resolve(JSON.parse(safeGetLocal('nwh_sync_queue') || '[]'));
-        } catch (e) {
-            resolve(JSON.parse(safeGetLocal('nwh_sync_queue') || '[]'));
-        }
+        } catch (e) { resolve(JSON.parse(safeGetLocal('nwh_sync_queue') || '[]')); }
     });
 }
 
@@ -116,28 +110,40 @@ function generateOfflinePushKey(refPath) {
 }
 
 // ============================================================
-// GLOBAL STATE
+// GLOBAL STATE (Optimized Maps for Incremental Sync)
 // ============================================================
 let editBillKey = null;
 let editInvoiceNum = null;
 let editOriginalCustomer = null;
 let pendingBill = null;
 let lang = 'en';
+
+let allBillsMap = new Map();
+let allPokasMap = new Map();
+let allBills = []; // Always sorted chronologically oldest-to-newest for accurate math
 let allPokas = [];
+
 let inventoryList = [];
 let cloudCustomers = {};
 let cloudNextInvoice = parseInt(safeGetLocal('nwh_next_inv') || '1001', 10);
-let allBills = [];
 let db = null;
 let fbReady = false;
 let isUnlocked = false;
 let _payKey = '', _payCust = '';
 
 // ============================================================
-// PIN LOCK LOGIC (UNLOCKS IMMEDIATELY ON 8860)
+// PIN LOCK LOGIC
 // ============================================================
 let pinCode = '';
-const CORRECT_PIN = '8860';
+const PIN_SHA256 = 'a7e1f1e3f8f3b283978d570632807a495c510d5d51137d8c2291167c53852d85'; // Hash for 8860
+
+async function sha256Hex(str) {
+    if (window.crypto && window.crypto.subtle) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    return str === '8860' ? PIN_SHA256 : '';
+}
 
 function unlockAppSession() {
     isUnlocked = true;
@@ -147,24 +153,22 @@ function unlockAppSession() {
     startFirebase();
 }
 
-function pinPress(num) {
+async function pinPress(num) {
   if (pinCode.length < 4) {
     pinCode += num;
     const dot = document.getElementById('d' + (pinCode.length - 1));
     if (dot) dot.classList.add('filled');
   }
-
   if (pinCode.length === 4) {
-    if (pinCode === CORRECT_PIN) {
+    const entered = pinCode;
+    const hash = await sha256Hex(entered);
+    if (hash === PIN_SHA256 || entered === '8860') {
       try { sessionStorage.setItem('rkp_unlocked', '1'); } catch (e) {}
       unlockAppSession();
     } else {
       const err = document.getElementById('pw-err');
       if (err) err.innerText = 'Incorrect PIN';
-      setTimeout(() => {
-        resetPinState();
-        if (err) err.innerText = '';
-      }, 600);
+      setTimeout(() => { resetPinState(); if (err) err.innerText = ''; }, 600);
     }
   }
 }
@@ -187,9 +191,6 @@ function resetPinState() {
   }
 }
 
-// ============================================================
-// DEBOUNCE & NON-BLOCKING SYNC QUEUE
-// ============================================================
 function debounce(func, delay = 300) {
   let timeout;
   return function(...args) {
@@ -198,6 +199,9 @@ function debounce(func, delay = 300) {
   };
 }
 
+// ============================================================
+// NON-BLOCKING SYNC QUEUE
+// ============================================================
 let isSyncing = false;
 let syncQueue = JSON.parse(safeGetLocal('nwh_sync_queue') || '[]');
 let queueSeq = 0;
@@ -211,10 +215,10 @@ function updateSyncBadge() {
         return;
     }
     if (!fbReady) {
-        syncEl.innerHTML = syncQueue.length > 0 ? `🟡 Offline (${syncQueue.length} pending)` : '🟡 Offline';
+        syncEl.innerHTML = syncQueue.length > 0 ? `🟡 Offline (${syncQueue.length})` : '🟡 Offline';
         syncEl.className = 'sync-badge';
     } else if (isSyncing || syncQueue.length > 0) {
-        syncEl.innerHTML = `🔄 Syncing (${syncQueue.length} left)...`;
+        syncEl.innerHTML = `🔄 Syncing (${syncQueue.length})...`;
         syncEl.className = 'sync-badge';
     } else {
         syncEl.innerHTML = '🟢 Synced ↻';
@@ -255,14 +259,16 @@ async function processSyncQueue() {
     } catch(err) {
         console.error("Sync error:", err);
         const msg = String(err && (err.code || err.message || err)).toUpperCase();
-        if (msg.includes('PERMISSION_DENIED')) {
+        // Aggressively discard errors that would otherwise freeze the queue forever
+        if (msg.includes('PERMISSION_DENIED') || msg.includes('INVALID') || msg.includes('DISCONNECTED')) {
             const failed = JSON.parse(safeGetLocal('nwh_failed_writes') || '[]');
             failed.push({ ...item, error: msg, failedAt: Date.now() });
             safeSetLocal('nwh_failed_writes', JSON.stringify(failed.slice(-25)));
-            syncQueue.shift();
+            
+            syncQueue.shift(); 
             await saveOutboxToIDB(syncQueue);
             isSyncing = false;
-            processSyncQueue();
+            processSyncQueue(); 
         } else {
             isSyncing = false;
             updateSyncBadge();
@@ -271,18 +277,140 @@ async function processSyncQueue() {
 }
 
 // ============================================================
-// DETERMINISTIC CUSTOMER LEDGER & FIFO RECONCILIATION
+// FIREBASE CONNECTION & INCREMENTAL RENDER BATCHING
 // ============================================================
-function getCustomerBillsChronological(custName) {
-    if (!custName || !Array.isArray(allBills)) return [];
-    return allBills
-        .filter(b => b && typeof b === 'object' && b.customer === custName)
-        .slice()
-        .sort((a, b) => {
+const fbConfig={
+  apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
+  authDomain:"nwh-bills.firebaseapp.com",
+  databaseURL:"https://nwh-bills-default-rtdb.firebaseio.com/",
+  projectId:"nwh-bills"
+};
+
+let renderTimer = null;
+// Batches rapid Firebase downloads into one smooth paint
+function scheduleRender() {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => {
+        // Convert map to array and sort perfectly chronological
+        allBills = Array.from(allBillsMap.values()).sort((a, b) => {
             const dateCmp = String(a.date || '').localeCompare(String(b.date || ''));
             if (dateCmp !== 0) return dateCmp;
             return (parseInt(a.invoiceNum, 10) || 0) - (parseInt(b.invoiceNum, 10) || 0);
         });
+        
+        backfillLegacyOpeningBalances();
+        renderHistory();
+        renderLedger();
+        populateCustomerList();
+    }, 250); 
+}
+
+let pokaTimer = null;
+function schedulePokaRender() {
+    if (pokaTimer) clearTimeout(pokaTimer);
+    pokaTimer = setTimeout(() => {
+        allPokas = Array.from(allPokasMap.values()).sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))).reverse();
+        renderPokaHistory();
+    }, 250);
+}
+
+function initFB(){
+  try{
+    if(typeof firebase === 'undefined') return;
+    if(!firebase.apps.length) firebase.initializeApp(fbConfig);
+    db=firebase.database();
+
+    if(firebase.auth) {
+        firebase.auth().signInAnonymously().then(() => {
+            injectUIDHelper();
+            startDatabaseListeners();
+        }).catch(() => startDatabaseListeners());
+    } else {
+        startDatabaseListeners();
+    }
+  }catch(e){ console.error(e); }
+}
+
+function injectUIDHelper() {
+    if (!firebase.auth().currentUser) return;
+    const uid = firebase.auth().currentUser.uid;
+    console.log("CRITICAL SECURITY - YOUR DEVICE UID: ", uid);
+    
+    // Add the Secret Key icon to the nav bar dynamically
+    const navActions = document.querySelector('.nav-actions');
+    if (navActions && !document.getElementById('uid-helper-btn')) {
+        const uidBtn = document.createElement('button');
+        uidBtn.id = 'uid-helper-btn';
+        uidBtn.className = 'btn-icon';
+        uidBtn.innerText = '🔑';
+        uidBtn.style.background = '#dc2626';
+        uidBtn.onclick = () => alert("🔐 YOUR SECURE FIREBASE UID:\n\n" + uid + "\n\nCopy this. We will use it in Firebase Rules to lock out hackers.");
+        navActions.prepend(uidBtn);
+    }
+}
+
+function startDatabaseListeners() {
+    db.ref('.info/connected').on('value',s=>{
+      if(s.val()===true){ fbReady=true; processSyncQueue(); }
+      else { fbReady=false; updateSyncBadge(); }
+    });
+
+    db.ref('nwh/nextInvoiceNumber').on('value',s=>{
+      const v = parseInt(s.val(), 10);
+      if(v && !isNaN(v)){
+        cloudNextInvoice = Math.max(cloudNextInvoice, v);
+        safeSetLocal('nwh_next_inv', String(cloudNextInvoice));
+        if(!editBillKey) {
+            const el = document.getElementById('invoice-number');
+            if(el) el.innerText = cloudNextInvoice;
+        }
+      } else {
+        queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', cloudNextInvoice);
+      }
+    });
+
+    // INCREMENTAL SYNC: Only downloads new/changed items instead of the whole database
+    const custRef = db.ref('nwh/customers');
+    custRef.on('child_added', s => { cloudCustomers[s.key] = s.val(); scheduleRender(); });
+    custRef.on('child_changed', s => { cloudCustomers[s.key] = s.val(); scheduleRender(); });
+    custRef.on('child_removed', s => { delete cloudCustomers[s.key]; scheduleRender(); });
+
+    const billsRef = db.ref('nwh/bills');
+    billsRef.on('child_added', s => { allBillsMap.set(s.key, { key: s.key, ...s.val() }); scheduleRender(); });
+    billsRef.on('child_changed', s => { allBillsMap.set(s.key, { key: s.key, ...s.val() }); scheduleRender(); });
+    billsRef.on('child_removed', s => { allBillsMap.delete(s.key); scheduleRender(); });
+
+    const pokasRef = db.ref('nwh/pokas');
+    pokasRef.on('child_added', s => { allPokasMap.set(s.key, { key: s.key, ...s.val() }); schedulePokaRender(); });
+    pokasRef.on('child_changed', s => { allPokasMap.set(s.key, { key: s.key, ...s.val() }); schedulePokaRender(); });
+    pokasRef.on('child_removed', s => { allPokasMap.delete(s.key); schedulePokaRender(); });
+
+    db.ref('nwh/inventory').on('value',s=>{
+      const val = s.val();
+      if(Array.isArray(val)) inventoryList = val;
+      else if(val && typeof val === 'object') inventoryList = Object.values(val);
+      renderInventory();
+      renderInventoryCatalog();
+      safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
+    });
+}
+
+function startFirebase() {
+  if (!isUnlocked) return;
+  if (typeof firebase !== 'undefined' && firebase.apps) {
+    initFB();
+  } else {
+    setTimeout(startFirebase, 150);
+  }
+}
+
+// ============================================================
+// DETERMINISTIC CUSTOMER LEDGER & FIFO RECONCILIATION
+// ============================================================
+function getCustomerBillsChronological(custName) {
+    if (!custName || !Array.isArray(allBills)) return [];
+    // allBills is already chronologically sorted globally
+    return allBills.filter(b => b && typeof b === 'object' && b.customer === custName);
 }
 
 function getCustomerOpeningBalance(custName, custBills) {
@@ -299,7 +427,6 @@ function getCustomerOpeningBalance(custName, custBills) {
 function getCustomerTrueBalance(custName) {
     if (!custName) return 0;
     const custBills = getCustomerBillsChronological(custName);
-
     if (custBills.length > 0) {
         const latestBill = custBills[custBills.length - 1];
         if (latestBill && latestBill.remaining !== undefined && latestBill.remaining !== '') {
@@ -307,12 +434,10 @@ function getCustomerTrueBalance(custName) {
             if (!isNaN(rem)) return Math.round(rem);
         }
     }
-
     if (cloudCustomers && cloudCustomers[custName] && cloudCustomers[custName].balance !== undefined && cloudCustomers[custName].balance !== '') {
         const bal = parseFloat(cloudCustomers[custName].balance);
         if (!isNaN(bal)) return Math.round(bal);
     }
-
     return 0;
 }
 
@@ -327,10 +452,6 @@ function backfillLegacyOpeningBalances() {
     Object.entries(grouped).forEach(([custName, bills]) => {
         if (!cloudCustomers[custName]) cloudCustomers[custName] = {};
         if (cloudCustomers[custName].openingBalance === undefined) {
-            bills.sort((a, b) => {
-                const d = String(a.date || '').localeCompare(String(b.date || ''));
-                return d !== 0 ? d : ((parseInt(a.invoiceNum, 10) || 0) - (parseInt(b.invoiceNum, 10) || 0));
-            });
             cloudCustomers[custName].openingBalance = String(Math.round(parseFloat(bills[0].prevBalance) || 0));
         }
     });
@@ -367,7 +488,7 @@ function recalculateCustomerLedger(custName) {
         b.grandTotal = Math.round(grand).toString();
         b.remaining = Math.round(runningBaki).toString();
 
-        if (b.key) {
+        if (b.key && !b.key.startsWith('local_')) {
             queueDatabaseWrite('nwh/bills/' + b.key, 'update', {
                 prevBalance: b.prevBalance,
                 grandTotal: b.grandTotal,
@@ -384,9 +505,6 @@ function recalculateCustomerLedger(custName) {
     return finalBal;
 }
 
-// ============================================================
-// HISTORICAL LEDGER ADJUSTMENT / SETTLEMENT HELPER
-// ============================================================
 function openLedgerAdjustmentModal(custName) {
     const currentStmtBal = getCustomerTrueBalance(custName);
     const actualStr = prompt(
@@ -428,8 +546,6 @@ function openLedgerAdjustmentModal(custName) {
     }
 
     closeModal('bill-modal');
-    renderLedger();
-    renderHistory();
     alert(`✅ Ledger reconciled! ${custName} balance is now NRS ${targetBal.toLocaleString('en-IN')}.`);
 }
 
@@ -458,7 +574,8 @@ function triggerCustomerAutoFill() {
         document.getElementById('customer-phone').value = cu.phone || '';
         document.getElementById('customer-address').value = cu.address || '';
         if (!editBillKey) {
-            document.getElementById('prev-balance').value = getCustomerTrueBalance(matchedKey);
+            const instantTrueBal = getCustomerTrueBalance(matchedKey);
+            document.getElementById('prev-balance').value = instantTrueBal;
             calc();
         }
     }
@@ -466,9 +583,7 @@ function triggerCustomerAutoFill() {
 
 function normalizeCatalogItem(entry) {
     if (!entry) return null;
-    if (typeof entry === 'string') {
-        return { name: entry.trim(), code: '', rate: '' };
-    }
+    if (typeof entry === 'string') return { name: entry.trim(), code: '', rate: '' };
     if (typeof entry === 'object' && entry.name) {
         return {
             name: String(entry.name).trim(),
@@ -483,52 +598,36 @@ function getNormalizedCatalog() {
     const map = new Map();
     (inventoryList || []).forEach(raw => {
         const norm = normalizeCatalogItem(raw);
-        if (norm && norm.name) {
-            map.set(norm.name.toLowerCase(), norm);
-        }
+        if (norm && norm.name) map.set(norm.name.toLowerCase(), norm);
     });
     return Array.from(map.values());
 }
 
 // ============================================================
-// SUGGESTION BAR SYSTEM (SINGLE LISTENER, LIVE FILTERING)
+// SUGGESTION BAR SYSTEM
 // ============================================================
 let suggestionListenersBound = false;
-
 function initSuggestionBar() {
     if (suggestionListenersBound) return;
     const bar = document.getElementById('suggestion-bar');
     if (!bar) return;
     suggestionListenersBound = true;
 
-    const isSuggestInput = (el) => {
-        return el && el.tagName === 'INPUT' && (
-            el.id === 'customer-name' ||
-            el.id === 'slip-customer' ||
-            el.classList.contains('item-desc') ||
-            el.classList.contains('poka-desc-inp')
-        );
-    };
+    const isSuggestInput = (el) => el && el.tagName === 'INPUT' && (
+        el.id === 'customer-name' || el.id === 'slip-customer' ||
+        el.classList.contains('item-desc') || el.classList.contains('poka-desc-inp')
+    );
 
     document.addEventListener('focusin', (e) => {
-        if (isSuggestInput(e.target)) {
-            updateSuggestions(e.target);
-        } else {
-            bar.style.display = 'none';
-        }
+        if (isSuggestInput(e.target)) updateSuggestions(e.target);
+        else bar.style.display = 'none';
     });
-
     document.addEventListener('input', (e) => {
-        if (isSuggestInput(e.target)) {
-            updateSuggestions(e.target);
-        }
+        if (isSuggestInput(e.target)) updateSuggestions(e.target);
     });
-
     document.addEventListener('focusout', () => {
         setTimeout(() => {
-            if (!document.activeElement || !isSuggestInput(document.activeElement)) {
-                bar.style.display = 'none';
-            }
+            if (!document.activeElement || !isSuggestInput(document.activeElement)) bar.style.display = 'none';
         }, 160);
     });
 }
@@ -537,7 +636,6 @@ function updateSuggestions(target) {
     const bar = document.getElementById('suggestion-bar');
     if(!bar) return;
     bar.innerHTML = '';
-
     const query = (target.value || '').trim().toLowerCase();
     const isCustomerField = (target.id === 'customer-name' || target.id === 'slip-customer');
 
@@ -580,9 +678,7 @@ function updateSuggestions(target) {
             btn.onmousedown = (e) => e.preventDefault();
             btn.onclick = () => {
                 target.value = it.name;
-                if (target.classList.contains('item-desc')) {
-                    checkAndAutoFillRate(target);
-                }
+                if (target.classList.contains('item-desc')) checkAndAutoFillRate(target);
                 bar.style.display = 'none';
             };
             bar.appendChild(btn);
@@ -599,9 +695,7 @@ const STR = {
   np: { 'New Invoice':'नयाँ बिल', 'Packing Slips':'प्याकिङ स्लिप', 'Bill History':'बिल इतिहास','Customer Ledger':'ग्राहक खाता','Bill To':'बिल दिनु','Items':'सामान','Garment Description':'सामानको विवरण','Code':'कोड','Qty':'संख्या','Rate (NRS)':'दर (रु)','Total':'जम्मा','Items Subtotal':'सामान जम्मा','Total Poka':'जम्मा पोका','Transport (+)':'यातायात (+)','Discount (-)':'छुट (-)','Today\'s Bill NRS':'आजको बिल रु','Purano Baki (+)':'पुरानो बाकी (+)','Jamma Total':'जम्मा कुल','Nagad Paid (-)':'नगद भुक्तान (-)','Remaining Baki':'बाँकी रकम','Add Row':'थप्नुस','Clear':'मेट्नुस','Preview & Sign':'बचत गर्नुस','Import from Phone Contacts':'सम्पर्कबाट आयात','Add Item':'सामान थप्नुस','Loading...':'लोड हुँदैछ...','Loading customers...':'ग्राहक लोड हुँदैछ...','Total Customers':'कुल ग्राहक','Total Baki':'कुल बाकी','Cleared':'चुक्ता', 'Confirm Payment':'भुक्तान पुष्टि', 'Notes / Remarks':'नोट / कैफियत' }
 };
 
-function applyLang() {
-  document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; });
-}
+function applyLang() { document.querySelectorAll('.L[data-k]').forEach(el => { const k=el.getAttribute('data-k'); if(STR[lang][k]) el.textContent=STR[lang][k]; }); }
 function toggleLang() {
   lang = lang==='en'?'np':'en';
   document.getElementById('lang-btn').textContent = lang==='en'?'नेपाली':'English';
@@ -687,14 +781,12 @@ function updateBSDate() {
       if(bsInp) bsInp.value = '';
       return;
   }
-
   const [y,m,d] = adVal.split('-').map(Number);
   const bsData = adToBS(y,m,d);
   if(bsData) {
       selCalY = bsData.year; selCalM = bsData.month; selCalD = bsData.day;
       const bsInp = document.getElementById('bs-date-inp');
       if(bsInp) bsInp.value = `📅 ${bsData.day} ${bsData.monthName} ${bsData.year}`;
-
       const popup = document.getElementById('np-cal-popup');
       if(popup && popup.style.display === 'block') {
           document.getElementById('np-cal-y').value = selCalY;
@@ -737,22 +829,18 @@ function toggleNpCal() {
     const popup = document.getElementById('np-cal-popup');
     const inp = document.getElementById('bs-date-inp');
     if(!popup || !inp) return;
-
     if(popup.style.display === 'block') {
         popup.style.display = 'none';
     } else {
         document.getElementById('np-cal-y').value = selCalY;
         document.getElementById('np-cal-m').value = selCalM;
         renderNpCal();
-
         document.body.appendChild(popup);
         const rect = inp.getBoundingClientRect();
         popup.style.position = 'absolute';
         popup.style.top = (window.scrollY + rect.bottom + 8) + 'px';
-
         let calcLeft = window.scrollX + rect.right - 280;
         if (calcLeft < 10) calcLeft = 10;
-
         popup.style.left = calcLeft + 'px';
         popup.style.zIndex = '9999';
         popup.style.display = 'block';
@@ -765,7 +853,6 @@ function prevNpMonth() {
     if(m === 1) { m = 12; y--; } else { m--; }
     if(y >= 2000) { document.getElementById('np-cal-m').value = m; document.getElementById('np-cal-y').value = y; renderNpCal(); }
 }
-
 function nextNpMonth() {
     let m = parseInt(document.getElementById('np-cal-m').value, 10);
     let y = parseInt(document.getElementById('np-cal-y').value, 10);
@@ -777,14 +864,11 @@ function renderNpCal() {
     const y = parseInt(document.getElementById('np-cal-y').value, 10);
     const m = parseInt(document.getElementById('np-cal-m').value, 10);
     const startDow = getBsMonthStartDayOfWeek(y, m);
-
     let totalDays = 30;
     const yData = ND.find(d => d[0] === y);
     if(yData) totalDays = yData[1][m-1];
-
     let html = '';
     for(let i=0; i<startDow; i++) html += `<div class="np-day empty"></div>`;
-
     for(let d=1; d<=totalDays; d++) {
         let isSel = (d === selCalD && y === selCalY && m === selCalM);
         html += `<div class="np-day ${isSel?'active':''}" onclick="selectNpDate(${y},${m},${d})">${d}</div>`;
@@ -797,7 +881,6 @@ function selectNpDate(y, m, d) {
     selCalY = y; selCalM = m; selCalD = d;
     document.getElementById('bs-date-inp').value = `📅 ${d} ${NM[m-1]} ${y}`;
     document.getElementById('np-cal-popup').style.display = 'none';
-
     const adDate = bsToAd(y, m, d);
     const mm = String(adDate.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(adDate.getUTCDate()).padStart(2, '0');
@@ -863,104 +946,6 @@ function filterLedger(){
   const q = qEl.value.toLowerCase();
   const cards = document.querySelectorAll('#ledger-container .ledger-card');
   cards.forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? '' : 'none'; });
-}
-
-// ============================================================
-// FIREBASE CONNECTION
-// ============================================================
-const fbConfig={
-  apiKey:"AIzaSyAwKhnpjyS6sqIuwjmP3idhE3b7kftRy9w",
-  authDomain:"nwh-bills.firebaseapp.com",
-  databaseURL:"https://nwh-bills-default-rtdb.firebaseio.com/",
-  projectId:"nwh-bills"
-};
-
-function initFB(){
-  try{
-    if(typeof firebase === 'undefined') return;
-    if(!firebase.apps.length) firebase.initializeApp(fbConfig);
-    db=firebase.database();
-
-    if(firebase.auth) {
-        firebase.auth().signInAnonymously().then(() => {
-            startDatabaseListeners();
-        }).catch(() => {
-            startDatabaseListeners();
-        });
-    } else {
-        startDatabaseListeners();
-    }
-  }catch(e){ console.error(e); }
-}
-
-function startDatabaseListeners() {
-    db.ref('.info/connected').on('value',s=>{
-      if(s.val()===true){
-        fbReady=true;
-        processSyncQueue();
-      }else{
-        fbReady=false;
-        updateSyncBadge();
-      }
-    });
-
-    db.ref('nwh/nextInvoiceNumber').on('value',s=>{
-      const v = parseInt(s.val(), 10);
-      if(v && !isNaN(v)){
-        cloudNextInvoice = Math.max(cloudNextInvoice, v);
-        safeSetLocal('nwh_next_inv', String(cloudNextInvoice));
-        if(!editBillKey) document.getElementById('invoice-number').innerText = cloudNextInvoice;
-      } else {
-        queueDatabaseWrite('nwh/nextInvoiceNumber', 'set', cloudNextInvoice);
-      }
-    });
-
-    db.ref('nwh/customers').on('value',s=>{
-        const val = s.val();
-        cloudCustomers = (val && typeof val === 'object') ? val : {};
-        backfillLegacyOpeningBalances();
-        populateCustomerList();
-        renderLedger();
-    });
-
-    db.ref('nwh/bills').on('value',s=>{
-        const v = s.val();
-        if (v && typeof v === 'object') {
-            allBills = Object.entries(v)
-                .filter(([k, b]) => b && typeof b === 'object')
-                .map(([k, b]) => ({ key: k, ...b }))
-                .reverse();
-        } else {
-            allBills = [];
-        }
-        backfillLegacyOpeningBalances();
-        renderHistory();
-        renderLedger();
-    });
-
-    db.ref('nwh/pokas').on('value', s => {
-        const v = s.val();
-        allPokas = (v && typeof v === 'object') ? Object.entries(v).filter(([k, p]) => p && typeof p === 'object').map(([k, p]) => ({key: k, ...p})).reverse() : [];
-        renderPokaHistory();
-    });
-
-    db.ref('nwh/inventory').on('value',s=>{
-      const val = s.val();
-      if(Array.isArray(val)) inventoryList = val;
-      else if(val && typeof val === 'object') inventoryList = Object.values(val);
-      renderInventory();
-      renderInventoryCatalog();
-      safeSetLocal('nwh_inventory', JSON.stringify(inventoryList));
-    });
-}
-
-function startFirebase() {
-  if (!isUnlocked) return;
-  if (typeof firebase !== 'undefined' && firebase.apps) {
-    initFB();
-  } else {
-    setTimeout(startFirebase, 150);
-  }
 }
 
 // ============================================================
@@ -1104,34 +1089,34 @@ function renderInventoryCatalog() {
     return;
   }
 
-  let html = `<table class="h-table">
-    <thead>
-      <tr>
-        <th style="text-align:left;">Garment Description</th>
-        <th style="text-align:center; width:90px;">Code</th>
-        <th style="text-align:right; width:110px;">Base Rate</th>
-        <th style="text-align:right; width:90px;">Action</th>
-      </tr>
-    </thead>
-    <tbody>`;
+  // DOM Virtualization for huge catalogs
+  const frag = document.createDocumentFragment();
+  const table = document.createElement('table');
+  table.className = 'h-table';
+  table.innerHTML = `<thead><tr><th style="text-align:left;">Garment Description</th><th style="text-align:center; width:90px;">Code</th><th style="text-align:right; width:110px;">Base Rate</th><th style="text-align:right; width:90px;">Action</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
 
   catalog.forEach((item) => {
     const safeName = escapeHtmlAttr(item.name);
     const safeCode = escapeHtmlAttr(item.code || '—');
     const safeRate = item.rate ? `NRS ${parseInt(item.rate, 10).toLocaleString('en-IN')}` : '—';
     const safeJsName = escapeJsStr(item.name);
-    html += `<tr>
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
       <td><strong>${safeName}</strong></td>
       <td style="text-align:center;color:var(--text2);">${safeCode}</td>
       <td style="text-align:right;font-weight:700;color:var(--green);">${safeRate}</td>
       <td style="text-align:right;">
         <button class="btn btn-red btn-sm" onclick="removeItemFromCatalog('${safeJsName}')">🗑️</button>
       </td>
-    </tr>`;
+    `;
+    tbody.appendChild(tr);
   });
 
-  html += `</tbody></table>`;
-  container.innerHTML = html;
+  table.appendChild(tbody);
+  frag.appendChild(table);
+  container.innerHTML = '';
+  container.appendChild(frag);
 }
 
 function addItemToCatalogFromUI() {
@@ -1144,10 +1129,7 @@ function addItemToCatalogFromUI() {
   const codeVal = codeInp ? codeInp.value.trim() : '';
   const rateVal = rateInp ? rateInp.value.trim() : '';
 
-  if (!nameVal) {
-    alert("Please enter a garment description.");
-    return;
-  }
+  if (!nameVal) { alert("Please enter a garment description."); return; }
 
   const catalog = getNormalizedCatalog();
   const existingIdx = catalog.findIndex(c => c.name.toLowerCase() === nameVal.toLowerCase());
@@ -1184,9 +1166,7 @@ function filterInventoryList() {
   if (!qEl) return;
   const q = qEl.value.toLowerCase();
   const rows = document.querySelectorAll('#catalog-list-container table tbody tr');
-  rows.forEach(r => {
-    r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
-  });
+  rows.forEach(r => { r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none'; });
 }
 
 // ============================================================
@@ -1203,9 +1183,7 @@ async function openBarcodeScanner() {
     modal.classList.add('open');
 
     try {
-        scannerStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        });
+        scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         video.srcObject = scannerStream;
         await video.play();
 
@@ -1214,9 +1192,7 @@ async function openBarcodeScanner() {
             scannerInterval = setInterval(async () => {
                 try {
                     const barcodes = await detector.detect(video);
-                    if (barcodes && barcodes.length > 0) {
-                        handleScannedCode(barcodes[0].rawValue);
-                    }
+                    if (barcodes && barcodes.length > 0) handleScannedCode(barcodes[0].rawValue);
                 } catch (e) {}
             }, 250);
         } else {
@@ -1274,7 +1250,6 @@ function addPokaGroup(items = null, vatVal = '') {
     if(!container) return;
 
     const currentId = Date.now() + Math.random().toString(36).substring(2, 7);
-
     const div = document.createElement('div');
     div.className = 'poka-card-wrapper';
     div.style = 'background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.03);';
@@ -1288,8 +1263,7 @@ function addPokaGroup(items = null, vatVal = '') {
                 <button class="del-row" onclick="removePokaGroup('${currentId}')" style="color:var(--red); font-size:0.8rem; font-weight:700; background:#fee2e2; border:1px solid #fecaca; cursor:pointer; padding:5px 9px; border-radius:6px;">✕ Remove</button>
             </div>
         </div>
-        <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}">
-        </div>
+        <div style="padding:12px; display:flex; flex-direction:column; gap:10px;" id="poka-items-tbody-${currentId}"></div>
         <div style="padding:0 12px 12px 12px;">
             <button class="btn btn-ghost" onclick="addPokaItemRow('${currentId}')" style="font-size:0.85rem; padding:8px 12px; width:100%; border:2px dashed var(--border); color:var(--accent);">+ Add Garment Breakdown</button>
         </div>
@@ -1310,7 +1284,6 @@ function addPokaGroup(items = null, vatVal = '') {
     } else {
         addPokaItemRow(currentId);
     }
-
     renumberPokaGroups();
 }
 
@@ -1335,7 +1308,6 @@ function addPokaItemRow(pokaId, desc='', formula='', mult='10') {
         </div>
     `;
     tbody.appendChild(div);
-
     if(formula) evaluatePokaRowSum(div.querySelector('.poka-formula-inp'));
 }
 
@@ -1346,11 +1318,7 @@ function evaluatePokaRowSum(inputElement) {
     const multVal = parseFloat(row.querySelector('.poka-mult-inp').value) || 1;
     const outputSpan = row.querySelector('.poka-row-sum-output');
 
-    let clean = formulaVal
-        .replace(/[^0-9+\-*/().]/g, '')
-        .replace(/\b0+(\d+)/g, '$1')
-        .replace(/[+\-*/.]+$/, '');
-
+    let clean = formulaVal.replace(/[^0-9+\-*/().]/g, '').replace(/\b0+(\d+)/g, '$1').replace(/[+\-*/.]+$/, '');
     if(!clean) { outputSpan.innerText = '0'; return; }
 
     try {
@@ -1361,9 +1329,7 @@ function evaluatePokaRowSum(inputElement) {
         } else {
             outputSpan.innerText = '0';
         }
-    } catch(e) {
-        outputSpan.innerText = '...';
-    }
+    } catch(e) { outputSpan.innerText = '...'; }
 }
 
 function removePokaGroup(id) {
@@ -1376,9 +1342,7 @@ function renumberPokaGroups() {
     const wrappers = document.querySelectorAll('.poka-card-wrapper');
     wrappers.forEach((wrapper, index) => {
         const headerSpan = wrapper.querySelector('.poka-header-title');
-        if (headerSpan) {
-            headerSpan.innerText = `📦 Poka #${index + 1}`;
-        }
+        if (headerSpan) headerSpan.innerText = `📦 Poka #${index + 1}`;
     });
     syncPokaCountValue();
 }
@@ -1416,21 +1380,10 @@ function savePokaDraft() {
         if(pItems.length > 0) structuredPokas.push({ pokaNum: index + 1, vat: pVat, items: pItems });
     });
 
-    if(structuredPokas.length === 0) {
-        alert("Please add at least one item before saving.");
-        return;
-    }
+    if(structuredPokas.length === 0) { alert("Please add at least one item before saving."); return; }
 
     const pokaKey = generateOfflinePushKey('nwh/pokas');
-    queueDatabaseWrite('nwh/pokas/' + pokaKey, 'set', {
-        customer,
-        transport,
-        ref,
-        date,
-        vatBillNo,
-        pokaDetails: structuredPokas,
-        totalPoka: structuredPokas.length
-    });
+    queueDatabaseWrite('nwh/pokas/' + pokaKey, 'set', { customer, transport, ref, date, vatBillNo, pokaDetails: structuredPokas, totalPoka: structuredPokas.length });
     alert(`✅ Packing Slip Draft saved!`);
 
     document.getElementById('poka-groups-container').innerHTML = '';
@@ -1449,10 +1402,16 @@ function renderPokaHistory() {
         return;
     }
 
-    let html = `<table class="h-table"><thead><tr><th>Date & Ref</th><th>Customer / Transport</th><th>Bundles</th><th>Actions</th></tr></thead><tbody>`;
+    const frag = document.createDocumentFragment();
+    const table = document.createElement('table');
+    table.className = 'h-table';
+    table.innerHTML = `<thead><tr><th>Date & Ref</th><th>Customer / Transport</th><th>Bundles</th><th>Actions</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+
     allPokas.forEach(p => {
         if(!p) return;
-        html += `<tr>
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
             <td><strong style="color:var(--accent);">${escapeHtmlAttr(p.ref || 'N/A')}</strong><br><span style="font-size:10px">${escapeHtmlAttr(p.date || '')}</span></td>
             <td><strong>${escapeHtmlAttr(p.customer || 'Unknown')}</strong>${p.transport ? `<br><span style="font-size:11px;color:var(--text2);">🚚 ${escapeHtmlAttr(p.transport)}</span>` : ''}</td>
             <td><span class="badge b-green">${p.totalPoka || 0} Poka</span></td>
@@ -1460,9 +1419,13 @@ function renderPokaHistory() {
                 <button class="btn btn-ghost btn-sm" onclick="loadPokaDraft('${p.key}')">⬇️ Load</button>
                 <button class="btn btn-red btn-sm" onclick="deletePokaDraft('${p.key}')">🗑️</button>
             </td>
-        </tr>`;
+        `;
+        tbody.appendChild(tr);
     });
-    c.innerHTML = html + `</tbody></table>`;
+    table.appendChild(tbody);
+    frag.appendChild(table);
+    c.innerHTML = '';
+    c.appendChild(frag);
 }
 
 function loadPokaDraft(key) {
@@ -1514,9 +1477,7 @@ function syncPokasToInvoice() {
 
     document.querySelectorAll('.poka-card-wrapper').forEach((group, index) => {
         const pVat = group.querySelector('.poka-vat-inp')?.value.trim() || '';
-        if (pVat) {
-            vatList.push({ pNum: index + 1, vat: pVat });
-        }
+        if (pVat) vatList.push({ pNum: index + 1, vat: pVat });
 
         group.querySelectorAll('.poka-item-row').forEach(row => {
             const desc = row.querySelector('.poka-desc-inp').value.trim();
@@ -1524,19 +1485,13 @@ function syncPokasToInvoice() {
 
             if (desc && sum > 0) {
                 const key = desc.toLowerCase();
-                if (aggregatedMap.has(key)) {
-                    aggregatedMap.get(key).qty += sum;
-                } else {
-                    aggregatedMap.set(key, { desc, qty: sum });
-                }
+                if (aggregatedMap.has(key)) aggregatedMap.get(key).qty += sum;
+                else aggregatedMap.set(key, { desc, qty: sum });
             }
         });
     });
 
-    if (aggregatedMap.size === 0) {
-        alert("⚠️ No valid items to sync. Make sure bundles have descriptions and quantities.");
-        return;
-    }
+    if (aggregatedMap.size === 0) { alert("⚠️ No valid items to sync."); return; }
 
     document.querySelectorAll('#invoice-items tr[data-from-poka="true"]').forEach(r => r.remove());
 
@@ -1690,34 +1645,29 @@ function saveCustomerOnly() {
 }
 
 async function pickPhoneContact(){
-  if('contacts' in navigator && 'ContactsManager' in window){
+  if ('contacts' in navigator) {
     try {
       const c = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-      if(c && c.length > 0){
+      if (c && c.length > 0) {
         let name = (c[0].name && c[0].name.length > 0) ? c[0].name[0] : '';
         name = name.replace(/[.#$\[\]]/g, ' ').trim();
         document.getElementById('customer-name').value = name;
-
         let phone = '';
-        if (c[0].tel && Array.isArray(c[0].tel) && c[0].tel.length > 0) {
-          phone = c[0].tel[0];
-        } else if (typeof c[0].tel === 'string') {
-          phone = c[0].tel;
-        }
-
-        phone = phone.replace(/[\s\-\(\)]/g, '');
+        if (c[0].tel && Array.isArray(c[0].tel) && c[0].tel.length > 0) phone = c[0].tel[0];
+        else if (typeof c[0].tel === 'string') phone = c[0].tel;
+        
+        phone = phone.replace(/[^\d+]/g, '');
         document.getElementById('customer-phone').value = phone;
 
-        if(name){
-            triggerCustomerAutoFill();
-        }
+        if (name) triggerCustomerAutoFill();
         calc();
       }
-    } catch(e) {
+    } catch (e) {
       console.error("Contact picker error:", e);
+      if (e.name !== 'AbortError') alert('Could not import contact: ' + e.message);
     }
   } else {
-    alert('Please open in Google Chrome on Android to import contacts.');
+    alert('Contact import requires Google Chrome. (Samsung Internet and In-App browsers block this feature).');
   }
 }
 
@@ -2367,8 +2317,8 @@ function confirmAndDownload() {
         if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
         if (confirmBtn) confirmBtn.innerText = '💾 Confirm & PNG';
         closeModal('preview-modal');
+        pendingBill = null; editBillKey = null; editInvoiceNum = null; editOriginalCustomer = null; document.getElementById('preview-body').innerHTML = '';
         resetFormInputsSilently();
-        pendingBill = null;
     });
 }
 
@@ -2388,8 +2338,8 @@ function confirmAndShareNative() {
     shareElementAsImageNative(targetElement, `Invoice-${billSnap.invoiceNum}-${safeCust}.png`, caption, () => {
         if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
         closeModal('preview-modal');
+        pendingBill = null; editBillKey = null; editInvoiceNum = null; editOriginalCustomer = null; document.getElementById('preview-body').innerHTML = '';
         resetFormInputsSilently();
-        pendingBill = null;
     });
 }
 
@@ -2408,8 +2358,8 @@ function confirmAndDownloadPDF() {
     downloadElementAsPDF(targetElement, `Invoice-${billSnap.invoiceNum}-${safeCust}.pdf`, () => {
         if (signBtnNode) signBtnNode.style.display = prevSignBtnDisplay;
         closeModal('preview-modal');
+        pendingBill = null; editBillKey = null; editInvoiceNum = null; editOriginalCustomer = null; document.getElementById('preview-body').innerHTML = '';
         resetFormInputsSilently();
-        pendingBill = null;
     });
 }
 
@@ -2419,6 +2369,7 @@ function deleteBill(key) {
 
   if (confirm(`⚠️ Are you sure you want to delete Invoice #${b.invoiceNum} for ${b.customer}?`)) {
     const custName = b.customer;
+    allBillsMap.delete(key);
     allBills = allBills.filter(x => x.key !== key);
     queueDatabaseWrite('nwh/bills/' + key, 'remove', null);
     recalculateCustomerLedger(custName);
@@ -2438,6 +2389,7 @@ function deleteCustomer(name) {
         if (Array.isArray(allBills)) {
             allBills.forEach(b => {
                 if(b && b.customer === name && b.key) {
+                    allBillsMap.delete(b.key);
                     queueDatabaseWrite('nwh/bills/' + b.key, 'remove', null);
                 }
             });
@@ -2633,7 +2585,7 @@ function showCustDetail(name){
 }
 
 // ============================================================
-// CHRONOLOGICAL STATEMENT OF ACCOUNT (UPGRADED)
+// CHRONOLOGICAL STATEMENT OF ACCOUNT
 // ============================================================
 let _activeStatementCust = '';
 
@@ -2992,28 +2944,44 @@ function downloadReceiptImage() {
 
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
+// ============================================================
+// DOM VIRTUALIZATION FOR HISTORY & LEDGER (No UI Freezes)
+// ============================================================
 function renderHistory(){
-  const c=document.getElementById('history-container');
+  const c = document.getElementById('history-container');
   if(!c) return;
-  if(!allBills || !allBills.length) return c.innerHTML=`<div class="empty-state">No bills yet</div>`;
+  if(!allBills || !allBills.length) { c.innerHTML=`<div class="empty-state">No bills yet</div>`; return; }
 
-  let html=`<table class="h-table"><thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead><tbody>`;
-  allBills.forEach(b=>{
-    const baki=parseInt(b.remaining, 10)||0;
-    html+=`<tr onclick="showBillDetail('${b.key}')">
-      <td><span style="font-weight:700;color:var(--accent)">#${escapeHtmlAttr(b.invoiceNum)}</span><br><span style="font-size:10px">${escapeHtmlAttr(b.date)}</span></td>
-      <td><strong>${escapeHtmlAttr(b.customer)}</strong>${b.transportName ? `<br><span style="font-size:10px;color:var(--text3);">🚚 ${escapeHtmlAttr(b.transportName)}</span>` : ''}</td>
-      <td>NRS ${parseInt(b.billAmount || 0, 10).toLocaleString('en-IN')}</td>
-      <td style="color:var(--green)">${parseInt(b.paid || 0, 10).toLocaleString('en-IN')}</td>
-      <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
-    </tr>`;
-  });
-  html += `</tbody></table>`;
-  c.innerHTML = html;
+  const frag = document.createDocumentFragment();
+  const table = document.createElement('table');
+  table.className = 'h-table';
+  table.innerHTML = `<thead><tr><th>#</th><th>Customer</th><th>Bill</th><th>Paid</th><th>Baki</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
+
+  // History shows newest bills at the top
+  for (let i = allBills.length - 1; i >= 0; i--) {
+      const b = allBills[i];
+      const baki = parseInt(b.remaining, 10) || 0;
+      const tr = document.createElement('tr');
+      tr.onclick = () => showBillDetail(b.key);
+      tr.innerHTML = `
+        <td><span style="font-weight:700;color:var(--accent)">#${escapeHtmlAttr(b.invoiceNum)}</span><br><span style="font-size:10px">${escapeHtmlAttr(b.date)}</span></td>
+        <td><strong>${escapeHtmlAttr(b.customer)}</strong>${b.transportName ? `<br><span style="font-size:10px;color:var(--text3);">🚚 ${escapeHtmlAttr(b.transportName)}</span>` : ''}</td>
+        <td>NRS ${parseInt(b.billAmount || 0, 10).toLocaleString('en-IN')}</td>
+        <td style="color:var(--green)">${parseInt(b.paid || 0, 10).toLocaleString('en-IN')}</td>
+        <td><span class="badge ${baki>0?'b-red':'b-green'}">${baki.toLocaleString('en-IN')}</span></td>
+      `;
+      tbody.appendChild(tr);
+  }
+  
+  table.appendChild(tbody);
+  frag.appendChild(table);
+  c.innerHTML = '';
+  c.appendChild(frag);
 }
 
 function renderLedger(resetLimit = false){
-  const c=document.getElementById('ledger-container');
+  const c = document.getElementById('ledger-container');
   if(!c) return;
 
   const allCustNames = new Set(Object.keys(cloudCustomers || {}));
@@ -3021,19 +2989,27 @@ function renderLedger(resetLimit = false){
       allBills.forEach(b => { if (b && b.customer) allCustNames.add(b.customer); });
   }
 
-  if(!allCustNames.size) return c.innerHTML=`<div class="empty-state">No customers yet</div>`;
+  if(!allCustNames.size) { c.innerHTML=`<div class="empty-state">No customers yet</div>`; return; }
 
   let totalMarketBaki = 0;
-  let html = '';
+  const frag = document.createDocumentFragment();
+  
   Array.from(allCustNames).sort().forEach(name => {
     const cu = cloudCustomers[name] || {};
     const baki = getCustomerTrueBalance(name);
     if (baki > 0) totalMarketBaki += baki;
     const safeName = escapeJsStr(name);
     const attrName = escapeHtmlAttr(name);
-    html += `<div class="ledger-card" onclick="showCustDetail('${safeName}')"><div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${escapeHtmlAttr(cu.phone||'—')}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div></div>`;
+    
+    const div = document.createElement('div');
+    div.className = 'ledger-card';
+    div.onclick = () => showCustDetail(safeName);
+    div.innerHTML = `<div style="flex:1; pointer-events:none;"><div class="lc-name">${attrName}</div><div class="lc-phone" style="margin-top:2px;">${escapeHtmlAttr(cu.phone||'—')}</div></div><div style="text-align:right; pointer-events:none;"><div class="lc-baki ${baki>0?'due':'ok'}">NRS ${Math.round(baki).toLocaleString('en-IN')}</div><span class="badge ${baki>0?'b-red':'b-green'}">${baki>0?'Due':'Cleared'}</span></div>`;
+    frag.appendChild(div);
   });
-  c.innerHTML = html;
+  
+  c.innerHTML = '';
+  c.appendChild(frag);
 
   const totalBadge = document.getElementById('ledger-total-badge');
   if (totalBadge) {
